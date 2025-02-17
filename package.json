@@ -1,29 +1,52 @@
 {
-    "name": "valyu",
-    "version": "1.0.0",
+    "name": "valyu-js",
+    "version": "1.0.4",
     "description": "We handle the data. You handle the AI.",
-    "main": "index.js",
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "require": "./dist/index.js",
+            "module": "./dist/index.mjs",
+            "import": "./dist/index.mjs"
+        },
+        "./package.json": "./package.json"
+    },
+    "types": "./dist/index.d.ts",
     "scripts": {
-      "test": "node test.js"
+        "build": "tsup",
+        "test": "jest",
+        "prepublishOnly": "npm run build"
     },
     "repository": {
-      "type": "git",
-      "url": "git+https://github.com/ValyuNetwork/valyu-js.git"
+        "type": "git",
+        "url": "git+https://github.com/ValyuNetwork/valyu-js.git"
     },
     "keywords": [
-      "ai",
-      "sdk",
-      "rag",
-      "valyu"
+        "ai",
+        "sdk",
+        "rag",
+        "valyu"
     ],
     "author": "Valyu",
     "license": "MIT",
     "bugs": {
-      "url": "https://github.com/ValyuNetwork/valyu-js/issues"
+        "url": "https://github.com/ValyuNetwork/valyu-js/issues"
     },
     "homepage": "https://valyu.network",
     "dependencies": {
-      "axios": "^1.4.0"
+        "axios": "^1.4.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.24",
+        "@types/jest": "^29.5.12",
+        "typescript": "^5.3.3",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.1.2",
+        "tsup": "^8.0.2"
     }
-  }
-  
+}
