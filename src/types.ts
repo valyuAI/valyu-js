@@ -1,12 +1,25 @@
 export type SearchType = "web" | "proprietary";
 export type FeedbackSentiment = "very good" | "good" | "bad" | "very bad";
+export type DataType = "structured" | "unstructured";
+
+export interface SearchResult {
+  title: string;
+  url: string;
+  content: string;
+  description?: string;
+  source: string;
+  price: number;
+  length: number;
+  relevance_score: number;
+  data_type?: DataType;
+}
 
 export interface SearchResponse {
   success: boolean;
   error?: string;
   tx_id: string | null;
   query: string;
-  results: Array<any>;
+  results: SearchResult[];
   results_by_source: {
     web: number;
     proprietary: number;
@@ -19,4 +32,4 @@ export interface SearchResponse {
 export interface FeedbackResponse {
   success: boolean;
   error?: string;
-} 
+}
