@@ -19,24 +19,33 @@ export class Valyu {
     };
   }
 
-  async context({
-    query,
-    searchType,
-    maxNumResults = 10,
-    queryRewrite = true,
-    similarityThreshold = 0.4,
-    maxPrice = 1,
-    dataSources
-  }: {
-    query: string;
-    searchType: SearchType;
-    maxNumResults?: number;
-    queryRewrite?: boolean;
-    similarityThreshold?: number;
-    maxPrice?: number;
-    dataSources?: string[];
-  }): Promise<SearchResponse> {
+  async context(
+    query: string,
+    options: {
+      searchType: SearchType;
+      maxNumResults?: number;
+      queryRewrite?: boolean;
+      similarityThreshold?: number;
+      maxPrice?: number;
+      dataSources?: string[];
+    } = {
+      searchType: "all",
+      maxNumResults: 10,
+      queryRewrite: true,
+      similarityThreshold: 0.4,
+      maxPrice: 1
+    }
+  ): Promise<SearchResponse> {
     try {
+      const {
+        searchType,
+        maxNumResults = 10,
+        queryRewrite = true,
+        similarityThreshold = 0.4,
+        maxPrice = 1,
+        dataSources
+      } = options;
+
       const payload: Record<string, any> = {
         query,
         search_type: searchType,
@@ -50,11 +59,13 @@ export class Valyu {
         payload.data_sources = dataSources;
       }
 
+
       const response = await axios.post(
         `${this.baseUrl}/knowledge`,
         payload,
         { headers: this.headers }
       );
+
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {

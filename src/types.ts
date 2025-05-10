@@ -1,4 +1,4 @@
-export type SearchType = "web" | "proprietary";
+export type SearchType = "web" | "proprietary" | "all";
 export type FeedbackSentiment = "very good" | "good" | "bad" | "very bad";
 export type DataType = "structured" | "unstructured";
 
