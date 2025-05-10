@@ -22,50 +22,58 @@ export class Valyu {
   async context(
     query: string,
     options: {
-      searchType: SearchType;
+      searchType?: string;
       maxNumResults?: number;
       queryRewrite?: boolean;
       similarityThreshold?: number;
       maxPrice?: number;
       dataSources?: string[];
-    } = {
-      searchType: "all",
-      maxNumResults: 10,
-      queryRewrite: true,
-      similarityThreshold: 0.4,
-      maxPrice: 1
-    }
+    } = {}
   ): Promise<SearchResponse> {
     try {
-      const {
-        searchType,
-        maxNumResults = 10,
-        queryRewrite = true,
-        similarityThreshold = 0.4,
-        maxPrice = 1,
-        dataSources
-      } = options;
+      const defaultSearchType: SearchType = "all";
+      const defaultMaxNumResults = 10;
+      const defaultQueryRewrite = true;
+      const defaultSimilarityThreshold = 0.4;
+      const defaultMaxPrice = 1;
+
+      let finalSearchType: SearchType = defaultSearchType;
+      const providedSearchTypeString = options.searchType?.toLowerCase();
+
+      if (providedSearchTypeString === "web" || providedSearchTypeString === "proprietary" || providedSearchTypeString === "all") {
+        finalSearchType = providedSearchTypeString as SearchType;
+      } else if (options.searchType !== undefined) {
+        return {
+          success: false,
+          error: "Invalid searchType provided. Must be one of: all, web, proprietary",
+          tx_id: null,
+          query,
+          results: [],
+          results_by_source: { web: 0, proprietary: 0 },
+          total_deduction_pcm: 0.0,
+          total_deduction_dollars: 0.0,
+          total_characters: 0
+        };
+      }
 
       const payload: Record<string, any> = {
         query,
-        search_type: searchType,
-        max_num_results: maxNumResults,
-        query_rewrite: queryRewrite,
-        similarity_threshold: similarityThreshold,
-        max_price: maxPrice
+        search_type: finalSearchType,
+        max_num_results: options.maxNumResults ?? defaultMaxNumResults,
+        query_rewrite: options.queryRewrite ?? defaultQueryRewrite,
+        similarity_threshold: options.similarityThreshold ?? defaultSimilarityThreshold,
+        max_price: options.maxPrice ?? defaultMaxPrice,
       };
 
-      if (dataSources !== undefined) {
-        payload.data_sources = dataSources;
+      if (options.dataSources !== undefined) {
+        payload.data_sources = options.dataSources;
       }
-
 
       const response = await axios.post(
         `${this.baseUrl}/knowledge`,
         payload,
         { headers: this.headers }
       );
-
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {
