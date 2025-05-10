@@ -1,7 +1,7 @@
 {
     "name": "valyu-js",
-    "version": "1.0.4",
-    "description": "We handle the data. You handle the AI.",
+    "version": "1.0.6",
+    "description": "DeepSearch API for AI.",
     "files": [
         "dist"
     ],
@@ -20,6 +20,7 @@
     "scripts": {
         "build": "tsup",
         "test": "jest",
+        "test:integration": "node tests/integration-test.js",
         "prepublishOnly": "npm run build"
     },
     "repository": {
@@ -42,11 +43,12 @@
         "axios": "^1.4.0"
     },
     "devDependencies": {
-        "@types/node": "^20.11.24",
         "@types/jest": "^29.5.12",
-        "typescript": "^5.3.3",
+        "@types/node": "^20.11.24",
+        "dotenv": "^16.5.0",
         "jest": "^29.7.0",
         "ts-jest": "^29.1.2",
-        "tsup": "^8.0.2"
+        "tsup": "^8.0.2",
+        "typescript": "^5.3.3"
     }
 }
