@@ -14,6 +14,18 @@ export interface SearchResult {
   data_type?: DataType;
 }
 
+export interface SearchOptions {
+  searchType?: SearchType;
+  maxNumResults?: number;
+  maxPrice?: number;
+  isToolCall?: boolean;
+  relevanceThreshold?: number;
+  includedSources?: string[];
+  category?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface SearchResponse {
   success: boolean;
   error?: string;
