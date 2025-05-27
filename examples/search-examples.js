@@ -2,7 +2,7 @@ require('dotenv').config();
 const { Valyu } = require('../dist/index.js');
 
 async function runExamples() {
-  console.log("Valyu JavaScript SDK v2 API Examples");
+  console.log("Valyu JavaScript SDK Examples");
   console.log("=====================================\n");
 
   const apiKey = process.env.VALYU_API_KEY;
