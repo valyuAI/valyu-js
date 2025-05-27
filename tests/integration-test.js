@@ -13,18 +13,17 @@ async function runTest() {
 
   const valyu = new Valyu(apiKey);
   const testQuery = "What is attention mechanism in deep learning?";
-  const testOptions = {
-    searchType: "all",
-    maxNumResults: 10,
-    maxPrice: 20 
-  };
 
-  console.log(`Attempting to call valyu.context with query: '${testQuery}' and options: ${JSON.stringify(testOptions)}`);
+  console.log(`Attempting to call valyu.context with query: '${testQuery}'`);
 
   try {
-    const response = await valyu.context(
+    const response = await valyu.search(
         testQuery,
-        testOptions
+        {
+          searchType: "all",
+          maxNumResults: 10,
+          maxPrice: 20 
+        }
     );
 
     console.log("Received response:", JSON.stringify(response, null, 2));
