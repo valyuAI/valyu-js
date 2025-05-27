@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SearchResponse, SearchType, FeedbackSentiment, FeedbackResponse, SearchOptions } from './types';
+import { SearchResponse, SearchType, SearchOptions } from './types';
 
 export class Valyu {
   private baseUrl: string;
@@ -136,7 +136,7 @@ export class Valyu {
       }
 
       const response = await axios.post(
-        `${this.baseUrl}/knowledge`,
+        `${this.baseUrl}/deepsearch`,
         payload,
         { headers: this.headers }
       );
@@ -159,7 +159,7 @@ export class Valyu {
     } catch (e: any) {
       return {
         success: false,
-        error: e.message,
+        error: e.response?.data?.error || e.message,
         tx_id: null,
         query,
         results: [],
@@ -167,74 +167,6 @@ export class Valyu {
         total_deduction_pcm: 0.0,
         total_deduction_dollars: 0.0,
         total_characters: 0
-      };
-    }
-  }
-
-  /**
-   * Legacy context method for backward compatibility
-   * @deprecated Use search() method instead
-   */
-  async context(
-    query: string,
-    options: {
-      searchType?: string;
-      maxNumResults?: number;
-      queryRewrite?: boolean;
-      similarityThreshold?: number;
-      maxPrice?: number;
-      dataSources?: string[];
-    } = {}
-  ): Promise<SearchResponse> {
-    console.warn("context() method is deprecated. Please use search() method instead.");
-    
-    // Convert v1 parameters to v2 parameters
-    const v2Options: SearchOptions = {
-      searchType: options.searchType as SearchType,
-      maxNumResults: options.maxNumResults,
-      maxPrice: options.maxPrice,
-      isToolCall: options.queryRewrite, // queryRewrite maps to isToolCall
-      relevanceThreshold: options.similarityThreshold, // similarityThreshold maps to relevanceThreshold
-      includedSources: options.dataSources, // dataSources maps to includedSources
-    };
-
-    return this.search(query, v2Options);
-  }
-
-  async feedback({
-    tx_id,
-    feedback,
-    sentiment
-  }: {
-    tx_id: string;
-    feedback: string;
-    sentiment: FeedbackSentiment;
-  }): Promise<FeedbackResponse> {
-    try {
-      const payload = {
-        tx_id,
-        feedback,
-        sentiment
-      };
-
-      const response = await axios.post(
-        `${this.baseUrl}/feedback`,
-        payload,
-        { headers: this.headers }
-      );
-
-      if (!response.status || response.status < 200 || response.status >= 300) {
-        return {
-          success: false,
-          error: response.data?.error
-        };
-      }
-
-      return response.data;
-    } catch (e: any) {
-      return {
-        success: false,
-        error: e.message
       };
     }
   }
