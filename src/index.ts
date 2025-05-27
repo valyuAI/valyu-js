@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SearchResponse, SearchType, FeedbackSentiment, FeedbackResponse } from './types';
+import { SearchResponse, SearchType, FeedbackSentiment, FeedbackResponse, SearchOptions } from './types';
 
 export class Valyu {
   private baseUrl: string;
@@ -19,24 +19,31 @@ export class Valyu {
     };
   }
 
-  async context(
-    query: string,
-    options: {
-      searchType?: string;
-      maxNumResults?: number;
-      queryRewrite?: boolean;
-      similarityThreshold?: number;
-      maxPrice?: number;
-      dataSources?: string[];
-    } = {}
-  ): Promise<SearchResponse> {
+  /**
+   * Validates date format (YYYY-MM-DD)
+   */
+  private validateDateFormat(date: string): boolean {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return false;
+    }
+    const parsedDate = new Date(date);
+    return parsedDate instanceof Date && !isNaN(parsedDate.getTime());
+  }
+
+  /**
+   * Search for information using the Valyu API v2
+   */
+  async search(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
     try {
+      // Default values for v2 API
       const defaultSearchType: SearchType = "all";
       const defaultMaxNumResults = 10;
-      const defaultQueryRewrite = true;
-      const defaultSimilarityThreshold = 0.4;
-      const defaultMaxPrice = 1;
+      const defaultIsToolCall = true;
+      const defaultRelevanceThreshold = 0.5;
+      const defaultMaxPrice = 30;
 
+      // Validate searchType
       let finalSearchType: SearchType = defaultSearchType;
       const providedSearchTypeString = options.searchType?.toLowerCase();
 
@@ -56,17 +63,76 @@ export class Valyu {
         };
       }
 
+      // Validate date formats
+      if (options.startDate && !this.validateDateFormat(options.startDate)) {
+        return {
+          success: false,
+          error: "Invalid startDate format. Must be YYYY-MM-DD",
+          tx_id: null,
+          query,
+          results: [],
+          results_by_source: { web: 0, proprietary: 0 },
+          total_deduction_pcm: 0.0,
+          total_deduction_dollars: 0.0,
+          total_characters: 0
+        };
+      }
+
+      if (options.endDate && !this.validateDateFormat(options.endDate)) {
+        return {
+          success: false,
+          error: "Invalid endDate format. Must be YYYY-MM-DD",
+          tx_id: null,
+          query,
+          results: [],
+          results_by_source: { web: 0, proprietary: 0 },
+          total_deduction_pcm: 0.0,
+          total_deduction_dollars: 0.0,
+          total_characters: 0
+        };
+      }
+
+      // Validate maxNumResults range
+      const maxNumResults = options.maxNumResults ?? defaultMaxNumResults;
+      if (maxNumResults < 1 || maxNumResults > 20) {
+        return {
+          success: false,
+          error: "maxNumResults must be between 1 and 20",
+          tx_id: null,
+          query,
+          results: [],
+          results_by_source: { web: 0, proprietary: 0 },
+          total_deduction_pcm: 0.0,
+          total_deduction_dollars: 0.0,
+          total_characters: 0
+        };
+      }
+
+      // Build payload with snake_case for API
       const payload: Record<string, any> = {
         query,
         search_type: finalSearchType,
-        max_num_results: options.maxNumResults ?? defaultMaxNumResults,
-        query_rewrite: options.queryRewrite ?? defaultQueryRewrite,
-        similarity_threshold: options.similarityThreshold ?? defaultSimilarityThreshold,
+        max_num_results: maxNumResults,
+        is_tool_call: options.isToolCall ?? defaultIsToolCall,
+        relevance_threshold: options.relevanceThreshold ?? defaultRelevanceThreshold,
         max_price: options.maxPrice ?? defaultMaxPrice,
       };
 
-      if (options.dataSources !== undefined) {
-        payload.data_sources = options.dataSources;
+      // Add optional parameters only if provided
+      if (options.includedSources !== undefined) {
+        payload.included_sources = options.includedSources;
+      }
+
+      if (options.category !== undefined) {
+        payload.category = options.category;
+      }
+
+      if (options.startDate !== undefined) {
+        payload.start_date = options.startDate;
+      }
+
+      if (options.endDate !== undefined) {
+        payload.end_date = options.endDate;
       }
 
       const response = await axios.post(
@@ -103,6 +169,36 @@ export class Valyu {
         total_characters: 0
       };
     }
+  }
+
+  /**
+   * Legacy context method for backward compatibility
+   * @deprecated Use search() method instead
+   */
+  async context(
+    query: string,
+    options: {
+      searchType?: string;
+      maxNumResults?: number;
+      queryRewrite?: boolean;
+      similarityThreshold?: number;
+      maxPrice?: number;
+      dataSources?: string[];
+    } = {}
+  ): Promise<SearchResponse> {
+    console.warn("context() method is deprecated. Please use search() method instead.");
+    
+    // Convert v1 parameters to v2 parameters
+    const v2Options: SearchOptions = {
+      searchType: options.searchType as SearchType,
+      maxNumResults: options.maxNumResults,
+      maxPrice: options.maxPrice,
+      isToolCall: options.queryRewrite, // queryRewrite maps to isToolCall
+      relevanceThreshold: options.similarityThreshold, // similarityThreshold maps to relevanceThreshold
+      includedSources: options.dataSources, // dataSources maps to includedSources
+    };
+
+    return this.search(query, v2Options);
   }
 
   async feedback({
@@ -148,5 +244,6 @@ export type {
   SearchResponse, 
   SearchType, 
   FeedbackSentiment, 
-  FeedbackResponse 
+  FeedbackResponse,
+  SearchOptions
 } from './types'; 
