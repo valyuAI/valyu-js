@@ -13,114 +13,109 @@ async function runExamples() {
 
   const valyu = new Valyu(apiKey);
 
-  // Example 1: Basic Search
-  console.log("1. Basic Search");
-  console.log("---------------");
+  // Search for AI
+  console.log("🔍 AI Search:");
   try {
-    const response = await valyu.search("What is machine learning?");
-    console.log(`Query: "What is machine learning?"`);
-    console.log(`Results: ${response.results.length}`);
-    console.log(`Success: ${response.success}\n`);
+    const response = await valyu.search("what is trans-applifying mRNA");
+    console.log(response);
   } catch (error) {
-    console.error("Basic search failed:", error.message);
+    console.error("AI search failed:", error.message);
   }
 
-  // Example 2: Advanced Search with v2 Parameters
-  console.log("2. Advanced Search with v2 Parameters");
-  console.log("--------------------------------------");
+  // Deep search over academic papers
+  console.log("🔬 Paper Search:");
   try {
     const response = await valyu.search(
-      "agentic search-enhanced large reasoning models",
+      "implementation details of agentic search-enhanced large reasoning models",
       {
         searchType: "proprietary",
         maxNumResults: 10,
         relevanceThreshold: 0.6,
         includedSources: ["valyu/valyu-arxiv"],
-        startDate: "2024-05-01"
+        category: "agentic RAG",
+        startDate: "2024-12-01",
       }
     );
-    console.log(`Query: "agentic search-enhanced large reasoning models"`);
-    console.log(`Search Type: proprietary`);
-    console.log(`Max Results: 10`);
-    console.log(`Relevance Threshold: 0.6`);
-    console.log(`Included Sources: ["valyu/valyu-arxiv"]`);
-    console.log(`Start Date: 2024-05-01`);
-    console.log(`Results: ${response.results.length}`);
-    console.log(`Success: ${response.success}\n`);
+    console.log(response);
   } catch (error) {
-    console.error("Advanced search failed:", error.message);
+    console.error("Paper search failed:", error.message);
   }
 
-  // Example 3: Web Search with Date Filtering
-  console.log("3. Web Search with Date Filtering");
-  console.log("----------------------------------");
+  console.log("\n" + "=".repeat(50) + "\n");
+
+  console.log("🌐 Web Search:");
   try {
     const response = await valyu.search(
-      "what is claude 4 opus model",
+      "what are the grok 4 benchmark results",
       {
         searchType: "web",
         maxNumResults: 7,
         relevanceThreshold: 0.5,
-        startDate: "2024-01-01",
-        endDate: "2024-12-31"
+        startDate: "2025-06-01",
+        endDate: "2025-07-25",
       }
     );
-    console.log(`Query: "what is claude 4 opus model"`);
-    console.log(`Search Type: web`);
-    console.log(`Date Range: 2024-01-01 to 2024-12-31`);
-    console.log(`Results: ${response.results.length}`);
-    console.log(`Success: ${response.success}\n`);
+    console.log(response);
   } catch (error) {
-    console.error("Web search with date filtering failed:", error.message);
+    console.error("Web search failed:", error.message);
   }
 
-  // Example 4: Search with Category Filter
-  console.log("4. Search with Category Filter");
-  console.log("-------------------------------");
+  // Web search with country filtering
+  console.log("🌐 Web Search with Country Filter:");
   try {
     const response = await valyu.search(
-      "climate change solutions",
+      "what is the weather where i am?",
       {
         searchType: "web",
-        maxNumResults: 3,
-        startDate: "2023-01-01",
-        category: "environment",
-        relevanceThreshold: 0.7
+        maxNumResults: 2,
+        countryCode: "UK",
+        responseLength: "short",
       }
     );
-    console.log(`Query: "climate change solutions"`);
-    console.log(`Category: environment`);
-    console.log(`Relevance Threshold: 0.7`);
-    console.log(`Results: ${response.results.length}`);
-    console.log(`Success: ${response.success}\n`);
+    console.log(response);
   } catch (error) {
-    console.error("Category search failed:", error.message);
+    console.error("Web search with country filter failed:", error.message);
   }
 
-  // Example 5: Tool Call Mode
-  console.log("5. Tool Call Mode");
-  console.log("-------------------");
+  console.log("\n" + "=".repeat(50) + "\n");
+
+  // Hybrid search with exclude sources
+  console.log("🔄 Hybrid Search with Source Exclusion:");
   try {
     const response = await valyu.search(
-      "latest developments in quantum computing",
+      "quantum computing applications in cryptography",
       {
         searchType: "all",
-        maxNumResults: 5,
+        maxNumResults: 8,
+        relevanceThreshold: 0.5,
+        maxPrice: 40,
+        excludeSources: ["paperswithcode.com", "wikipedia.org"],
+        responseLength: "large",
         isToolCall: true,
-        relevanceThreshold: 0.6,
-        maxPrice: 50
       }
     );
-    console.log(`Query: "latest developments in quantum computing"`);
-    console.log(`Is Tool Call: true`);
-    console.log(`Max Price: $50 CPM`);
-    console.log(`Results: ${response.results.length}`);
-    console.log(`Success: ${response.success}\n`);
+    console.log(response);
   } catch (error) {
-    console.error("Tool call search failed:", error.message);
+    console.error("Hybrid search with source exclusion failed:", error.message);
   }
 
-  console.log("All examples completed!");
+  console.log("\n" + "=".repeat(50) + "\n");
+
+  // Search with custom response length (character count)
+  console.log("📏 Custom Response Length Search:");
+  try {
+    const response = await valyu.search(
+      "State of video generation AI models",
+      {
+        maxNumResults: 10,
+        category: "vLLMs",
+        responseLength: 1000,  // Limit to 1000 characters per result
+      }
+    );
+    console.log(response);
+  } catch (error) {
+    console.error("Custom response length search failed:", error.message);
+  }
 }
 
 runExamples().catch(console.error); 
