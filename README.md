@@ -60,9 +60,12 @@ valyu.search(
         relevanceThreshold: 0.5,                 // Minimum relevance score (0-1)
         maxPrice: 30,                            // Maximum price per thousand queries (CPM)
         includedSources: [],                     // Specific sources to search
+        excludeSources: [],                      // Sources/domains to exclude
         category: null,                          // Category filter
         startDate: null,                         // Start date (YYYY-MM-DD)
-        endDate: null                            // End date (YYYY-MM-DD)
+        endDate: null,                           // End date (YYYY-MM-DD)
+        countryCode: null,                       // Country code filter
+        responseLength: null                     // Response length control
     }
 )
 ```
@@ -78,9 +81,12 @@ valyu.search(
 | `relevanceThreshold` | `number` | `0.5` | Minimum relevance score for results (0.0-1.0) |
 | `maxPrice` | `number` | `30` | Maximum price per thousand queries in CPM |
 | `includedSources` | `string[]` | `[]` | Specific data sources or URLs to search |
+| `excludeSources` | `string[]` | `[]` | List of URLs/domains to exclude from search results |
 | `category` | `string` | `null` | Category filter for results |
 | `startDate` | `string` | `null` | Start date filter in YYYY-MM-DD format |
 | `endDate` | `string` | `null` | End date filter in YYYY-MM-DD format |
+| `countryCode` | `string` | `null` | Country code filter (e.g., "US", "GB", "JP", "ALL") |
+| `responseLength` | `string \| number` | `null` | Response length: "short", "medium", "large", "max", or character count |
 
 ### Response Format
 
@@ -129,23 +135,24 @@ const { Valyu } = require('valyu');
 
 const valyu = new Valyu("your-api-key");
 
-// Simple search across all sources
-const response = await valyu.search("What is machine learning?");
-console.log(`Found ${response.results.length} results`);
+// Simple search with no search parameters
+const response = await valyu.search("what is trans-applifying mRNA");
+console.log(response);
 ```
 
 ### Academic Research
 
 ```javascript
-// Search academic papers on arXiv
+// Deep search over academic papers
 const response = await valyu.search(
-  "agentic search-enhanced large reasoning models",
+  "implementation details of agentic search-enhanced large reasoning models",
   {
     searchType: "proprietary",
     maxNumResults: 10,
     relevanceThreshold: 0.6,
     includedSources: ["valyu/valyu-arxiv"],
-    startDate: "2024-05-01"
+    category: "agentic RAG",
+    startDate: "2024-12-01"
   }
 );
 ```
@@ -153,31 +160,63 @@ const response = await valyu.search(
 ### Web Search with Date Filtering
 
 ```javascript
-// Search recent web content
+// Web search with date range
 const response = await valyu.search(
-  "what is claude 4 opus model",
+  "what are the grok 4 benchmark results",
   {
     searchType: "web",
     maxNumResults: 7,
     relevanceThreshold: 0.5,
-    startDate: "2024-01-01",
-    endDate: "2024-12-31"
+    startDate: "2025-06-01",
+    endDate: "2025-07-25"
   }
 );
 ```
 
-### Hybrid Search
+### Country-Specific Search
 
 ```javascript
-// Search both web and proprietary sources
+// Web search with country filtering
 const response = await valyu.search(
-    "quantum computing breakthroughs",
-    {
-        searchType: "all",
-        category: "technology",
-        relevanceThreshold: 0.6,
-        maxPrice: 50
-    }
+  "what is the weather where i am?",
+  {
+    searchType: "web",
+    maxNumResults: 2,
+    countryCode: "UK",
+    responseLength: "short"
+  }
+);
+```
+
+### Search with Source Exclusion
+
+```javascript
+// Hybrid search excluding specific sources
+const response = await valyu.search(
+  "quantum computing applications in cryptography",
+  {
+    searchType: "all",
+    maxNumResults: 8,
+    relevanceThreshold: 0.5,
+    maxPrice: 40,
+    excludeSources: ["paperswithcode.com", "wikipedia.org"],
+    responseLength: "large",
+    isToolCall: true
+  }
+);
+```
+
+### Custom Response Length
+
+```javascript
+// Search with custom character count
+const response = await valyu.search(
+  "State of video generation AI models",
+  {
+    maxNumResults: 10,
+    category: "vLLMs",
+    responseLength: 1000  // Limit to 1000 characters per result
+  }
 );
 ```
 
@@ -243,17 +282,20 @@ if (!response.success) {
 
 ## TypeScript Support
 
-The SDK includes full TypeScript support:
+The SDK includes full TypeScript support with type definitions for all parameters:
 
 ```typescript
-import { Valyu, SearchOptions, SearchResponse } from 'valyu';
+import { Valyu, SearchOptions, SearchResponse, CountryCode, ResponseLength } from 'valyu';
 
 const valyu = new Valyu("your-api-key");
 
 const options: SearchOptions = {
     searchType: "proprietary",
     maxNumResults: 10,
-    relevanceThreshold: 0.6
+    relevanceThreshold: 0.6,
+    excludeSources: ["reddit.com", "twitter.com"],
+    countryCode: "US" as CountryCode,
+    responseLength: "medium" as ResponseLength
 };
 
 const response: SearchResponse = await valyu.search("machine learning", options);
