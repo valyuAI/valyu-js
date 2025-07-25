@@ -14,7 +14,7 @@ async function runTest() {
   const valyu = new Valyu(apiKey);
   const testQuery = "What is attention mechanism in deep learning?";
 
-  console.log(`Attempting to call valyu.context with query: '${testQuery}'`);
+  console.log(`Attempting to call valyu.search with query: '${testQuery}'`);
 
   try {
     const response = await valyu.search(

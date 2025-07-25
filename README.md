@@ -254,14 +254,6 @@ Set your API key in one of these ways:
    const valyu = new Valyu("your-api-key-here");
    ```
 
-3. **Custom base URL** (for staging/testing):
-   ```javascript
-   const valyu = new Valyu(
-       "your-api-key-here",
-       "https://api.valyu.network/v1"
-   );
-   ```
-
 ## Error Handling
 
 The SDK handles errors gracefully and returns structured error responses:
