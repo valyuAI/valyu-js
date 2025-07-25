@@ -2,6 +2,14 @@ export type SearchType = "web" | "proprietary" | "all";
 export type FeedbackSentiment = "very good" | "good" | "bad" | "very bad";
 export type DataType = "structured" | "unstructured";
 
+export type CountryCode = 
+  | "ALL" | "AR" | "AU" | "AT" | "BE" | "BR" | "CA" | "CL" | "DK" | "FI" 
+  | "FR" | "DE" | "HK" | "IN" | "ID" | "IT" | "JP" | "KR" | "MY" | "MX" 
+  | "NL" | "NZ" | "NO" | "CN" | "PL" | "PT" | "PH" | "RU" | "SA" | "ZA" 
+  | "ES" | "SE" | "CH" | "TW" | "TR" | "GB" | "US";
+
+export type ResponseLength = "short" | "medium" | "large" | "max" | number;
+
 export interface SearchResult {
   title: string;
   url: string;
@@ -21,9 +29,12 @@ export interface SearchOptions {
   isToolCall?: boolean;
   relevanceThreshold?: number;
   includedSources?: string[];
+  excludeSources?: string[];
   category?: string;
   startDate?: string;
   endDate?: string;
+  countryCode?: CountryCode;
+  responseLength?: ResponseLength;
 }
 
 export interface SearchResponse {

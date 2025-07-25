@@ -32,11 +32,26 @@ export class Valyu {
   }
 
   /**
-   * Search for information using the Valyu API v2
+   * Search for information using the Valyu DeepSearch API
+   * @param query - The search query string
+   * @param options - Search configuration options
+   * @param options.searchType - Type of search: "web", "proprietary", or "all"
+   * @param options.maxNumResults - Maximum number of results (1-20)
+   * @param options.maxPrice - Maximum price per thousand characters (CPM)
+   * @param options.isToolCall - Whether this is a tool call
+   * @param options.relevanceThreshold - Minimum relevance score (0-1)
+   * @param options.includedSources - List of specific sources to include
+   * @param options.excludeSources - List of URLs/domains to exclude from search results
+   * @param options.category - Category filter for search results
+   * @param options.startDate - Start date filter (YYYY-MM-DD format)
+   * @param options.endDate - End date filter (YYYY-MM-DD format)
+   * @param options.countryCode - Country code filter for search results
+   * @param options.responseLength - Response content length: "short"/"medium"/"large"/"max" or integer character count
+   * @returns Promise resolving to search results
    */
   async search(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
     try {
-      // Default values for v2 API
+      // Default values
       const defaultSearchType: SearchType = "all";
       const defaultMaxNumResults = 10;
       const defaultIsToolCall = true;
@@ -123,6 +138,10 @@ export class Valyu {
         payload.included_sources = options.includedSources;
       }
 
+      if (options.excludeSources !== undefined) {
+        payload.exclude_sources = options.excludeSources;
+      }
+
       if (options.category !== undefined) {
         payload.category = options.category;
       }
@@ -133,6 +152,14 @@ export class Valyu {
 
       if (options.endDate !== undefined) {
         payload.end_date = options.endDate;
+      }
+
+      if (options.countryCode !== undefined) {
+        payload.country_code = options.countryCode;
+      }
+
+      if (options.responseLength !== undefined) {
+        payload.response_length = options.responseLength;
       }
 
       const response = await axios.post(
@@ -177,5 +204,7 @@ export type {
   SearchType, 
   FeedbackSentiment, 
   FeedbackResponse,
-  SearchOptions
+  SearchOptions,
+  CountryCode,
+  ResponseLength
 } from './types'; 
