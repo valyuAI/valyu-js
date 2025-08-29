@@ -1,6 +1,6 @@
 # Valyu SDK
 
-**DeepSearch API for AI**
+**Search for AIs**
 
 Valyu's Deepsearch API gives AI the context it needs. Integrate trusted, high-quality public and proprietary sources, with full-text multimodal retrieval.
 
@@ -10,7 +10,7 @@ Get **$10 free credits** for the Valyu API when you sign up at [Valyu](https://p
 
 ## How does it work?
 
-We do all the heavy lifting for you - through a single API we provide:
+We do all the heavy lifting for you - one unified API for all data:
 
 - **Academic & Research Content** - Access millions of scholarly papers and textbooks
 - **Real-time Web Search** - Get the latest information from across the internet  
@@ -36,7 +36,11 @@ const { Valyu } = require('valyu');
 const valyu = new Valyu("your-api-key-here");
 
 const response = await valyu.search(
-  "Implementation details of agentic search-enhanced large reasoning models"
+  "Implementation details of agentic search-enhanced large reasoning models",
+  {
+    maxNumResults: 5,            // Limit to top 5 results
+    maxPrice: 10                  // Maximum price per thousand queries (CPM)
+  }
 );
 
 console.log(response);
@@ -81,7 +85,7 @@ valyu.search(
 | `relevanceThreshold` | `number` | `0.5` | Minimum relevance score for results (0.0-1.0) |
 | `maxPrice` | `number` | `30` | Maximum price per thousand queries in CPM |
 | `includedSources` | `string[]` | `[]` | Specific data sources or URLs to search |
-| `excludeSources` | `string[]` | `[]` | List of URLs/domains to exclude from search results |
+| `excludeSources` | `string[]` | `[]` | Data sources or URLs to exclude from search |
 | `category` | `string` | `null` | Category filter for results |
 | `startDate` | `string` | `null` | Start date filter in YYYY-MM-DD format |
 | `endDate` | `string` | `null` | End date filter in YYYY-MM-DD format |
@@ -126,6 +130,67 @@ Each `SearchResult` contains:
 }
 ```
 
+### Contents Method
+
+The `contents()` method extracts clean, structured content from web pages with optional AI-powered data extraction and summarization. It accepts an array of URLs as the first parameter, followed by optional configuration parameters.
+
+```javascript
+valyu.contents(
+    urls,                                        // Array of URLs to process (max 10)
+    {
+        summary: false,                          // AI processing: false, true, string, or JSON schema
+        extractEffort: "normal",                 // Extraction effort: "normal" or "high"
+        responseLength: "short",                 // Content length control
+        maxPriceDollars: null                    // Maximum cost limit in USD
+    }
+)
+```
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `urls` | `string[]` | *required* | Array of URLs to process (maximum 10 URLs per request) |
+| `summary` | `boolean \| string \| object` | `false` | AI summary configuration: `false` (raw content), `true` (auto summary), string (custom instructions), or JSON schema (structured extraction) |
+| `extractEffort` | `string` | `"normal"` | Extraction thoroughness: `"normal"` (fast) or `"high"` (more thorough but slower) |
+| `responseLength` | `string \| number` | `"short"` | Content length per URL: `"short"` (25k chars), `"medium"` (50k), `"large"` (100k), `"max"` (no limit), or custom number |
+| `maxPriceDollars` | `number` | `null` | Maximum cost limit in USD |
+
+### Contents Response Format
+
+The contents method returns a `ContentsResponse` object with the following structure:
+
+```javascript
+{
+    success: boolean,                           // Request success status
+    error: string | null,                       // Error message if any
+    tx_id: string,                              // Transaction ID for tracking
+    urls_requested: number,                     // Total URLs requested
+    urls_processed: number,                     // Successfully processed URLs
+    urls_failed: number,                        // Failed URL count
+    results: ContentResult[],                   // Array of processed results
+    total_cost_dollars: number,                 // Actual cost charged
+    total_characters: number                    // Total characters extracted
+}
+```
+
+Each `ContentResult` contains:
+
+```javascript
+{
+    url: string,                                // Source URL
+    title: string,                              // Page/document title
+    content: string | number,                   // Extracted content
+    length: number,                             // Content length in characters
+    source: string,                             // Data source identifier
+    summary?: string | object,                  // AI-generated summary (if enabled)
+    summary_success?: boolean,                  // Whether summary generation succeeded
+    data_type?: string,                         // Type of data extracted
+    image_url?: Record<string, string>,         // Extracted images
+    citation?: string                           // APA-style citation
+}
+```
+
 ## Examples
 
 ### Basic Search
@@ -135,24 +200,22 @@ const { Valyu } = require('valyu');
 
 const valyu = new Valyu("your-api-key");
 
-// Simple search with no search parameters
-const response = await valyu.search("what is trans-applifying mRNA");
-console.log(response);
+// Simple search across all sources
+const response = await valyu.search("What is machine learning?");
+console.log(`Found ${response.results.length} results`);
 ```
 
 ### Academic Research
 
 ```javascript
-// Deep search over academic papers
+// Search academic papers on arXiv
 const response = await valyu.search(
-  "implementation details of agentic search-enhanced large reasoning models",
+  "transformer architecture improvements",
   {
     searchType: "proprietary",
-    maxNumResults: 10,
-    relevanceThreshold: 0.6,
     includedSources: ["valyu/valyu-arxiv"],
-    category: "agentic RAG",
-    startDate: "2024-12-01"
+    relevanceThreshold: 0.7,
+    maxNumResults: 10
   }
 );
 ```
@@ -160,62 +223,29 @@ const response = await valyu.search(
 ### Web Search with Date Filtering
 
 ```javascript
-// Web search with date range
+// Search recent web content
 const response = await valyu.search(
-  "what are the grok 4 benchmark results",
+  "AI safety developments",
   {
     searchType: "web",
-    maxNumResults: 7,
-    relevanceThreshold: 0.5,
-    startDate: "2025-06-01",
-    endDate: "2025-07-25"
+    startDate: "2024-01-01",
+    endDate: "2024-12-31",
+    maxNumResults: 5
   }
 );
 ```
 
-### Country-Specific Search
+### Hybrid Search
 
 ```javascript
-// Web search with country filtering
+// Search both web and proprietary sources
 const response = await valyu.search(
-  "what is the weather where i am?",
-  {
-    searchType: "web",
-    maxNumResults: 2,
-    countryCode: "UK",
-    responseLength: "short"
-  }
-);
-```
-
-### Search with Source Exclusion
-
-```javascript
-// Hybrid search excluding specific sources
-const response = await valyu.search(
-  "quantum computing applications in cryptography",
+  "quantum computing breakthroughs",
   {
     searchType: "all",
-    maxNumResults: 8,
-    relevanceThreshold: 0.5,
-    maxPrice: 40,
-    excludeSources: ["paperswithcode.com", "wikipedia.org"],
-    responseLength: "large",
-    isToolCall: true
-  }
-);
-```
-
-### Custom Response Length
-
-```javascript
-// Search with custom character count
-const response = await valyu.search(
-  "State of video generation AI models",
-  {
-    maxNumResults: 10,
-    category: "vLLMs",
-    responseLength: 1000  // Limit to 1000 characters per result
+    category: "technology",
+    relevanceThreshold: 0.6,
+    maxPrice: 50
   }
 );
 ```
@@ -238,6 +268,103 @@ if (response.success) {
 } else {
     console.log(`Search failed: ${response.error}`);
 }
+```
+
+### Basic Content Extraction
+
+```javascript
+// Extract raw content from URLs
+const response = await valyu.contents([
+  "https://example.com/article"
+]);
+
+console.log(`URLs processed: ${response.urls_processed}/${response.urls_requested}`);
+console.log(`Content extracted: ${response.total_characters} characters`);
+```
+
+### Content with AI Summary
+
+```javascript
+// Extract content with automatic AI summarization
+const response = await valyu.contents(
+  ["https://en.wikipedia.org/wiki/Artificial_intelligence"],
+  {
+    summary: true,
+    responseLength: "medium"
+  }
+);
+
+if (response.results[0].summary) {
+    console.log("AI Summary:", response.results[0].summary);
+}
+```
+
+### Structured Data Extraction
+
+```javascript
+// Extract structured data using JSON schema
+const response = await valyu.contents(
+  ["https://www.company.com"],
+  {
+    summary: {
+      type: "object",
+      properties: {
+        company_name: { type: "string" },
+        industry: { 
+          type: "string",
+          enum: ["tech", "finance", "healthcare", "retail", "other"]
+        },
+        key_products: {
+          type: "array",
+          items: { type: "string" },
+          maxItems: 3
+        },
+        founded_year: { type: "number" }
+      },
+      required: ["company_name"]
+    },
+    extractEffort: "high"
+  }
+);
+
+// Extracted structured data will be in results[0].summary
+console.log("Structured data:", response.results[0].summary);
+```
+
+### Custom Extraction Instructions
+
+```javascript
+// Extract content with custom AI instructions
+const response = await valyu.contents(
+  ["https://example.com/research-paper"],
+  {
+    summary: "Summarize the key findings in 3 bullet points",
+    responseLength: "large",
+    extractEffort: "high"
+  }
+);
+```
+
+### Multiple URLs Processing
+
+```javascript
+// Process multiple URLs in a single request
+const response = await valyu.contents(
+  [
+    "https://www.python.org",
+    "https://nodejs.org",
+    "https://www.rust-lang.org"
+  ],
+  {
+    responseLength: "short",
+    maxPriceDollars: 0.05  // Limit cost to 5 cents
+  }
+);
+
+console.log(`Total cost: $${response.total_cost_dollars}`);
+response.results.forEach(result => {
+    console.log(`${result.title}: ${result.length} characters`);
+});
 ```
 
 ## Authentication
@@ -277,11 +404,20 @@ if (!response.success) {
 The SDK includes full TypeScript support with type definitions for all parameters:
 
 ```typescript
-import { Valyu, SearchOptions, SearchResponse, CountryCode, ResponseLength } from 'valyu';
+import { 
+  Valyu, 
+  SearchOptions, 
+  SearchResponse,
+  ContentsOptions,
+  ContentsResponse,
+  CountryCode, 
+  ResponseLength 
+} from 'valyu';
 
 const valyu = new Valyu("your-api-key");
 
-const options: SearchOptions = {
+// Search API with types
+const searchOptions: SearchOptions = {
     searchType: "proprietary",
     maxNumResults: 10,
     relevanceThreshold: 0.6,
@@ -290,7 +426,20 @@ const options: SearchOptions = {
     responseLength: "medium" as ResponseLength
 };
 
-const response: SearchResponse = await valyu.search("machine learning", options);
+const searchResponse: SearchResponse = await valyu.search("machine learning", searchOptions);
+
+// Contents API with types
+const contentsOptions: ContentsOptions = {
+    summary: true,
+    extractEffort: "high",
+    responseLength: "medium",
+    maxPriceDollars: 0.10
+};
+
+const contentsResponse: ContentsResponse = await valyu.contents(
+    ["https://example.com"],
+    contentsOptions
+);
 ```
 
 ## Backward Compatibility
@@ -321,7 +470,7 @@ const response = await valyu.context(
 
 ## Getting Started
 
-1. Sign up for a free account at [Valyu](https://exchange.valyu.network)
+1. Sign up for a free account at [Valyu](https://platform.valyu.network)
 2. Get your API key from the dashboard  
 3. Install the SDK: `npm install valyu`
 4. Start building with the examples above
@@ -334,10 +483,16 @@ Run the integration tests:
 npm run test:integration
 ```
 
-Run the v2 API examples:
+Run the Search API examples:
 
 ```bash
-node examples/v2-api-examples.js
+node examples/search-examples.js
+```
+
+Run the Contents API examples:
+
+```bash
+node examples/contents-examples.js
 ```
 
 ## Support
