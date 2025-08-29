@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SearchResponse, SearchType, SearchOptions } from './types';
+import { SearchResponse, SearchType, SearchOptions, ContentsOptions, ContentsResponse } from './types';
 
 export class Valyu {
   private baseUrl: string;
@@ -197,6 +197,157 @@ export class Valyu {
       };
     }
   }
+
+  /**
+   * Extract content from URLs with optional AI processing
+   * @param urls - Array of URLs to process (max 10)
+   * @param options - Content extraction configuration options
+   * @param options.summary - AI summary configuration: false (raw), true (auto), string (custom), or JSON schema
+   * @param options.extractEffort - Extraction thoroughness: "normal" or "high"
+   * @param options.responseLength - Content length per URL
+   * @param options.maxPriceDollars - Maximum cost limit in USD
+   * @returns Promise resolving to content extraction results
+   */
+  async contents(urls: string[], options: ContentsOptions = {}): Promise<ContentsResponse> {
+    try {
+      // Validate URLs array
+      if (!urls || !Array.isArray(urls)) {
+        return {
+          success: false,
+          error: "urls must be an array",
+          urls_requested: 0,
+          urls_processed: 0,
+          urls_failed: 0,
+          results: [],
+          total_cost_dollars: 0,
+          total_characters: 0
+        };
+      }
+
+      if (urls.length === 0) {
+        return {
+          success: false,
+          error: "urls array cannot be empty",
+          urls_requested: 0,
+          urls_processed: 0,
+          urls_failed: 0,
+          results: [],
+          total_cost_dollars: 0,
+          total_characters: 0
+        };
+      }
+
+      if (urls.length > 10) {
+        return {
+          success: false,
+          error: "Maximum 10 URLs allowed per request",
+          urls_requested: urls.length,
+          urls_processed: 0,
+          urls_failed: urls.length,
+          results: [],
+          total_cost_dollars: 0,
+          total_characters: 0
+        };
+      }
+
+      // Validate extractEffort if provided
+      if (options.extractEffort && !["normal", "high"].includes(options.extractEffort)) {
+        return {
+          success: false,
+          error: "extractEffort must be 'normal' or 'high'",
+          urls_requested: urls.length,
+          urls_processed: 0,
+          urls_failed: urls.length,
+          results: [],
+          total_cost_dollars: 0,
+          total_characters: 0
+        };
+      }
+
+      // Validate responseLength if provided
+      if (options.responseLength !== undefined) {
+        const validLengths = ["short", "medium", "large", "max"];
+        if (typeof options.responseLength === "string" && !validLengths.includes(options.responseLength)) {
+          return {
+            success: false,
+            error: "responseLength must be 'short', 'medium', 'large', 'max', or a number",
+            urls_requested: urls.length,
+            urls_processed: 0,
+            urls_failed: urls.length,
+            results: [],
+            total_cost_dollars: 0,
+            total_characters: 0
+          };
+        }
+        if (typeof options.responseLength === "number" && options.responseLength <= 0) {
+          return {
+            success: false,
+            error: "responseLength number must be positive",
+            urls_requested: urls.length,
+            urls_processed: 0,
+            urls_failed: urls.length,
+            results: [],
+            total_cost_dollars: 0,
+            total_characters: 0
+          };
+        }
+      }
+
+      // Build payload with snake_case for API
+      const payload: Record<string, any> = {
+        urls
+      };
+
+      // Add optional parameters only if provided
+      if (options.summary !== undefined) {
+        payload.summary = options.summary;
+      }
+
+      if (options.extractEffort !== undefined) {
+        payload.extract_effort = options.extractEffort;
+      }
+
+      if (options.responseLength !== undefined) {
+        payload.response_length = options.responseLength;
+      }
+
+      if (options.maxPriceDollars !== undefined) {
+        payload.max_price_dollars = options.maxPriceDollars;
+      }
+
+      const response = await axios.post(
+        `${this.baseUrl}/contents`,
+        payload,
+        { headers: this.headers }
+      );
+
+      if (!response.status || response.status < 200 || response.status >= 300) {
+        return {
+          success: false,
+          error: response.data?.error || "Request failed",
+          urls_requested: urls.length,
+          urls_processed: 0,
+          urls_failed: urls.length,
+          results: [],
+          total_cost_dollars: 0,
+          total_characters: 0
+        };
+      }
+
+      return response.data;
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+        urls_requested: urls.length,
+        urls_processed: 0,
+        urls_failed: urls.length,
+        results: [],
+        total_cost_dollars: 0,
+        total_characters: 0
+      };
+    }
+  }
 }
 
 export type { 
@@ -206,5 +357,10 @@ export type {
   FeedbackResponse,
   SearchOptions,
   CountryCode,
-  ResponseLength
+  ResponseLength,
+  ContentsOptions,
+  ContentsResponse,
+  ContentResult,
+  ExtractEffort,
+  ContentResponseLength
 } from './types'; 
