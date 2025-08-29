@@ -56,3 +56,40 @@ export interface FeedbackResponse {
   success: boolean;
   error?: string;
 }
+
+// Contents API Types
+export type ExtractEffort = "normal" | "high";
+export type ContentResponseLength = "short" | "medium" | "large" | "max" | number;
+
+export interface ContentsOptions {
+  summary?: boolean | string | object;
+  extractEffort?: ExtractEffort;
+  responseLength?: ContentResponseLength;
+  maxPriceDollars?: number;
+}
+
+export interface ContentResult {
+  url: string;
+  title: string;
+  content: string | number;
+  length: number;
+  source: string;
+  summary?: string | object;
+  summary_success?: boolean;
+  data_type?: string;
+  image_url?: Record<string, string>;
+  citation?: string;
+}
+
+export interface ContentsResponse {
+  success: boolean;
+  error?: string | null;
+  tx_id?: string;
+  urls_requested?: number;
+  urls_processed?: number;
+  urls_failed?: number;
+  results?: ContentResult[];
+  total_cost_dollars?: number;
+  total_characters?: number;
+  isProvisioning?: boolean;
+}

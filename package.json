@@ -1,7 +1,7 @@
 {
     "name": "valyu-js",
-    "version": "2.0.2",
-    "description": "DeepSearch API for AI.",
+    "version": "2.1.0",
+    "description": "Search for AIs - DeepSearch and Content API.",
     "files": [
         "dist"
     ],
@@ -31,7 +31,10 @@
         "ai",
         "sdk",
         "rag",
-        "valyu"
+        "valyu",
+        "search",
+        "content-extraction",
+        "deepsearch"
     ],
     "author": "Valyu",
     "license": "MIT",
