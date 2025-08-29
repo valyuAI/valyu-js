@@ -270,101 +270,92 @@ if (response.success) {
 }
 ```
 
-### Basic Content Extraction
+### Content Extraction Examples
+
+#### Basic Content Extraction
 
 ```javascript
 // Extract raw content from URLs
-const response = await valyu.contents([
-  "https://example.com/article"
-]);
-
-console.log(`URLs processed: ${response.urls_processed}/${response.urls_requested}`);
-console.log(`Content extracted: ${response.total_characters} characters`);
-```
-
-### Content with AI Summary
-
-```javascript
-// Extract content with automatic AI summarization
 const response = await valyu.contents(
-  ["https://en.wikipedia.org/wiki/Artificial_intelligence"],
-  {
-    summary: true,
-    responseLength: "medium"
-  }
+  ["https://techcrunch.com/2025/08/28/anthropic-users-face-a-new-choice-opt-out-or-share-your-data-for-ai-training/"]
 );
 
-if (response.results[0].summary) {
-    console.log("AI Summary:", response.results[0].summary);
+if (response.success) {
+    response.results.forEach(result => {
+        console.log(`Title: ${result.title}`);
+        console.log(`Content: ${result.content.substring(0, 500)}...`);
+    });
 }
 ```
 
-### Structured Data Extraction
+#### Content with AI Summary
+
+```javascript
+// Extract content with automatic summarization
+const response = await valyu.contents(
+  ["https://docs.python.org/3/tutorial/"],
+  {
+    summary: true,
+    responseLength: "max"
+  }
+);
+
+response.results.forEach(result => {
+    console.log(`Summary: ${result.summary}`);
+});
+```
+
+#### Structured Data Extraction
 
 ```javascript
 // Extract structured data using JSON schema
+const companySchema = {
+  type: "object",
+  properties: {
+    company_name: { type: "string" },
+    founded_year: { type: "integer" },
+    key_products: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: 3
+    }
+  }
+};
+
 const response = await valyu.contents(
-  ["https://www.company.com"],
+  ["https://en.wikipedia.org/wiki/OpenAI"],
   {
-    summary: {
-      type: "object",
-      properties: {
-        company_name: { type: "string" },
-        industry: { 
-          type: "string",
-          enum: ["tech", "finance", "healthcare", "retail", "other"]
-        },
-        key_products: {
-          type: "array",
-          items: { type: "string" },
-          maxItems: 3
-        },
-        founded_year: { type: "number" }
-      },
-      required: ["company_name"]
-    },
-    extractEffort: "high"
+    summary: companySchema,
+    responseLength: "max"
   }
 );
 
-// Extracted structured data will be in results[0].summary
-console.log("Structured data:", response.results[0].summary);
+if (response.success) {
+    response.results.forEach(result => {
+        if (result.summary) {
+            console.log(`Structured data: ${JSON.stringify(result.summary, null, 2)}`);
+        }
+    });
+}
 ```
 
-### Custom Extraction Instructions
+#### Multiple URLs
 
 ```javascript
-// Extract content with custom AI instructions
-const response = await valyu.contents(
-  ["https://example.com/research-paper"],
-  {
-    summary: "Summarize the key findings in 3 bullet points",
-    responseLength: "large",
-    extractEffort: "high"
-  }
-);
-```
-
-### Multiple URLs Processing
-
-```javascript
-// Process multiple URLs in a single request
+// Process multiple URLs with a cost limit
 const response = await valyu.contents(
   [
-    "https://www.python.org",
-    "https://nodejs.org",
-    "https://www.rust-lang.org"
+    "https://www.valyu.network/",
+    "https://docs.valyu.network/overview",
+    "https://www.valyu.network/blogs/why-ai-agents-and-llms-struggle-with-search-and-data-access"
   ],
   {
-    responseLength: "short",
-    maxPriceDollars: 0.05  // Limit cost to 5 cents
+    summary: "Provide key takeaways in bullet points, and write in very emphasised singaporean english"
   }
 );
 
-console.log(`Total cost: $${response.total_cost_dollars}`);
-response.results.forEach(result => {
-    console.log(`${result.title}: ${result.length} characters`);
-});
+console.log(`Processed ${response.urls_processed}/${response.urls_requested} URLs`);
+console.log(`Cost: $${response.total_cost_dollars.toFixed(4)}`);
 ```
 
 ## Authentication
