@@ -93,3 +93,55 @@ export interface ContentsResponse {
   total_characters?: number;
   isProvisioning?: boolean;
 }
+
+// Answer API Types
+export interface AnswerOptions {
+  structuredOutput?: Record<string, any>;
+  systemInstructions?: string;
+  searchType?: SearchType;
+  dataMaxPrice?: number;
+  countryCode?: CountryCode;
+  includedSources?: string[];
+  excludedSources?: string[];
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface SearchMetadata {
+  tx_id: string;
+  ai_tx_id: string;
+  results_by_source: Record<string, number>;
+  search_deduction_dollars: number;
+  ai_deduction_dollars: number;
+  total_deduction_dollars: number;
+  total_deduction_pcm: number;
+  total_characters: number;
+}
+
+export interface AIUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cost_dollars: number;
+}
+
+export interface AnswerSuccessResponse {
+  success: true;
+  ai_processed: boolean;
+  ai_tx_id: string;
+  data_type: "structured" | "unstructured";
+  original_query: string;
+  documents_processed: number;
+  total_documents_available: number;
+  raw_search_results: Record<string, any>[];
+  search_metadata: SearchMetadata;
+  contents: string | Record<string, any>;
+  ai_usage: AIUsage;
+}
+
+export interface AnswerErrorResponse {
+  success: false;
+  error: string;
+}
+
+export type AnswerResponse = AnswerSuccessResponse | AnswerErrorResponse;

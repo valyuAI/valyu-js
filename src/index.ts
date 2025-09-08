@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SearchResponse, SearchType, SearchOptions, ContentsOptions, ContentsResponse } from './types';
+import { SearchResponse, SearchType, SearchOptions, ContentsOptions, ContentsResponse, AnswerOptions, AnswerResponse } from './types';
 
 export class Valyu {
   private baseUrl: string;
@@ -89,6 +89,7 @@ export class Valyu {
     
     return false;
   }
+
 
   /**
    * Validates an array of source strings
@@ -489,6 +490,204 @@ export class Valyu {
       };
     }
   }
+
+  /**
+   * Get AI-powered answers using the Valyu Answer API
+   * @param query - The question or query string
+   * @param options - Answer configuration options
+   * @param options.structuredOutput - JSON Schema object for structured responses
+   * @param options.systemInstructions - Custom system-level instructions (max 2000 chars)
+   * @param options.searchType - Type of search: "web", "proprietary", or "all"
+   * @param options.dataMaxPrice - Maximum spend (USD) for data retrieval
+   * @param options.countryCode - Country code filter for search results
+   * @param options.includedSources - List of specific sources to include
+   * @param options.excludedSources - List of URLs/domains to exclude from search results
+   * @param options.startDate - Start date filter (YYYY-MM-DD format)
+   * @param options.endDate - End date filter (YYYY-MM-DD format)
+   * @returns Promise resolving to answer response
+   */
+  async answer(query: string, options: AnswerOptions = {}): Promise<AnswerResponse> {
+    try {
+      // Default values
+      const defaultSearchType: SearchType = "all";
+      const defaultDataMaxPrice = 30.0;
+
+      // Validate query
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return {
+          success: false,
+          error: "Query is required and must be a non-empty string"
+        };
+      }
+
+      // Validate searchType
+      let finalSearchType: SearchType = defaultSearchType;
+      const providedSearchTypeString = options.searchType?.toLowerCase();
+
+      if (providedSearchTypeString === "web" || providedSearchTypeString === "proprietary" || providedSearchTypeString === "all") {
+        finalSearchType = providedSearchTypeString as SearchType;
+      } else if (options.searchType !== undefined) {
+        return {
+          success: false,
+          error: "Invalid searchType provided. Must be one of: all, web, proprietary"
+        };
+      }
+
+      // Validate systemInstructions length
+      if (options.systemInstructions !== undefined) {
+        if (typeof options.systemInstructions !== 'string') {
+          return {
+            success: false,
+            error: "systemInstructions must be a string"
+          };
+        }
+        
+        const trimmed = options.systemInstructions.trim();
+        if (trimmed.length === 0) {
+          return {
+            success: false,
+            error: "systemInstructions cannot be empty when provided"
+          };
+        }
+        
+        if (trimmed.length > 2000) {
+          return {
+            success: false,
+            error: "systemInstructions must be 2000 characters or less"
+          };
+        }
+      }
+
+      // Validate dataMaxPrice
+      if (options.dataMaxPrice !== undefined) {
+        if (typeof options.dataMaxPrice !== 'number' || options.dataMaxPrice <= 0) {
+          return {
+            success: false,
+            error: "dataMaxPrice must be a positive number"
+          };
+        }
+      }
+
+      // Validate date formats
+      if (options.startDate && !this.validateDateFormat(options.startDate)) {
+        return {
+          success: false,
+          error: "Invalid startDate format. Must be YYYY-MM-DD"
+        };
+      }
+
+      if (options.endDate && !this.validateDateFormat(options.endDate)) {
+        return {
+          success: false,
+          error: "Invalid endDate format. Must be YYYY-MM-DD"
+        };
+      }
+
+      // Validate date order
+      if (options.startDate && options.endDate) {
+        const startDate = new Date(options.startDate);
+        const endDate = new Date(options.endDate);
+        if (startDate > endDate) {
+          return {
+            success: false,
+            error: "startDate must be before endDate"
+          };
+        }
+      }
+
+      // Validate includedSources format
+      if (options.includedSources !== undefined) {
+        if (!Array.isArray(options.includedSources)) {
+          return {
+            success: false,
+            error: "includedSources must be an array"
+          };
+        }
+
+        const includedSourcesValidation = this.validateSources(options.includedSources);
+        if (!includedSourcesValidation.valid) {
+          return {
+            success: false,
+            error: `Invalid includedSources format. Invalid sources: ${includedSourcesValidation.invalidSources.join(', ')}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`
+          };
+        }
+      }
+
+      // Validate excludedSources format
+      if (options.excludedSources !== undefined) {
+        if (!Array.isArray(options.excludedSources)) {
+          return {
+            success: false,
+            error: "excludedSources must be an array"
+          };
+        }
+
+        const excludedSourcesValidation = this.validateSources(options.excludedSources);
+        if (!excludedSourcesValidation.valid) {
+          return {
+            success: false,
+            error: `Invalid excludedSources format. Invalid sources: ${excludedSourcesValidation.invalidSources.join(', ')}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`
+          };
+        }
+      }
+
+      // Build payload with snake_case for API
+      const payload: Record<string, any> = {
+        query: query.trim(),
+        search_type: finalSearchType,
+        data_max_price: options.dataMaxPrice ?? defaultDataMaxPrice,
+      };
+
+      // Add optional parameters only if provided
+      if (options.structuredOutput !== undefined) {
+        payload.structured_output = options.structuredOutput;
+      }
+
+      if (options.systemInstructions !== undefined) {
+        payload.system_instructions = options.systemInstructions.trim();
+      }
+
+      if (options.countryCode !== undefined) {
+        payload.country_code = options.countryCode;
+      }
+
+      if (options.includedSources !== undefined) {
+        payload.included_sources = options.includedSources;
+      }
+
+      if (options.excludedSources !== undefined) {
+        payload.excluded_sources = options.excludedSources;
+      }
+
+      if (options.startDate !== undefined) {
+        payload.start_date = options.startDate;
+      }
+
+      if (options.endDate !== undefined) {
+        payload.end_date = options.endDate;
+      }
+
+      const response = await axios.post(
+        `${this.baseUrl}/answer`,
+        payload,
+        { headers: this.headers }
+      );
+
+      if (!response.status || response.status < 200 || response.status >= 300) {
+        return {
+          success: false,
+          error: response.data?.error || "Request failed"
+        };
+      }
+
+      return response.data;
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message
+      };
+    }
+  }
 }
 
 export type { 
@@ -503,5 +702,11 @@ export type {
   ContentsResponse,
   ContentResult,
   ExtractEffort,
-  ContentResponseLength
+  ContentResponseLength,
+  AnswerOptions,
+  AnswerResponse,
+  AnswerSuccessResponse,
+  AnswerErrorResponse,
+  SearchMetadata,
+  AIUsage
 } from './types'; 
