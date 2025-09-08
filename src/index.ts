@@ -32,6 +32,83 @@ export class Valyu {
   }
 
   /**
+   * Validates if a string is a valid URL
+   */
+  private validateUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Validates if a string is a valid domain (with optional path)
+   */
+  private validateDomain(domain: string): boolean {
+    // Domain must have at least one dot and valid structure
+    // Supports: example.com, example.com/path, subdomain.example.com/path/to/resource
+    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(\/.+)?$/;
+    return domainRegex.test(domain);
+  }
+
+  /**
+   * Validates if a string is a valid dataset identifier (provider/datasetname)
+   */
+  private validateDatasetId(datasetId: string): boolean {
+    // Dataset format: provider/datasetname (exactly one slash)
+    // Provider and dataset name can contain alphanumeric, hyphens, underscores
+    const parts = datasetId.split('/');
+    if (parts.length !== 2) return false;
+    
+    const providerRegex = /^[a-zA-Z0-9_-]+$/;
+    const datasetRegex = /^[a-zA-Z0-9_-]+$/;
+    
+    return providerRegex.test(parts[0]) && datasetRegex.test(parts[1]) && parts[0].length > 0 && parts[1].length > 0;
+  }
+
+  /**
+   * Validates source strings (domains, URLs, or dataset IDs)
+   */
+  private validateSource(source: string): boolean {
+    // Check if it's a valid URL
+    if (this.validateUrl(source)) {
+      return true;
+    }
+    
+    // Check if it's a valid domain (with optional path)
+    if (this.validateDomain(source)) {
+      return true;
+    }
+    
+    // Check if it's a valid dataset identifier
+    if (this.validateDatasetId(source)) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Validates an array of source strings
+   */
+  private validateSources(sources: string[]): { valid: boolean; invalidSources: string[] } {
+    const invalidSources: string[] = [];
+    
+    for (const source of sources) {
+      if (!this.validateSource(source)) {
+        invalidSources.push(source);
+      }
+    }
+    
+    return {
+      valid: invalidSources.length === 0,
+      invalidSources
+    };
+  }
+
+  /**
    * Search for information using the Valyu DeepSearch API
    * @param query - The search query string
    * @param options - Search configuration options
@@ -121,6 +198,70 @@ export class Valyu {
           total_deduction_dollars: 0.0,
           total_characters: 0
         };
+      }
+
+      // Validate includedSources format
+      if (options.includedSources !== undefined) {
+        if (!Array.isArray(options.includedSources)) {
+          return {
+            success: false,
+            error: "includedSources must be an array",
+            tx_id: null,
+            query,
+            results: [],
+            results_by_source: { web: 0, proprietary: 0 },
+            total_deduction_pcm: 0.0,
+            total_deduction_dollars: 0.0,
+            total_characters: 0
+          };
+        }
+
+        const includedSourcesValidation = this.validateSources(options.includedSources);
+        if (!includedSourcesValidation.valid) {
+          return {
+            success: false,
+            error: `Invalid includedSources format. Invalid sources: ${includedSourcesValidation.invalidSources.join(', ')}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
+            tx_id: null,
+            query,
+            results: [],
+            results_by_source: { web: 0, proprietary: 0 },
+            total_deduction_pcm: 0.0,
+            total_deduction_dollars: 0.0,
+            total_characters: 0
+          };
+        }
+      }
+
+      // Validate excludeSources format
+      if (options.excludeSources !== undefined) {
+        if (!Array.isArray(options.excludeSources)) {
+          return {
+            success: false,
+            error: "excludeSources must be an array",
+            tx_id: null,
+            query,
+            results: [],
+            results_by_source: { web: 0, proprietary: 0 },
+            total_deduction_pcm: 0.0,
+            total_deduction_dollars: 0.0,
+            total_characters: 0
+          };
+        }
+
+        const excludeSourcesValidation = this.validateSources(options.excludeSources);
+        if (!excludeSourcesValidation.valid) {
+          return {
+            success: false,
+            error: `Invalid excludeSources format. Invalid sources: ${excludeSourcesValidation.invalidSources.join(', ')}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
+            tx_id: null,
+            query,
+            results: [],
+            results_by_source: { web: 0, proprietary: 0 },
+            total_deduction_pcm: 0.0,
+            total_deduction_dollars: 0.0,
+            total_characters: 0
+          };
+        }
       }
 
       // Build payload with snake_case for API
