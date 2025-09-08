@@ -251,10 +251,10 @@ export class Valyu {
       }
 
       // Validate extractEffort if provided
-      if (options.extractEffort && !["normal", "high"].includes(options.extractEffort)) {
+      if (options.extractEffort && !["normal", "high", "auto"].includes(options.extractEffort)) {
         return {
           success: false,
-          error: "extractEffort must be 'normal' or 'high'",
+          error: "extractEffort must be 'normal', 'high', or 'auto'",
           urls_requested: urls.length,
           urls_processed: 0,
           urls_failed: urls.length,

@@ -58,7 +58,7 @@ export interface FeedbackResponse {
 }
 
 // Contents API Types
-export type ExtractEffort = "normal" | "high";
+export type ExtractEffort = "normal" | "high" | "auto";
 export type ContentResponseLength = "short" | "medium" | "large" | "max" | number;
 
 export interface ContentsOptions {
