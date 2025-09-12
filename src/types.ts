@@ -2,11 +2,44 @@ export type SearchType = "web" | "proprietary" | "all";
 export type FeedbackSentiment = "very good" | "good" | "bad" | "very bad";
 export type DataType = "structured" | "unstructured";
 
-export type CountryCode = 
-  | "ALL" | "AR" | "AU" | "AT" | "BE" | "BR" | "CA" | "CL" | "DK" | "FI" 
-  | "FR" | "DE" | "HK" | "IN" | "ID" | "IT" | "JP" | "KR" | "MY" | "MX" 
-  | "NL" | "NZ" | "NO" | "CN" | "PL" | "PT" | "PH" | "RU" | "SA" | "ZA" 
-  | "ES" | "SE" | "CH" | "TW" | "TR" | "GB" | "US";
+export type CountryCode =
+  | "ALL"
+  | "AR"
+  | "AU"
+  | "AT"
+  | "BE"
+  | "BR"
+  | "CA"
+  | "CL"
+  | "DK"
+  | "FI"
+  | "FR"
+  | "DE"
+  | "HK"
+  | "IN"
+  | "ID"
+  | "IT"
+  | "JP"
+  | "KR"
+  | "MY"
+  | "MX"
+  | "NL"
+  | "NZ"
+  | "NO"
+  | "CN"
+  | "PL"
+  | "PT"
+  | "PH"
+  | "RU"
+  | "SA"
+  | "ZA"
+  | "ES"
+  | "SE"
+  | "CH"
+  | "TW"
+  | "TR"
+  | "GB"
+  | "US";
 
 export type ResponseLength = "short" | "medium" | "large" | "max" | number;
 
@@ -35,6 +68,7 @@ export interface SearchOptions {
   endDate?: string;
   countryCode?: CountryCode;
   responseLength?: ResponseLength;
+  fastMode?: boolean;
 }
 
 export interface SearchResponse {
@@ -59,7 +93,12 @@ export interface FeedbackResponse {
 
 // Contents API Types
 export type ExtractEffort = "normal" | "high" | "auto";
-export type ContentResponseLength = "short" | "medium" | "large" | "max" | number;
+export type ContentResponseLength =
+  | "short"
+  | "medium"
+  | "large"
+  | "max"
+  | number;
 
 export interface ContentsOptions {
   summary?: boolean | string | object;
@@ -105,38 +144,36 @@ export interface AnswerOptions {
   excludedSources?: string[];
   startDate?: string;
   endDate?: string;
+  fastMode?: boolean;
 }
 
 export interface SearchMetadata {
-  tx_id: string;
-  ai_tx_id: string;
-  results_by_source: Record<string, number>;
-  search_deduction_dollars: number;
-  ai_deduction_dollars: number;
-  total_deduction_dollars: number;
-  total_deduction_pcm: number;
+  tx_ids: string[];
+  number_of_results: number;
   total_characters: number;
 }
 
 export interface AIUsage {
   input_tokens: number;
   output_tokens: number;
-  total_tokens: number;
-  cost_dollars: number;
+}
+
+export interface Cost {
+  total_deduction_dollars: number;
+  search_deduction_dollars: number;
+  ai_deduction_dollars: number;
 }
 
 export interface AnswerSuccessResponse {
   success: true;
-  ai_processed: boolean;
   ai_tx_id: string;
-  data_type: "structured" | "unstructured";
   original_query: string;
-  documents_processed: number;
-  total_documents_available: number;
-  raw_search_results: Record<string, any>[];
-  search_metadata: SearchMetadata;
   contents: string | Record<string, any>;
+  data_type: "structured" | "unstructured";
+  search_results: SearchResult[];
+  search_metadata: SearchMetadata;
   ai_usage: AIUsage;
+  cost: Cost;
 }
 
 export interface AnswerErrorResponse {

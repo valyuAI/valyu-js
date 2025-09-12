@@ -1,11 +1,22 @@
-import axios from 'axios';
-import { SearchResponse, SearchType, SearchOptions, ContentsOptions, ContentsResponse, AnswerOptions, AnswerResponse } from './types';
+import axios from "axios";
+import {
+  SearchResponse,
+  SearchType,
+  SearchOptions,
+  ContentsOptions,
+  ContentsResponse,
+  AnswerOptions,
+  AnswerResponse,
+} from "./types";
 
 export class Valyu {
   private baseUrl: string;
   private headers: Record<string, string>;
 
-  constructor(apiKey?: string, baseUrl: string = "https://api.valyu.network/v1") {
+  constructor(
+    apiKey?: string,
+    baseUrl: string = "https://api.valyu.network/v1"
+  ) {
     if (!apiKey) {
       apiKey = process.env.VALYU_API_KEY;
       if (!apiKey) {
@@ -15,7 +26,7 @@ export class Valyu {
     this.baseUrl = baseUrl;
     this.headers = {
       "Content-Type": "application/json",
-      "x-api-key": apiKey
+      "x-api-key": apiKey,
     };
   }
 
@@ -49,7 +60,8 @@ export class Valyu {
   private validateDomain(domain: string): boolean {
     // Domain must have at least one dot and valid structure
     // Supports: example.com, example.com/path, subdomain.example.com/path/to/resource
-    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(\/.+)?$/;
+    const domainRegex =
+      /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(\/.+)?$/;
     return domainRegex.test(domain);
   }
 
@@ -59,13 +71,18 @@ export class Valyu {
   private validateDatasetId(datasetId: string): boolean {
     // Dataset format: provider/datasetname (exactly one slash)
     // Provider and dataset name can contain alphanumeric, hyphens, underscores
-    const parts = datasetId.split('/');
+    const parts = datasetId.split("/");
     if (parts.length !== 2) return false;
-    
+
     const providerRegex = /^[a-zA-Z0-9_-]+$/;
     const datasetRegex = /^[a-zA-Z0-9_-]+$/;
-    
-    return providerRegex.test(parts[0]) && datasetRegex.test(parts[1]) && parts[0].length > 0 && parts[1].length > 0;
+
+    return (
+      providerRegex.test(parts[0]) &&
+      datasetRegex.test(parts[1]) &&
+      parts[0].length > 0 &&
+      parts[1].length > 0
+    );
   }
 
   /**
@@ -76,36 +93,38 @@ export class Valyu {
     if (this.validateUrl(source)) {
       return true;
     }
-    
+
     // Check if it's a valid domain (with optional path)
     if (this.validateDomain(source)) {
       return true;
     }
-    
+
     // Check if it's a valid dataset identifier
     if (this.validateDatasetId(source)) {
       return true;
     }
-    
+
     return false;
   }
-
 
   /**
    * Validates an array of source strings
    */
-  private validateSources(sources: string[]): { valid: boolean; invalidSources: string[] } {
+  private validateSources(sources: string[]): {
+    valid: boolean;
+    invalidSources: string[];
+  } {
     const invalidSources: string[] = [];
-    
+
     for (const source of sources) {
       if (!this.validateSource(source)) {
         invalidSources.push(source);
       }
     }
-    
+
     return {
       valid: invalidSources.length === 0,
-      invalidSources
+      invalidSources,
     };
   }
 
@@ -125,9 +144,13 @@ export class Valyu {
    * @param options.endDate - End date filter (YYYY-MM-DD format)
    * @param options.countryCode - Country code filter for search results
    * @param options.responseLength - Response content length: "short"/"medium"/"large"/"max" or integer character count
+   * @param options.fastMode - Fast mode for quicker but shorter results (default: false)
    * @returns Promise resolving to search results
    */
-  async search(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
+  async search(
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResponse> {
     try {
       // Default values
       const defaultSearchType: SearchType = "all";
@@ -140,19 +163,24 @@ export class Valyu {
       let finalSearchType: SearchType = defaultSearchType;
       const providedSearchTypeString = options.searchType?.toLowerCase();
 
-      if (providedSearchTypeString === "web" || providedSearchTypeString === "proprietary" || providedSearchTypeString === "all") {
+      if (
+        providedSearchTypeString === "web" ||
+        providedSearchTypeString === "proprietary" ||
+        providedSearchTypeString === "all"
+      ) {
         finalSearchType = providedSearchTypeString as SearchType;
       } else if (options.searchType !== undefined) {
         return {
           success: false,
-          error: "Invalid searchType provided. Must be one of: all, web, proprietary",
+          error:
+            "Invalid searchType provided. Must be one of: all, web, proprietary",
           tx_id: null,
           query,
           results: [],
           results_by_source: { web: 0, proprietary: 0 },
           total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
@@ -167,7 +195,7 @@ export class Valyu {
           results_by_source: { web: 0, proprietary: 0 },
           total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
@@ -181,7 +209,7 @@ export class Valyu {
           results_by_source: { web: 0, proprietary: 0 },
           total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
@@ -197,7 +225,7 @@ export class Valyu {
           results_by_source: { web: 0, proprietary: 0 },
           total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
@@ -213,22 +241,26 @@ export class Valyu {
             results_by_source: { web: 0, proprietary: 0 },
             total_deduction_pcm: 0.0,
             total_deduction_dollars: 0.0,
-            total_characters: 0
+            total_characters: 0,
           };
         }
 
-        const includedSourcesValidation = this.validateSources(options.includedSources);
+        const includedSourcesValidation = this.validateSources(
+          options.includedSources
+        );
         if (!includedSourcesValidation.valid) {
           return {
             success: false,
-            error: `Invalid includedSources format. Invalid sources: ${includedSourcesValidation.invalidSources.join(', ')}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
+            error: `Invalid includedSources format. Invalid sources: ${includedSourcesValidation.invalidSources.join(
+              ", "
+            )}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
             tx_id: null,
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
             total_deduction_pcm: 0.0,
             total_deduction_dollars: 0.0,
-            total_characters: 0
+            total_characters: 0,
           };
         }
       }
@@ -245,22 +277,26 @@ export class Valyu {
             results_by_source: { web: 0, proprietary: 0 },
             total_deduction_pcm: 0.0,
             total_deduction_dollars: 0.0,
-            total_characters: 0
+            total_characters: 0,
           };
         }
 
-        const excludeSourcesValidation = this.validateSources(options.excludeSources);
+        const excludeSourcesValidation = this.validateSources(
+          options.excludeSources
+        );
         if (!excludeSourcesValidation.valid) {
           return {
             success: false,
-            error: `Invalid excludeSources format. Invalid sources: ${excludeSourcesValidation.invalidSources.join(', ')}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
+            error: `Invalid excludeSources format. Invalid sources: ${excludeSourcesValidation.invalidSources.join(
+              ", "
+            )}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
             tx_id: null,
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
             total_deduction_pcm: 0.0,
             total_deduction_dollars: 0.0,
-            total_characters: 0
+            total_characters: 0,
           };
         }
       }
@@ -271,7 +307,8 @@ export class Valyu {
         search_type: finalSearchType,
         max_num_results: maxNumResults,
         is_tool_call: options.isToolCall ?? defaultIsToolCall,
-        relevance_threshold: options.relevanceThreshold ?? defaultRelevanceThreshold,
+        relevance_threshold:
+          options.relevanceThreshold ?? defaultRelevanceThreshold,
         max_price: options.maxPrice ?? defaultMaxPrice,
       };
 
@@ -304,11 +341,13 @@ export class Valyu {
         payload.response_length = options.responseLength;
       }
 
-      const response = await axios.post(
-        `${this.baseUrl}/deepsearch`,
-        payload,
-        { headers: this.headers }
-      );
+      if (options.fastMode !== undefined) {
+        payload.fast_mode = options.fastMode;
+      }
+
+      const response = await axios.post(`${this.baseUrl}/deepsearch`, payload, {
+        headers: this.headers,
+      });
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {
@@ -320,7 +359,7 @@ export class Valyu {
           results_by_source: { web: 0, proprietary: 0 },
           total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
@@ -335,7 +374,7 @@ export class Valyu {
         results_by_source: { web: 0, proprietary: 0 },
         total_deduction_pcm: 0.0,
         total_deduction_dollars: 0.0,
-        total_characters: 0
+        total_characters: 0,
       };
     }
   }
@@ -350,7 +389,10 @@ export class Valyu {
    * @param options.maxPriceDollars - Maximum cost limit in USD
    * @returns Promise resolving to content extraction results
    */
-  async contents(urls: string[], options: ContentsOptions = {}): Promise<ContentsResponse> {
+  async contents(
+    urls: string[],
+    options: ContentsOptions = {}
+  ): Promise<ContentsResponse> {
     try {
       // Validate URLs array
       if (!urls || !Array.isArray(urls)) {
@@ -362,7 +404,7 @@ export class Valyu {
           urls_failed: 0,
           results: [],
           total_cost_dollars: 0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
@@ -375,7 +417,7 @@ export class Valyu {
           urls_failed: 0,
           results: [],
           total_cost_dollars: 0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
@@ -388,12 +430,15 @@ export class Valyu {
           urls_failed: urls.length,
           results: [],
           total_cost_dollars: 0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
       // Validate extractEffort if provided
-      if (options.extractEffort && !["normal", "high", "auto"].includes(options.extractEffort)) {
+      if (
+        options.extractEffort &&
+        !["normal", "high", "auto"].includes(options.extractEffort)
+      ) {
         return {
           success: false,
           error: "extractEffort must be 'normal', 'high', or 'auto'",
@@ -402,26 +447,33 @@ export class Valyu {
           urls_failed: urls.length,
           results: [],
           total_cost_dollars: 0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
       // Validate responseLength if provided
       if (options.responseLength !== undefined) {
         const validLengths = ["short", "medium", "large", "max"];
-        if (typeof options.responseLength === "string" && !validLengths.includes(options.responseLength)) {
+        if (
+          typeof options.responseLength === "string" &&
+          !validLengths.includes(options.responseLength)
+        ) {
           return {
             success: false,
-            error: "responseLength must be 'short', 'medium', 'large', 'max', or a number",
+            error:
+              "responseLength must be 'short', 'medium', 'large', 'max', or a number",
             urls_requested: urls.length,
             urls_processed: 0,
             urls_failed: urls.length,
             results: [],
             total_cost_dollars: 0,
-            total_characters: 0
+            total_characters: 0,
           };
         }
-        if (typeof options.responseLength === "number" && options.responseLength <= 0) {
+        if (
+          typeof options.responseLength === "number" &&
+          options.responseLength <= 0
+        ) {
           return {
             success: false,
             error: "responseLength number must be positive",
@@ -430,14 +482,14 @@ export class Valyu {
             urls_failed: urls.length,
             results: [],
             total_cost_dollars: 0,
-            total_characters: 0
+            total_characters: 0,
           };
         }
       }
 
       // Build payload with snake_case for API
       const payload: Record<string, any> = {
-        urls
+        urls,
       };
 
       // Add optional parameters only if provided
@@ -457,11 +509,9 @@ export class Valyu {
         payload.max_price_dollars = options.maxPriceDollars;
       }
 
-      const response = await axios.post(
-        `${this.baseUrl}/contents`,
-        payload,
-        { headers: this.headers }
-      );
+      const response = await axios.post(`${this.baseUrl}/contents`, payload, {
+        headers: this.headers,
+      });
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {
@@ -472,7 +522,7 @@ export class Valyu {
           urls_failed: urls.length,
           results: [],
           total_cost_dollars: 0,
-          total_characters: 0
+          total_characters: 0,
         };
       }
 
@@ -486,7 +536,7 @@ export class Valyu {
         urls_failed: urls.length,
         results: [],
         total_cost_dollars: 0,
-        total_characters: 0
+        total_characters: 0,
       };
     }
   }
@@ -504,19 +554,23 @@ export class Valyu {
    * @param options.excludedSources - List of URLs/domains to exclude from search results
    * @param options.startDate - Start date filter (YYYY-MM-DD format)
    * @param options.endDate - End date filter (YYYY-MM-DD format)
+   * @param options.fastMode - Fast mode for quicker but shorter results (default: false)
    * @returns Promise resolving to answer response
    */
-  async answer(query: string, options: AnswerOptions = {}): Promise<AnswerResponse> {
+  async answer(
+    query: string,
+    options: AnswerOptions = {}
+  ): Promise<AnswerResponse> {
     try {
       // Default values
       const defaultSearchType: SearchType = "all";
       const defaultDataMaxPrice = 30.0;
 
       // Validate query
-      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      if (!query || typeof query !== "string" || query.trim().length === 0) {
         return {
           success: false,
-          error: "Query is required and must be a non-empty string"
+          error: "Query is required and must be a non-empty string",
         };
       }
 
@@ -524,46 +578,54 @@ export class Valyu {
       let finalSearchType: SearchType = defaultSearchType;
       const providedSearchTypeString = options.searchType?.toLowerCase();
 
-      if (providedSearchTypeString === "web" || providedSearchTypeString === "proprietary" || providedSearchTypeString === "all") {
+      if (
+        providedSearchTypeString === "web" ||
+        providedSearchTypeString === "proprietary" ||
+        providedSearchTypeString === "all"
+      ) {
         finalSearchType = providedSearchTypeString as SearchType;
       } else if (options.searchType !== undefined) {
         return {
           success: false,
-          error: "Invalid searchType provided. Must be one of: all, web, proprietary"
+          error:
+            "Invalid searchType provided. Must be one of: all, web, proprietary",
         };
       }
 
       // Validate systemInstructions length
       if (options.systemInstructions !== undefined) {
-        if (typeof options.systemInstructions !== 'string') {
+        if (typeof options.systemInstructions !== "string") {
           return {
             success: false,
-            error: "systemInstructions must be a string"
+            error: "systemInstructions must be a string",
           };
         }
-        
+
         const trimmed = options.systemInstructions.trim();
         if (trimmed.length === 0) {
           return {
             success: false,
-            error: "systemInstructions cannot be empty when provided"
+            error: "systemInstructions cannot be empty when provided",
           };
         }
-        
+
         if (trimmed.length > 2000) {
           return {
             success: false,
-            error: "systemInstructions must be 2000 characters or less"
+            error: "systemInstructions must be 2000 characters or less",
           };
         }
       }
 
       // Validate dataMaxPrice
       if (options.dataMaxPrice !== undefined) {
-        if (typeof options.dataMaxPrice !== 'number' || options.dataMaxPrice <= 0) {
+        if (
+          typeof options.dataMaxPrice !== "number" ||
+          options.dataMaxPrice <= 0
+        ) {
           return {
             success: false,
-            error: "dataMaxPrice must be a positive number"
+            error: "dataMaxPrice must be a positive number",
           };
         }
       }
@@ -572,14 +634,14 @@ export class Valyu {
       if (options.startDate && !this.validateDateFormat(options.startDate)) {
         return {
           success: false,
-          error: "Invalid startDate format. Must be YYYY-MM-DD"
+          error: "Invalid startDate format. Must be YYYY-MM-DD",
         };
       }
 
       if (options.endDate && !this.validateDateFormat(options.endDate)) {
         return {
           success: false,
-          error: "Invalid endDate format. Must be YYYY-MM-DD"
+          error: "Invalid endDate format. Must be YYYY-MM-DD",
         };
       }
 
@@ -590,7 +652,7 @@ export class Valyu {
         if (startDate > endDate) {
           return {
             success: false,
-            error: "startDate must be before endDate"
+            error: "startDate must be before endDate",
           };
         }
       }
@@ -600,15 +662,19 @@ export class Valyu {
         if (!Array.isArray(options.includedSources)) {
           return {
             success: false,
-            error: "includedSources must be an array"
+            error: "includedSources must be an array",
           };
         }
 
-        const includedSourcesValidation = this.validateSources(options.includedSources);
+        const includedSourcesValidation = this.validateSources(
+          options.includedSources
+        );
         if (!includedSourcesValidation.valid) {
           return {
             success: false,
-            error: `Invalid includedSources format. Invalid sources: ${includedSourcesValidation.invalidSources.join(', ')}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`
+            error: `Invalid includedSources format. Invalid sources: ${includedSourcesValidation.invalidSources.join(
+              ", "
+            )}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
           };
         }
       }
@@ -618,15 +684,19 @@ export class Valyu {
         if (!Array.isArray(options.excludedSources)) {
           return {
             success: false,
-            error: "excludedSources must be an array"
+            error: "excludedSources must be an array",
           };
         }
 
-        const excludedSourcesValidation = this.validateSources(options.excludedSources);
+        const excludedSourcesValidation = this.validateSources(
+          options.excludedSources
+        );
         if (!excludedSourcesValidation.valid) {
           return {
             success: false,
-            error: `Invalid excludedSources format. Invalid sources: ${excludedSourcesValidation.invalidSources.join(', ')}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`
+            error: `Invalid excludedSources format. Invalid sources: ${excludedSourcesValidation.invalidSources.join(
+              ", "
+            )}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
           };
         }
       }
@@ -667,16 +737,18 @@ export class Valyu {
         payload.end_date = options.endDate;
       }
 
-      const response = await axios.post(
-        `${this.baseUrl}/answer`,
-        payload,
-        { headers: this.headers }
-      );
+      if (options.fastMode !== undefined) {
+        payload.fast_mode = options.fastMode;
+      }
+
+      const response = await axios.post(`${this.baseUrl}/answer`, payload, {
+        headers: this.headers,
+      });
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {
           success: false,
-          error: response.data?.error || "Request failed"
+          error: response.data?.error || "Request failed",
         };
       }
 
@@ -684,16 +756,16 @@ export class Valyu {
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message
+        error: e.response?.data?.error || e.message,
       };
     }
   }
 }
 
-export type { 
-  SearchResponse, 
-  SearchType, 
-  FeedbackSentiment, 
+export type {
+  SearchResponse,
+  SearchType,
+  FeedbackSentiment,
   FeedbackResponse,
   SearchOptions,
   CountryCode,
@@ -708,5 +780,6 @@ export type {
   AnswerSuccessResponse,
   AnswerErrorResponse,
   SearchMetadata,
-  AIUsage
-} from './types'; 
+  AIUsage,
+  Cost,
+} from "./types";
