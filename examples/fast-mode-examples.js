@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Valyu } = require("../dist/index.js");
 
 // Initialize the Valyu client

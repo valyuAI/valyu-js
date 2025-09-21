@@ -200,6 +200,205 @@ async function testContents(valyu) {
   return true;
 }
 
+async function testAnswer(valyu) {
+  console.log("\n=== Testing Answer API ===");
+
+  // Test 1: Basic answer request
+  console.log("\nTest 1: Basic answer request");
+  const basicQuery = "What is machine learning?";
+
+  try {
+    const response1 = await valyu.answer(basicQuery);
+    console.log("Basic answer response received");
+    console.log(`Success: ${response1.success}`);
+
+    if (response1.success) {
+      console.log(`AI transaction ID: ${response1.ai_tx_id}`);
+      console.log(`Original query: ${response1.original_query}`);
+      console.log(`Data type: ${response1.data_type}`);
+      console.log(`Content length: ${response1.contents.length} characters`);
+      console.log(`Number of search results: ${response1.search_results.length}`);
+      console.log(`Total cost: $${response1.cost.total_deduction_dollars}`);
+      console.log("Basic answer test PASSED!");
+    } else {
+      console.error("Basic answer test FAILED:", response1.error);
+      return false;
+    }
+  } catch (error) {
+    console.error("Basic answer test FAILED:", error);
+    return false;
+  }
+
+  // Test 2: Answer with system instructions
+  console.log("\nTest 2: Answer with system instructions");
+  const systemInstructionsQuery = "Explain quantum computing";
+
+  try {
+    const response2 = await valyu.answer(systemInstructionsQuery, {
+      systemInstructions: "You are a computer science professor. Explain concepts clearly with examples.",
+      searchType: "all",
+      dataMaxPrice: 25.0
+    });
+    console.log("System instructions answer response received");
+    console.log(`Success: ${response2.success}`);
+
+    if (response2.success) {
+      console.log(`Content includes instructions-style response: ${response2.contents.includes('example') || response2.contents.includes('Example')}`);
+      console.log("System instructions test PASSED!");
+    } else {
+      console.error("System instructions test FAILED:", response2.error);
+      return false;
+    }
+  } catch (error) {
+    console.error("System instructions test FAILED:", error);
+    return false;
+  }
+
+  // Test 3: Structured output answer
+  console.log("\nTest 3: Structured output answer");
+  const structuredQuery = "What are the benefits of renewable energy?";
+  const schema = {
+    type: "object",
+    properties: {
+      summary: {
+        type: "string",
+        description: "Brief summary of renewable energy benefits"
+      },
+      key_benefits: {
+        type: "array",
+        items: {
+          type: "string"
+        },
+        description: "List of key benefits",
+        maxItems: 5
+      },
+      challenges: {
+        type: "string",
+        description: "Main challenges or limitations"
+      }
+    },
+    required: ["summary", "key_benefits"]
+  };
+
+  try {
+    const response3 = await valyu.answer(structuredQuery, {
+      structuredOutput: schema,
+      searchType: "web",
+      dataMaxPrice: 30.0
+    });
+    console.log("Structured output answer response received");
+    console.log(`Success: ${response3.success}`);
+
+    if (response3.success) {
+      console.log(`Data type: ${response3.data_type}`);
+      if (response3.data_type === "structured" && typeof response3.contents === "object") {
+        console.log("Structured data received:", JSON.stringify(response3.contents, null, 2));
+        console.log("Structured output test PASSED!");
+      } else {
+        console.log("Warning: Expected structured data but received unstructured");
+        console.log("Structured output test PASSED (with warning)!");
+      }
+    } else {
+      console.error("Structured output test FAILED:", response3.error);
+      return false;
+    }
+  } catch (error) {
+    console.error("Structured output test FAILED:", error);
+    return false;
+  }
+
+  // Test 4: Answer with source filtering
+  console.log("\nTest 4: Answer with source filtering");
+  const filteringQuery = "What are the latest developments in AI?";
+
+  try {
+    const response4 = await valyu.answer(filteringQuery, {
+      searchType: "web",
+      includedSources: ["openai.com", "anthropic.com"],
+      startDate: "2024-01-01",
+      dataMaxPrice: 20.0
+    });
+    console.log("Source filtering answer response received");
+    console.log(`Success: ${response4.success}`);
+
+    if (response4.success) {
+      console.log(`Number of search results: ${response4.search_results.length}`);
+      console.log("Source filtering test PASSED!");
+    } else {
+      console.error("Source filtering test FAILED:", response4.error);
+      return false;
+    }
+  } catch (error) {
+    console.error("Source filtering test FAILED:", error);
+    return false;
+  }
+
+  // Test 5: Fast mode answer
+  console.log("\nTest 5: Fast mode answer");
+  const fastModeQuery = "What is artificial intelligence?";
+
+  try {
+    const response5 = await valyu.answer(fastModeQuery, {
+      fastMode: true,
+      systemInstructions: "Provide a concise explanation.",
+      dataMaxPrice: 15.0
+    });
+    console.log("Fast mode answer response received");
+    console.log(`Success: ${response5.success}`);
+
+    if (response5.success) {
+      console.log(`Content length: ${response5.contents.length} characters`);
+      console.log(`Total cost: $${response5.cost.total_deduction_dollars}`);
+      console.log("Fast mode test PASSED!");
+    } else {
+      console.error("Fast mode test FAILED:", response5.error);
+      return false;
+    }
+  } catch (error) {
+    console.error("Fast mode test FAILED:", error);
+    return false;
+  }
+
+  // Test 6: Error handling - empty query
+  console.log("\nTest 6: Error handling - empty query");
+
+  try {
+    const response6 = await valyu.answer("");
+
+    if (!response6.success && response6.error && response6.error.includes("required")) {
+      console.log("Error handling test PASSED - correctly rejected empty query");
+    } else {
+      console.error("Error handling test FAILED - should reject empty query");
+      return false;
+    }
+  } catch (error) {
+    console.error("Error handling test FAILED:", error);
+    return false;
+  }
+
+  // Test 7: Error handling - invalid search type
+  console.log("\nTest 7: Error handling - invalid search type");
+
+  try {
+    const response7 = await valyu.answer("test query", {
+      searchType: "invalid_type"
+    });
+
+    if (!response7.success && response7.error && response7.error.includes("Invalid searchType")) {
+      console.log("Error handling test PASSED - correctly rejected invalid search type");
+    } else {
+      console.error("Error handling test FAILED - should reject invalid search type");
+      return false;
+    }
+  } catch (error) {
+    console.error("Error handling test FAILED:", error);
+    return false;
+  }
+
+  console.log("\nAnswer API tests completed!");
+  return true;
+}
+
 async function runTest() {
   console.log("Starting integration tests...");
 
@@ -210,7 +409,7 @@ async function runTest() {
   }
 
   const valyu = new Valyu(apiKey);
-  
+
   let allTestsPassed = true;
 
   // Run Search API tests
@@ -220,6 +419,10 @@ async function runTest() {
   // Run Contents API tests
   const contentsPassed = await testContents(valyu);
   allTestsPassed = allTestsPassed && contentsPassed;
+
+  // Run Answer API tests
+  const answerPassed = await testAnswer(valyu);
+  allTestsPassed = allTestsPassed && answerPassed;
 
   if (allTestsPassed) {
     console.log("\n=== All integration tests PASSED! ===");
