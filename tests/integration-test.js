@@ -309,12 +309,12 @@ async function testAnswer(valyu) {
 
   // Test 4: Answer with source filtering
   console.log("\nTest 4: Answer with source filtering");
-  const filteringQuery = "What are the latest developments in AI?";
+  const filteringQuery = "What is neural networks?";
 
   try {
     const response4 = await valyu.answer(filteringQuery, {
       searchType: "web",
-      includedSources: ["openai.com", "anthropic.com"],
+      includedSources: ["towardsdatascience.com"],
       startDate: "2024-01-01",
       dataMaxPrice: 20.0
     });
