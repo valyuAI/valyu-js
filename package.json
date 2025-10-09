@@ -36,7 +36,7 @@
         "content-extraction",
         "deepsearch"
     ],
-    "author": "Valyu",
+    "author": "Valyu <harvey@valyu.network>",
     "license": "MIT",
     "bugs": {
         "url": "https://github.com/ValyuNetwork/valyu-js/issues"
