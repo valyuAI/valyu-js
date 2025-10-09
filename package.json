@@ -1,6 +1,6 @@
 {
     "name": "valyu-js",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "description": "Search for AIs - DeepSearch and Content API.",
     "files": [
         "dist"
@@ -41,7 +41,7 @@
     "bugs": {
         "url": "https://github.com/ValyuNetwork/valyu-js/issues"
     },
-    "homepage": "https://valyu.network",
+    "homepage": "https://valyu.ai",
     "dependencies": {
         "axios": "^1.4.0"
     },
