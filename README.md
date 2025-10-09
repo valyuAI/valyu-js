@@ -214,7 +214,7 @@ const response = await valyu.search(
   {
     searchType: "proprietary",
     includedSources: ["valyu/valyu-arxiv"],
-    relevanceThreshold: 0.7,
+    relevanceThreshold: 0.6,
     maxNumResults: 10
   }
 );
