@@ -15,7 +15,7 @@ export class Valyu {
 
   constructor(
     apiKey?: string,
-    baseUrl: string = "https://api.valyu.network/v1"
+    baseUrl: string = "https://api.valyu.ai/v1"
   ) {
     if (!apiKey) {
       apiKey = process.env.VALYU_API_KEY;

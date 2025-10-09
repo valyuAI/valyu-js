@@ -41,7 +41,7 @@
     "bugs": {
         "url": "https://github.com/ValyuNetwork/valyu-js/issues"
     },
-    "homepage": "https://valyu.network",
+    "homepage": "https://valyu.ai",
     "dependencies": {
         "axios": "^1.4.0"
     },
