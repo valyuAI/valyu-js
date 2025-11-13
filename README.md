@@ -23,7 +23,7 @@ We do all the heavy lifting for you - one unified API for all data:
 Install the Valyu SDK using npm:
 
 ```bash
-npm install valyu
+npm install valyu-js
 ```
 
 ## Quick Start
@@ -31,7 +31,7 @@ npm install valyu
 Here's what it looks like, make your first query in just 4 lines of code:
 
 ```javascript
-const { Valyu } = require('valyu');
+const { Valyu } = require('valyu-js');
 
 const valyu = new Valyu("your-api-key-here");
 
@@ -196,7 +196,7 @@ Each `ContentResult` contains:
 ### Basic Search
 
 ```javascript
-const { Valyu } = require('valyu');
+const { Valyu } = require('valyu-js');
 
 const valyu = new Valyu("your-api-key");
 
@@ -462,8 +462,8 @@ const response = await valyu.context(
 ## Getting Started
 
 1. Sign up for a free account at [Valyu](https://platform.valyu.ai)
-2. Get your API key from the dashboard  
-3. Install the SDK: `npm install valyu`
+2. Get your API key from the dashboard
+3. Install the SDK: `npm install valyu-js`
 4. Start building with the examples above
 
 ## Testing

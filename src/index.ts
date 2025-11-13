@@ -9,6 +9,8 @@ import {
   AnswerResponse,
 } from "./types";
 
+
+// Valyu API client
 export class Valyu {
   private baseUrl: string;
   private headers: Record<string, string>;
