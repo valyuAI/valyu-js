@@ -23,7 +23,7 @@ We do all the heavy lifting for you - one unified API for all data:
 Install the Valyu SDK using npm:
 
 ```bash
-npm install valyu
+npm install valyu-js
 ```
 
 ## Quick Start
@@ -31,7 +31,7 @@ npm install valyu
 Here's what it looks like, make your first query in just 4 lines of code:
 
 ```javascript
-const { Valyu } = require('valyu');
+const { Valyu } = require('valyu-js');
 
 const valyu = new Valyu("your-api-key-here");
 
