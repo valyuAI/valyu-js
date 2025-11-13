@@ -196,7 +196,7 @@ Each `ContentResult` contains:
 ### Basic Search
 
 ```javascript
-const { Valyu } = require('valyu');
+const { Valyu } = require('valyu-js');
 
 const valyu = new Valyu("your-api-key");
 
@@ -462,8 +462,8 @@ const response = await valyu.context(
 ## Getting Started
 
 1. Sign up for a free account at [Valyu](https://platform.valyu.ai)
-2. Get your API key from the dashboard  
-3. Install the SDK: `npm install valyu`
+2. Get your API key from the dashboard
+3. Install the SDK: `npm install valyu-js`
 4. Start building with the examples above
 
 ## Testing
