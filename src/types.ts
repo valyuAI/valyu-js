@@ -53,6 +53,10 @@ export interface SearchResult {
   length: number;
   relevance_score: number;
   data_type?: DataType;
+  source_type?: string;
+  publication_date?: string;
+  id?: string;
+  image_url?: Record<string, string>;
 }
 
 export interface SearchOptions {

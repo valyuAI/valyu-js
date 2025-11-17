@@ -124,9 +124,12 @@ Each `SearchResult` contains:
     source: string,                           // Source identifier
     price: number,                            // Cost for this result
     length: number,                           // Content length in characters
-    image_url?: Record<string, string>,       // Associated images
     relevance_score: number,                  // Relevance score (0-1)
-    data_type?: string                        // "structured" or "unstructured"
+    data_type?: string,                       // "structured" or "unstructured"
+    source_type?: string,                     // Source type identifier
+    publication_date?: string,                // Publication date (YYYY-MM-DD)
+    id?: string,                              // Unique result identifier
+    image_url?: Record<string, string>        // Associated images
 }
 ```
 
