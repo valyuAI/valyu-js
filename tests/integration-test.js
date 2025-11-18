@@ -4,6 +4,9 @@ const { Valyu } = require('../dist/index.js');
 
 async function testSearch(valyu) {
   console.log("\n=== Testing Search API ===");
+
+  // Test 1: Basic search
+  console.log("\nTest 1: Basic search");
   const testQuery = "What is attention mechanism in deep learning?";
   console.log(`Attempting to call valyu.search with query: '${testQuery}'`);
 
@@ -13,24 +16,56 @@ async function testSearch(valyu) {
         {
           searchType: "all",
           maxNumResults: 10,
-          maxPrice: 20 
+          maxPrice: 20
         }
     );
 
     console.log("Search response received:", JSON.stringify(response, null, 2));
 
     if (response && response.success === true && !response.error) {
-      console.log("Search API test PASSED!");
-      return true;
+      console.log("Basic search test PASSED!");
     } else {
-      console.error("Search API test FAILED. Response did not indicate success or contained an error.");
+      console.error("Basic search test FAILED. Response did not indicate success or contained an error.");
       console.error("Full response:", response);
       return false;
     }
   } catch (error) {
-    console.error("Search API test FAILED due to an exception:", error);
+    console.error("Basic search test FAILED due to an exception:", error);
     return false;
   }
+
+  // Test 2: News search mode
+  console.log("\nTest 2: News search mode");
+  const newsQuery = "latest technology news";
+
+  try {
+    const response = await valyu.search(
+        newsQuery,
+        {
+          searchType: "news",
+          maxNumResults: 5,
+          maxPrice: 20
+        }
+    );
+
+    console.log("News search response received");
+    console.log(`Success: ${response.success}`);
+    console.log(`Number of results: ${response.results.length}`);
+
+    if (response && response.success === true && !response.error) {
+      console.log("News search test PASSED!");
+    } else {
+      console.error("News search test FAILED. Response did not indicate success or contained an error.");
+      console.error("Full response:", response);
+      return false;
+    }
+  } catch (error) {
+    console.error("News search test FAILED due to an exception:", error);
+    return false;
+  }
+
+  console.log("\nSearch API tests completed!");
+  return true;
 }
 
 async function testContents(valyu) {

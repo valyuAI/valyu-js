@@ -134,8 +134,8 @@ export class Valyu {
    * Search for information using the Valyu DeepSearch API
    * @param query - The search query string
    * @param options - Search configuration options
-   * @param options.searchType - Type of search: "web", "proprietary", or "all"
-   * @param options.maxNumResults - Maximum number of results (1-20)
+   * @param options.searchType - Type of search: "web", "proprietary", "all", or "news"
+   * @param options.maxNumResults - Maximum number of results (1-100)
    * @param options.maxPrice - Maximum price per thousand characters (CPM)
    * @param options.isToolCall - Whether this is a tool call
    * @param options.relevanceThreshold - Minimum relevance score (0-1)
@@ -147,6 +147,7 @@ export class Valyu {
    * @param options.countryCode - Country code filter for search results
    * @param options.responseLength - Response content length: "short"/"medium"/"large"/"max" or integer character count
    * @param options.fastMode - Fast mode for quicker but shorter results (default: false)
+   * @param options.urlOnly - Returns shortened snippets (default: false)
    * @returns Promise resolving to search results
    */
   async search(
@@ -168,14 +169,15 @@ export class Valyu {
       if (
         providedSearchTypeString === "web" ||
         providedSearchTypeString === "proprietary" ||
-        providedSearchTypeString === "all"
+        providedSearchTypeString === "all" ||
+        providedSearchTypeString === "news"
       ) {
         finalSearchType = providedSearchTypeString as SearchType;
       } else if (options.searchType !== undefined) {
         return {
           success: false,
           error:
-            "Invalid searchType provided. Must be one of: all, web, proprietary",
+            "Invalid searchType provided. Must be one of: all, web, proprietary, news",
           tx_id: null,
           query,
           results: [],
@@ -217,10 +219,10 @@ export class Valyu {
 
       // Validate maxNumResults range
       const maxNumResults = options.maxNumResults ?? defaultMaxNumResults;
-      if (maxNumResults < 1 || maxNumResults > 20) {
+      if (maxNumResults < 1 || maxNumResults > 100) {
         return {
           success: false,
-          error: "maxNumResults must be between 1 and 20",
+          error: "maxNumResults must be between 1 and 100",
           tx_id: null,
           query,
           results: [],
@@ -345,6 +347,10 @@ export class Valyu {
 
       if (options.fastMode !== undefined) {
         payload.fast_mode = options.fastMode;
+      }
+
+      if (options.urlOnly !== undefined) {
+        payload.url_only = options.urlOnly;
       }
 
       const response = await axios.post(`${this.baseUrl}/deepsearch`, payload, {
@@ -549,7 +555,7 @@ export class Valyu {
    * @param options - Answer configuration options
    * @param options.structuredOutput - JSON Schema object for structured responses
    * @param options.systemInstructions - Custom system-level instructions (max 2000 chars)
-   * @param options.searchType - Type of search: "web", "proprietary", or "all"
+   * @param options.searchType - Type of search: "web", "proprietary", "all", or "news"
    * @param options.dataMaxPrice - Maximum spend (USD) for data retrieval
    * @param options.countryCode - Country code filter for search results
    * @param options.includedSources - List of specific sources to include
@@ -583,14 +589,15 @@ export class Valyu {
       if (
         providedSearchTypeString === "web" ||
         providedSearchTypeString === "proprietary" ||
-        providedSearchTypeString === "all"
+        providedSearchTypeString === "all" ||
+        providedSearchTypeString === "news"
       ) {
         finalSearchType = providedSearchTypeString as SearchType;
       } else if (options.searchType !== undefined) {
         return {
           success: false,
           error:
-            "Invalid searchType provided. Must be one of: all, web, proprietary",
+            "Invalid searchType provided. Must be one of: all, web, proprietary, news",
         };
       }
 
