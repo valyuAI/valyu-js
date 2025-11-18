@@ -1,4 +1,4 @@
-export type SearchType = "web" | "proprietary" | "all";
+export type SearchType = "web" | "proprietary" | "all" | "news";
 export type FeedbackSentiment = "very good" | "good" | "bad" | "very bad";
 export type DataType = "structured" | "unstructured";
 
@@ -73,6 +73,7 @@ export interface SearchOptions {
   countryCode?: CountryCode;
   responseLength?: ResponseLength;
   fastMode?: boolean;
+  urlOnly?: boolean;
 }
 
 export interface SearchResponse {

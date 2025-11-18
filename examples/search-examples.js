@@ -79,6 +79,25 @@ async function runExamples() {
 
   console.log("\n" + "=".repeat(50) + "\n");
 
+  // News search
+  console.log("📰 News Search:");
+  try {
+    const response = await valyu.search(
+      "latest AI developments",
+      {
+        searchType: "news",
+        maxNumResults: 10,
+        relevanceThreshold: 0.5,
+        startDate: "2025-01-01",
+      }
+    );
+    console.log(response);
+  } catch (error) {
+    console.error("News search failed:", error.message);
+  }
+
+  console.log("\n" + "=".repeat(50) + "\n");
+
   // Hybrid search with exclude sources
   console.log("🔄 Hybrid Search with Source Exclusion:");
   try {
