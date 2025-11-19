@@ -64,6 +64,80 @@ async function testSearch(valyu) {
     return false;
   }
 
+  // Test 3: Fast mode search (relevance_score should be optional)
+  console.log("\nTest 3: Fast mode search");
+  const fastModeQuery = "quantum computing breakthroughs";
+
+  try {
+    const response = await valyu.search(
+        fastModeQuery,
+        {
+          fastMode: true,
+          maxNumResults: 5,
+          maxPrice: 20
+        }
+    );
+
+    console.log("Fast mode search response received");
+    console.log(`Success: ${response.success}`);
+    console.log(`Number of results: ${response.results.length}`);
+
+    if (response && response.success === true && !response.error) {
+      // Verify that results are returned and relevance_score is optional
+      if (response.results.length > 0) {
+        const firstResult = response.results[0];
+        console.log(`First result has title: ${!!firstResult.title}`);
+        console.log(`First result has url: ${!!firstResult.url}`);
+        console.log(`First result has content: ${!!firstResult.content}`);
+        console.log(`First result relevance_score: ${firstResult.relevance_score !== undefined ? firstResult.relevance_score : 'not present (expected in fast mode)'}`);
+      }
+      console.log("Fast mode search test PASSED!");
+    } else {
+      console.error("Fast mode search test FAILED. Response did not indicate success or contained an error.");
+      console.error("Full response:", response);
+      return false;
+    }
+  } catch (error) {
+    console.error("Fast mode search test FAILED due to an exception:", error);
+    return false;
+  }
+
+  // Test 4: URL only mode search (relevance_score should be optional)
+  console.log("\nTest 4: URL only mode search");
+  const urlOnlyQuery = "artificial intelligence applications";
+
+  try {
+    const response = await valyu.search(
+        urlOnlyQuery,
+        {
+          urlOnly: true,
+          maxNumResults: 5,
+          maxPrice: 20
+        }
+    );
+
+    console.log("URL only mode search response received");
+    console.log(`Success: ${response.success}`);
+    console.log(`Number of results: ${response.results.length}`);
+
+    if (response && response.success === true && !response.error) {
+      // Verify that results are returned and relevance_score is optional
+      if (response.results.length > 0) {
+        const firstResult = response.results[0];
+        console.log(`First result has url: ${!!firstResult.url}`);
+        console.log(`First result relevance_score: ${firstResult.relevance_score !== undefined ? firstResult.relevance_score : 'not present (expected in url only mode)'}`);
+      }
+      console.log("URL only mode search test PASSED!");
+    } else {
+      console.error("URL only mode search test FAILED. Response did not indicate success or contained an error.");
+      console.error("Full response:", response);
+      return false;
+    }
+  } catch (error) {
+    console.error("URL only mode search test FAILED due to an exception:", error);
+    return false;
+  }
+
   console.log("\nSearch API tests completed!");
   return true;
 }

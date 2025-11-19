@@ -23,10 +23,10 @@ jobs:
       - name: Build package
         run: npm run build
 
-      # - name: Run integration test
-      #   env:
-      #     VALYU_API_KEY: ${{ secrets.VALYU_API_KEY }}
-      #   run: node tests/integration-test.js
+      - name: Run integration test
+        env:
+          VALYU_API_KEY: ${{ secrets.VALYU_API_KEY }}
+        run: node tests/integration-test.js
 
       - name: Publish to npm
         if: success() # Only publish if build and tests succeed

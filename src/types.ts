@@ -51,7 +51,7 @@ export interface SearchResult {
   source: string;
   price: number;
   length: number;
-  relevance_score: number;
+  relevance_score?: number;
   data_type?: DataType;
   source_type?: string;
   publication_date?: string;
