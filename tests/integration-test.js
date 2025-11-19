@@ -15,8 +15,7 @@ async function testSearch(valyu) {
         testQuery,
         {
           searchType: "all",
-          maxNumResults: 10,
-          maxPrice: 20
+          maxNumResults: 10
         }
     );
 
@@ -43,8 +42,7 @@ async function testSearch(valyu) {
         newsQuery,
         {
           searchType: "news",
-          maxNumResults: 5,
-          maxPrice: 20
+          maxNumResults: 5
         }
     );
 
@@ -73,8 +71,7 @@ async function testSearch(valyu) {
         fastModeQuery,
         {
           fastMode: true,
-          maxNumResults: 5,
-          maxPrice: 20
+          maxNumResults: 5
         }
     );
 
@@ -111,8 +108,7 @@ async function testSearch(valyu) {
         urlOnlyQuery,
         {
           urlOnly: true,
-          maxNumResults: 5,
-          maxPrice: 20
+          maxNumResults: 5
         }
     );
 
@@ -345,8 +341,7 @@ async function testAnswer(valyu) {
   try {
     const response2 = await valyu.answer(systemInstructionsQuery, {
       systemInstructions: "You are a computer science professor. Explain concepts clearly with examples.",
-      searchType: "all",
-      dataMaxPrice: 25.0
+      searchType: "all"
     });
     console.log("System instructions answer response received");
     console.log(`Success: ${response2.success}`);
@@ -392,8 +387,7 @@ async function testAnswer(valyu) {
   try {
     const response3 = await valyu.answer(structuredQuery, {
       structuredOutput: schema,
-      searchType: "web",
-      dataMaxPrice: 30.0
+      searchType: "web"
     });
     console.log("Structured output answer response received");
     console.log(`Success: ${response3.success}`);
@@ -424,8 +418,7 @@ async function testAnswer(valyu) {
     const response4 = await valyu.answer(filteringQuery, {
       searchType: "web",
       includedSources: ["towardsdatascience.com"],
-      startDate: "2024-01-01",
-      dataMaxPrice: 20.0
+      startDate: "2024-01-01"
     });
     console.log("Source filtering answer response received");
     console.log(`Success: ${response4.success}`);
@@ -449,8 +442,7 @@ async function testAnswer(valyu) {
   try {
     const response5 = await valyu.answer(fastModeQuery, {
       fastMode: true,
-      systemInstructions: "Provide a concise explanation.",
-      dataMaxPrice: 15.0
+      systemInstructions: "Provide a concise explanation."
     });
     console.log("Fast mode answer response received");
     console.log(`Success: ${response5.success}`);
