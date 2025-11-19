@@ -124,7 +124,7 @@ Each `SearchResult` contains:
     source: string,                           // Source identifier
     price: number,                            // Cost for this result
     length: number,                           // Content length in characters
-    relevance_score: number,                  // Relevance score (0-1)
+    relevance_score?: number,                 // Relevance score (0-1), not available in fast_mode or url_only
     data_type?: string,                       // "structured" or "unstructured"
     source_type?: string,                     // Source type identifier
     publication_date?: string,                // Publication date (YYYY-MM-DD)
@@ -261,11 +261,13 @@ const response = await valyu.search("climate change solutions");
 if (response.success) {
     console.log(`Search cost: $${response.total_deduction_dollars.toFixed(4)}`);
     console.log(`Sources: Web=${response.results_by_source.web}, Proprietary=${response.results_by_source.proprietary}`);
-    
+
     response.results.forEach((result, i) => {
         console.log(`\n${i + 1}. ${result.title}`);
         console.log(`   Source: ${result.source}`);
-        console.log(`   Relevance: ${result.relevance_score.toFixed(2)}`);
+        if (result.relevance_score !== undefined) {
+            console.log(`   Relevance: ${result.relevance_score.toFixed(2)}`);
+        }
         console.log(`   Content: ${result.content.substring(0, 200)}...`);
     });
 } else {
