@@ -160,7 +160,6 @@ export class Valyu {
       const defaultMaxNumResults = 10;
       const defaultIsToolCall = true;
       const defaultRelevanceThreshold = 0.5;
-      const defaultMaxPrice = 30;
 
       // Validate searchType
       let finalSearchType: SearchType = defaultSearchType;
@@ -313,8 +312,12 @@ export class Valyu {
         is_tool_call: options.isToolCall ?? defaultIsToolCall,
         relevance_threshold:
           options.relevanceThreshold ?? defaultRelevanceThreshold,
-        max_price: options.maxPrice ?? defaultMaxPrice,
       };
+
+      // Add maxPrice only if explicitly provided
+      if (options.maxPrice !== undefined) {
+        payload.max_price = options.maxPrice;
+      }
 
       // Add optional parameters only if provided
       if (options.includedSources !== undefined) {
@@ -572,7 +575,6 @@ export class Valyu {
     try {
       // Default values
       const defaultSearchType: SearchType = "all";
-      const defaultDataMaxPrice = 30.0;
 
       // Validate query
       if (!query || typeof query !== "string" || query.trim().length === 0) {
@@ -714,8 +716,12 @@ export class Valyu {
       const payload: Record<string, any> = {
         query: query.trim(),
         search_type: finalSearchType,
-        data_max_price: options.dataMaxPrice ?? defaultDataMaxPrice,
       };
+
+      // Add dataMaxPrice only if explicitly provided
+      if (options.dataMaxPrice !== undefined) {
+        payload.data_max_price = options.dataMaxPrice;
+      }
 
       // Add optional parameters only if provided
       if (options.structuredOutput !== undefined) {
