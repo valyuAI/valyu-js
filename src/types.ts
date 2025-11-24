@@ -187,3 +187,202 @@ export interface AnswerErrorResponse {
 }
 
 export type AnswerResponse = AnswerSuccessResponse | AnswerErrorResponse;
+
+// DeepResearch API Types
+export type DeepResearchMode = "lite" | "heavy";
+export type DeepResearchStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
+export type DeepResearchOutputFormat = "markdown" | "pdf";
+export type ImageType = "chart" | "ai_generated";
+export type ChartType = "line" | "bar" | "area";
+
+export interface FileAttachment {
+  data: string;
+  filename: string;
+  mediaType: string;
+  context?: string;
+}
+
+export interface MCPServerConfig {
+  url: string;
+  name?: string;
+  toolPrefix?: string;
+  auth?: {
+    type: "bearer" | "header" | "none";
+    token?: string;
+    headers?: Record<string, string>;
+  };
+  allowedTools?: string[];
+}
+
+export interface DeepResearchSearchConfig {
+  searchType?: "all" | "web" | "proprietary";
+  includedSources?: string[];
+}
+
+export interface DeepResearchCreateOptions {
+  input: string;
+  model?: DeepResearchMode;
+  outputFormats?: DeepResearchOutputFormat[];
+  strategy?: string;
+  search?: DeepResearchSearchConfig;
+  urls?: string[];
+  files?: FileAttachment[];
+  mcpServers?: MCPServerConfig[];
+  codeExecution?: boolean;
+  previousReports?: string[];
+  webhookUrl?: string;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export interface Progress {
+  current_step: number;
+  total_steps: number;
+}
+
+export interface ChartDataPoint {
+  x: string | number;
+  y: number;
+}
+
+export interface ChartDataSeries {
+  name: string;
+  data: ChartDataPoint[];
+}
+
+export interface ImageMetadata {
+  image_id: string;
+  image_type: ImageType;
+  deepresearch_id: string;
+  title: string;
+  description?: string;
+  image_url: string;
+  s3_key: string;
+  created_at: number;
+  chart_type?: ChartType;
+  x_axis_label?: string;
+  y_axis_label?: string;
+  data_series?: ChartDataSeries[];
+}
+
+export interface DeepResearchSource {
+  title: string;
+  url: string;
+  snippet?: string;
+  description?: string;
+  source?: string;
+  org_id?: string;
+  price?: number;
+  id?: string;
+  doc_id?: number;
+  doi?: string;
+  category?: string;
+  source_id?: number;
+  word_count?: number;
+}
+
+export interface DeepResearchUsage {
+  search_cost: number;
+  contents_cost: number;
+  ai_cost: number;
+  compute_cost: number;
+  total_cost: number;
+}
+
+export interface DeepResearchCreateResponse {
+  success: boolean;
+  deepresearch_id?: string;
+  status?: DeepResearchStatus;
+  model?: DeepResearchMode;
+  created_at?: string;
+  metadata?: Record<string, string | number | boolean>;
+  public?: boolean;
+  webhook_secret?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface DeepResearchStatusResponse {
+  success: boolean;
+  deepresearch_id?: string;
+  status?: DeepResearchStatus;
+  query?: string;
+  mode?: DeepResearchMode;
+  output_formats?: DeepResearchOutputFormat[];
+  created_at?: number;
+  public?: boolean;
+  progress?: Progress;
+  messages?: any[];
+  completed_at?: number;
+  output?: string;
+  pdf_url?: string;
+  images?: ImageMetadata[];
+  sources?: DeepResearchSource[];
+  usage?: DeepResearchUsage;
+  error?: string;
+}
+
+export interface DeepResearchTaskListItem {
+  deepresearch_id: string;
+  query: string;
+  status: DeepResearchStatus;
+  created_at: number;
+  public?: boolean;
+}
+
+export interface DeepResearchListResponse {
+  success: boolean;
+  data?: DeepResearchTaskListItem[];
+  error?: string;
+}
+
+export interface DeepResearchUpdateResponse {
+  success: boolean;
+  message?: string;
+  deepresearch_id?: string;
+  error?: string;
+}
+
+export interface DeepResearchCancelResponse {
+  success: boolean;
+  message?: string;
+  deepresearch_id?: string;
+  error?: string;
+}
+
+export interface DeepResearchDeleteResponse {
+  success: boolean;
+  message?: string;
+  deepresearch_id?: string;
+  error?: string;
+}
+
+export interface DeepResearchTogglePublicResponse {
+  success: boolean;
+  message?: string;
+  deepresearch_id?: string;
+  public?: boolean;
+  error?: string;
+}
+
+export interface WaitOptions {
+  pollInterval?: number;
+  maxWaitTime?: number;
+  onProgress?: (status: DeepResearchStatusResponse) => void;
+}
+
+export interface StreamCallback {
+  onMessage?: (message: any) => void;
+  onProgress?: (current: number, total: number) => void;
+  onComplete?: (result: DeepResearchStatusResponse) => void;
+  onError?: (error: Error) => void;
+}
+
+export interface ListOptions {
+  apiKeyId: string;
+  limit?: number;
+}
