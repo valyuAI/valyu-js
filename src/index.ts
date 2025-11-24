@@ -7,6 +7,17 @@ import {
   ContentsResponse,
   AnswerOptions,
   AnswerResponse,
+  DeepResearchCreateOptions,
+  DeepResearchCreateResponse,
+  DeepResearchStatusResponse,
+  DeepResearchListResponse,
+  DeepResearchUpdateResponse,
+  DeepResearchCancelResponse,
+  DeepResearchDeleteResponse,
+  DeepResearchTogglePublicResponse,
+  WaitOptions,
+  StreamCallback,
+  ListOptions,
 } from "./types";
 
 
@@ -14,6 +25,19 @@ import {
 export class Valyu {
   private baseUrl: string;
   private headers: Record<string, string>;
+
+  // DeepResearch namespace
+  public deepresearch: {
+    create: (options: DeepResearchCreateOptions) => Promise<DeepResearchCreateResponse>;
+    status: (taskId: string) => Promise<DeepResearchStatusResponse>;
+    wait: (taskId: string, options?: WaitOptions) => Promise<DeepResearchStatusResponse>;
+    stream: (taskId: string, callback: StreamCallback) => Promise<void>;
+    list: (options: ListOptions) => Promise<DeepResearchListResponse>;
+    update: (taskId: string, instruction: string) => Promise<DeepResearchUpdateResponse>;
+    cancel: (taskId: string) => Promise<DeepResearchCancelResponse>;
+    delete: (taskId: string) => Promise<DeepResearchDeleteResponse>;
+    togglePublic: (taskId: string, isPublic: boolean) => Promise<DeepResearchTogglePublicResponse>;
+  };
 
   constructor(
     apiKey?: string,
@@ -29,6 +53,19 @@ export class Valyu {
     this.headers = {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
+    };
+
+    // Initialize DeepResearch namespace
+    this.deepresearch = {
+      create: this._deepresearchCreate.bind(this),
+      status: this._deepresearchStatus.bind(this),
+      wait: this._deepresearchWait.bind(this),
+      stream: this._deepresearchStream.bind(this),
+      list: this._deepresearchList.bind(this),
+      update: this._deepresearchUpdate.bind(this),
+      cancel: this._deepresearchCancel.bind(this),
+      delete: this._deepresearchDelete.bind(this),
+      togglePublic: this._deepresearchTogglePublic.bind(this),
     };
   }
 
@@ -553,6 +590,308 @@ export class Valyu {
   }
 
   /**
+   * DeepResearch: Create a new research task
+   */
+  private async _deepresearchCreate(
+    options: DeepResearchCreateOptions
+  ): Promise<DeepResearchCreateResponse> {
+    try {
+      // Validation
+      if (!options.input?.trim()) {
+        return {
+          success: false,
+          error: "input is required and cannot be empty",
+        };
+      }
+
+      // Build payload with snake_case
+      const payload: Record<string, any> = {
+        input: options.input,
+        model: options.model || "lite",
+        output_formats: options.outputFormats || ["markdown"],
+        code_execution: options.codeExecution !== false,
+      };
+
+      // Add optional fields
+      if (options.strategy) payload.strategy = options.strategy;
+      if (options.search) {
+        payload.search = {
+          search_type: options.search.searchType,
+          included_sources: options.search.includedSources,
+        };
+      }
+      if (options.urls) payload.urls = options.urls;
+      if (options.files) payload.files = options.files;
+      if (options.mcpServers) payload.mcp_servers = options.mcpServers;
+      if (options.previousReports) {
+        payload.previous_reports = options.previousReports;
+      }
+      if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
+      if (options.metadata) payload.metadata = options.metadata;
+
+      const response = await axios.post(
+        `${this.baseUrl}/deepresearch/tasks`,
+        payload,
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * DeepResearch: Get task status
+   */
+  private async _deepresearchStatus(
+    taskId: string
+  ): Promise<DeepResearchStatusResponse> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/status`,
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * DeepResearch: Wait for task completion with polling
+   */
+  private async _deepresearchWait(
+    taskId: string,
+    options: WaitOptions = {}
+  ): Promise<DeepResearchStatusResponse> {
+    const pollInterval = options.pollInterval || 5000;
+    const maxWaitTime = options.maxWaitTime || 3600000;
+    const startTime = Date.now();
+
+    while (true) {
+      const status = await this._deepresearchStatus(taskId);
+
+      if (!status.success) {
+        throw new Error(status.error);
+      }
+
+      // Notify progress callback
+      if (options.onProgress) {
+        options.onProgress(status);
+      }
+
+      // Terminal states
+      if (
+        status.status === "completed" ||
+        status.status === "failed" ||
+        status.status === "cancelled"
+      ) {
+        return status;
+      }
+
+      // Check timeout
+      if (Date.now() - startTime > maxWaitTime) {
+        throw new Error("Maximum wait time exceeded");
+      }
+
+      // Wait before next poll
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+  }
+
+  /**
+   * DeepResearch: Stream real-time updates
+   */
+  private async _deepresearchStream(
+    taskId: string,
+    callback: StreamCallback
+  ): Promise<void> {
+    let isComplete = false;
+    let lastMessageCount = 0;
+
+    while (!isComplete) {
+      try {
+        const status = await this._deepresearchStatus(taskId);
+
+        if (!status.success) {
+          if (callback.onError) {
+            callback.onError(new Error(status.error));
+          }
+          return;
+        }
+
+        // Progress updates
+        if (status.progress && callback.onProgress) {
+          callback.onProgress(
+            status.progress.current_step,
+            status.progress.total_steps
+          );
+        }
+
+        // New messages
+        if (status.messages && callback.onMessage) {
+          const newMessages = status.messages.slice(lastMessageCount);
+          newMessages.forEach((msg) => callback.onMessage!(msg));
+          lastMessageCount = status.messages.length;
+        }
+
+        // Terminal states
+        if (status.status === "completed") {
+          if (callback.onComplete) {
+            callback.onComplete(status);
+          }
+          isComplete = true;
+        } else if (
+          status.status === "failed" ||
+          status.status === "cancelled"
+        ) {
+          if (callback.onError) {
+            callback.onError(
+              new Error(status.error || `Task ${status.status}`)
+            );
+          }
+          isComplete = true;
+        }
+
+        if (!isComplete) {
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+      } catch (error: any) {
+        if (callback.onError) {
+          callback.onError(error);
+        }
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * DeepResearch: List all tasks
+   */
+  private async _deepresearchList(
+    options: ListOptions
+  ): Promise<DeepResearchListResponse> {
+    try {
+      const limit = options.limit || 10;
+      const response = await axios.get(
+        `${this.baseUrl}/deepresearch/listtasks?api_key_id=${options.apiKeyId}&limit=${limit}`,
+        { headers: this.headers }
+      );
+
+      return { success: true, data: response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * DeepResearch: Add follow-up instruction
+   */
+  private async _deepresearchUpdate(
+    taskId: string,
+    instruction: string
+  ): Promise<DeepResearchUpdateResponse> {
+    try {
+      if (!instruction?.trim()) {
+        return {
+          success: false,
+          error: "instruction is required and cannot be empty",
+        };
+      }
+
+      const response = await axios.post(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/update`,
+        { instruction },
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * DeepResearch: Cancel task
+   */
+  private async _deepresearchCancel(
+    taskId: string
+  ): Promise<DeepResearchCancelResponse> {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/cancel`,
+        {},
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * DeepResearch: Delete task
+   */
+  private async _deepresearchDelete(
+    taskId: string
+  ): Promise<DeepResearchDeleteResponse> {
+    try {
+      const response = await axios.delete(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/delete`,
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * DeepResearch: Toggle public flag
+   */
+  private async _deepresearchTogglePublic(
+    taskId: string,
+    isPublic: boolean
+  ): Promise<DeepResearchTogglePublicResponse> {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/public`,
+        { public: isPublic },
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
    * Get AI-powered answers using the Valyu Answer API
    * @param query - The question or query string
    * @param options - Answer configuration options
@@ -797,4 +1136,30 @@ export type {
   SearchMetadata,
   AIUsage,
   Cost,
+  DeepResearchMode,
+  DeepResearchStatus,
+  DeepResearchOutputFormat,
+  ImageType,
+  ChartType,
+  FileAttachment,
+  MCPServerConfig,
+  DeepResearchSearchConfig,
+  DeepResearchCreateOptions,
+  Progress,
+  ChartDataPoint,
+  ChartDataSeries,
+  ImageMetadata,
+  DeepResearchSource,
+  DeepResearchUsage,
+  DeepResearchCreateResponse,
+  DeepResearchStatusResponse,
+  DeepResearchTaskListItem,
+  DeepResearchListResponse,
+  DeepResearchUpdateResponse,
+  DeepResearchCancelResponse,
+  DeepResearchDeleteResponse,
+  DeepResearchTogglePublicResponse,
+  WaitOptions,
+  StreamCallback,
+  ListOptions,
 } from "./types";

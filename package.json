@@ -1,7 +1,7 @@
 {
     "name": "valyu-js",
-    "version": "2.1.7",
-    "description": "Search for AIs - DeepSearch and Content API.",
+    "version": "2.2.0",
+    "description": "Deepsearch API for AI.",
     "files": [
         "dist"
     ],
@@ -36,7 +36,7 @@
         "content-extraction",
         "deepsearch"
     ],
-    "author": "Valyu <harvey@valyu.network>",
+    "author": "Valyu <harvey@valyu.ai>",
     "license": "MIT",
     "bugs": {
         "url": "https://github.com/ValyuNetwork/valyu-js/issues"

@@ -50,6 +50,116 @@ console.log(response);
 
 ## API Reference
 
+### DeepResearch Method
+
+The `deepresearch` namespace provides access to Valyu's AI-powered research agent that conducts comprehensive, multi-step research with citations and cost tracking.
+
+```javascript
+// Create a research task
+const task = await valyu.deepresearch.create({
+    input: "What are the latest developments in quantum computing?",
+    model: "lite",                      // "lite" (fast, Haiku) or "heavy" (thorough, Sonnet)
+    outputFormats: ["markdown", "pdf"]  // Output formats
+});
+
+// Wait for completion with progress updates
+const result = await valyu.deepresearch.wait(task.deepresearch_id, {
+    onProgress: (status) => {
+        if (status.progress) {
+            console.log(`Step ${status.progress.current_step}/${status.progress.total_steps}`);
+        }
+    }
+});
+
+console.log(result.output);  // Markdown report
+console.log(result.pdf_url); // PDF download URL
+```
+
+#### DeepResearch Methods
+
+| Method | Description |
+|--------|-------------|
+| `create(options)` | Create a new research task |
+| `status(taskId)` | Get current status of a task |
+| `wait(taskId, options?)` | Wait for task completion with polling |
+| `stream(taskId, callbacks)` | Stream real-time updates |
+| `list(options)` | List all your research tasks |
+| `update(taskId, instruction)` | Add follow-up instruction to running task |
+| `cancel(taskId)` | Cancel a running task |
+| `delete(taskId)` | Delete a task |
+| `togglePublic(taskId, isPublic)` | Make task publicly accessible |
+
+#### DeepResearch Create Options
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `input` | `string` | *required* | Research query or task description |
+| `model` | `"lite" \| "heavy"` | `"lite"` | Research model - lite (fast) or heavy (thorough) |
+| `outputFormats` | `("markdown" \| "pdf")[]` | `["markdown"]` | Output formats for the report |
+| `strategy` | `string` | - | Natural language research strategy |
+| `search` | `object` | - | Search configuration (type, sources) |
+| `urls` | `string[]` | - | URLs to extract and analyze |
+| `files` | `FileAttachment[]` | - | PDF/image files to analyze |
+| `mcpServers` | `MCPServerConfig[]` | - | MCP tool server configurations |
+| `codeExecution` | `boolean` | `true` | Enable/disable code execution |
+| `previousReports` | `string[]` | - | Previous report IDs for context (max 3) |
+| `webhookUrl` | `string` | - | HTTPS webhook URL for completion notification |
+| `metadata` | `Record<string, any>` | - | Custom metadata key-value pairs |
+
+#### DeepResearch Examples
+
+**Basic Research:**
+```javascript
+const task = await valyu.deepresearch.create({
+    input: "Summarize recent AI safety research",
+    model: "lite"
+});
+
+const result = await valyu.deepresearch.wait(task.deepresearch_id);
+console.log(result.output);
+```
+
+**With Custom Sources:**
+```javascript
+const task = await valyu.deepresearch.create({
+    input: "Latest transformer architecture improvements",
+    search: {
+        searchType: "proprietary",
+        includedSources: ["valyu/valyu-arxiv"]
+    },
+    model: "heavy",
+    outputFormats: ["markdown", "pdf"]
+});
+```
+
+**Streaming Updates:**
+```javascript
+await valyu.deepresearch.stream(task.deepresearch_id, {
+    onProgress: (current, total) => {
+        console.log(`Progress: ${current}/${total}`);
+    },
+    onMessage: (message) => {
+        console.log("Agent:", message);
+    },
+    onComplete: (result) => {
+        console.log("Complete! Cost:", result.usage.total_cost);
+    }
+});
+```
+
+**With File Analysis:**
+```javascript
+const task = await valyu.deepresearch.create({
+    input: "Analyze these research papers and provide key insights",
+    files: [{
+        data: "data:application/pdf;base64,...",
+        filename: "paper.pdf",
+        mediaType: "application/pdf"
+    }],
+    urls: ["https://arxiv.org/abs/2103.14030"]
+});
+```
+
 ### Search Method
 
 The `search()` method is the core of the Valyu SDK. It accepts a query string as the first parameter, followed by optional configuration parameters.
