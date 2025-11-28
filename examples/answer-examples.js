@@ -13,37 +13,82 @@ async function runAnswerExamples() {
 
   const valyu = new Valyu(apiKey);
 
-  // Basic answer request
-  console.log("💬 Basic Answer:");
+  // Example 1: Basic answer (non-streaming - default)
+  console.log("1. Basic Answer (non-streaming):");
   try {
     const response = await valyu.answer("What are the latest developments in quantum computing?");
-    console.log(response);
+    console.log("Success:", response.success);
+    if (response.success) {
+      console.log("Answer:", response.contents.substring(0, 300) + "...");
+      console.log("Sources:", response.search_results.length);
+      console.log("Cost: $" + response.cost.total_deduction_dollars.toFixed(4));
+    } else {
+      console.log("Error:", response.error);
+    }
   } catch (error) {
     console.error("Basic answer failed:", error.message);
   }
 
   console.log("\n" + "=".repeat(50) + "\n");
 
-  // Answer with system instructions
-  console.log("📋 Answer with System Instructions:");
+  // Example 2: Streaming answer
+  console.log("2. Streaming Answer:");
+  try {
+    const stream = await valyu.answer("What is machine learning?", { streaming: true });
+
+    let fullAnswer = "";
+    let sourcesCount = 0;
+
+    for await (const chunk of stream) {
+      if (chunk.type === "search_results") {
+        sourcesCount = chunk.search_results.length;
+        console.log(`\n[Received ${sourcesCount} sources]`);
+      } else if (chunk.type === "content") {
+        if (chunk.content) {
+          process.stdout.write(chunk.content);
+          fullAnswer += chunk.content;
+        }
+      } else if (chunk.type === "metadata") {
+        console.log(`\n\n[Metadata] Cost: $${chunk.cost.total_deduction_dollars.toFixed(4)}`);
+        console.log(`[Metadata] Tokens: ${chunk.ai_usage.input_tokens} in, ${chunk.ai_usage.output_tokens} out`);
+      } else if (chunk.type === "done") {
+        console.log("\n[Stream complete]");
+      } else if (chunk.type === "error") {
+        console.log(`\n[Error] ${chunk.error}`);
+      }
+    }
+  } catch (error) {
+    console.error("Streaming answer failed:", error.message);
+  }
+
+  console.log("\n" + "=".repeat(50) + "\n");
+
+  // Example 3: Answer with system instructions
+  console.log("3. Answer with System Instructions:");
   try {
     const response = await valyu.answer(
       "Explain neural networks",
       {
         systemInstructions: "You are a computer science professor. Explain concepts clearly with examples.",
-        searchType: "proprietary",
+        searchType: "web",
         dataMaxPrice: 25.0
       }
     );
-    console.log(response);
+    console.log("Success:", response.success);
+    if (response.success) {
+      console.log("Answer:", response.contents);
+      console.log("AI cost: $" + response.cost.ai_deduction_dollars.toFixed(4));
+    } else {
+      console.log("Error:", response.error);
+    }
   } catch (error) {
     console.error("Answer with system instructions failed:", error.message);
   }
 
   console.log("\n" + "=".repeat(50) + "\n");
 
-  // Structured output answer
-  console.log("🏗️ Structured Output Answer:");
+  // Example 4: Structured output answer
+  console.log("4. Structured Output Answer:");
   try {
     const schema = {
       type: "object",
@@ -54,9 +99,7 @@ async function runAnswerExamples() {
         },
         key_points: {
           type: "array",
-          items: {
-            type: "string"
-          },
+          items: { type: "string" },
           description: "List of key points"
         },
         implications: {
@@ -75,68 +118,82 @@ async function runAnswerExamples() {
         dataMaxPrice: 40.0
       }
     );
-    console.log(response);
+    console.log("Success:", response.success);
+    if (response.success) {
+      console.log("Data type:", response.data_type);
+      console.log("Structured result:", response.contents);
+    } else {
+      console.log("Error:", response.error);
+    }
   } catch (error) {
     console.error("Structured output answer failed:", error.message);
   }
 
   console.log("\n" + "=".repeat(50) + "\n");
 
-  // Answer with source filtering
-  console.log("🎯 Answer with Source Filtering:");
+  // Example 5: Streaming with source filtering
+  console.log("5. Streaming with Source Filtering:");
   try {
-    const response = await valyu.answer(
+    const stream = await valyu.answer(
       "What are the best practices for React performance optimization?",
       {
         searchType: "web",
         includedSources: ["react.dev", "developer.mozilla.org"],
         excludedSources: ["stackoverflow.com"],
         startDate: "2024-01-01",
-        dataMaxPrice: 35.0
+        dataMaxPrice: 35.0,
+        streaming: true
       }
     );
-    console.log(response);
+
+    for await (const chunk of stream) {
+      if (chunk.type === "search_results") {
+        console.log(`\n[Sources found: ${chunk.search_results.length}]`);
+        chunk.search_results.slice(0, 3).forEach((source, i) => {
+          console.log(`  ${i + 1}. ${source.title.substring(0, 60)}...`);
+        });
+      } else if (chunk.type === "content") {
+        if (chunk.content) {
+          process.stdout.write(chunk.content);
+        }
+      } else if (chunk.type === "metadata") {
+        console.log(`\n\n[Total characters: ${chunk.search_metadata.total_characters}]`);
+      } else if (chunk.type === "done") {
+        console.log("\n[Complete]");
+      }
+    }
   } catch (error) {
-    console.error("Answer with source filtering failed:", error.message);
+    console.error("Streaming with filtering failed:", error.message);
   }
 
   console.log("\n" + "=".repeat(50) + "\n");
 
-  // Answer with country filter
-  console.log("🌍 Answer with Country Filter:");
+  // Example 6: Error handling
+  console.log("6. Error Handling Example:");
   try {
     const response = await valyu.answer(
-      "What are the current renewable energy policies?",
+      "How does photosynthesis work?",
       {
-        countryCode: "US",
-        startDate: "2024-06-01",
-        systemInstructions: "Focus on recent policy changes and their practical implications.",
-        dataMaxPrice: 30.0
+        includedSources: ["invalid..domain", "not-a-url"]  // Invalid sources
       }
     );
-    console.log(response);
+    console.log("Success:", response.success);
+    if (!response.success) {
+      console.log("Expected error:", response.error);
+    }
   } catch (error) {
-    console.error("Answer with country filter failed:", error.message);
+    console.error("Error handling failed:", error.message);
   }
 
   console.log("\n" + "=".repeat(50) + "\n");
 
-  // Complex research query
-  console.log("🔬 Complex Research Query:");
-  try {
-    const response = await valyu.answer(
-      "Compare the effectiveness of different machine learning approaches for natural language processing tasks",
-      {
-        searchType: "proprietary",
-        systemInstructions: "Provide a comprehensive academic analysis with specific metrics and comparisons where available.",
-        startDate: "2023-01-01",
-        dataMaxPrice: 50.0
-      }
-    );
-    console.log(response);
-  } catch (error) {
-    console.error("Complex research query failed:", error.message);
-  }
+  console.log("Answer API examples completed!");
+  console.log("\nKey features:");
+  console.log("  - streaming: false (default) - Wait for complete response");
+  console.log("  - streaming: true - Stream chunks as they're generated");
+  console.log("  - Customize responses with systemInstructions");
+  console.log("  - Structure output with structuredOutput (JSON schema)");
+  console.log("  - Control data sources and costs");
 }
 
 runAnswerExamples().catch(console.error);
