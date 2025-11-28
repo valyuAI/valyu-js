@@ -46,14 +46,14 @@ export type ResponseLength = "short" | "medium" | "large" | "max" | number;
 export interface SearchResult {
   title: string;
   url: string;
-  content: string;
+  content: string | object | any[];  // Can be string, object, or array for structured data
   description?: string;
   source: string;
-  price: number;
+  source_type?: string;  // "website", "data", "forum"
+  data_type?: DataType;
+  date?: string;
   length: number;
   relevance_score?: number;
-  data_type?: DataType;
-  source_type?: string;
   publication_date?: string;
   id?: string;
   image_url?: Record<string, string>;
@@ -150,6 +150,7 @@ export interface AnswerOptions {
   startDate?: string;
   endDate?: string;
   fastMode?: boolean;
+  streaming?: boolean;  // Default: false - when true, returns AsyncGenerator
 }
 
 export interface SearchMetadata {
@@ -167,6 +168,7 @@ export interface Cost {
   total_deduction_dollars: number;
   search_deduction_dollars: number;
   ai_deduction_dollars: number;
+  contents_deduction_dollars?: number;
 }
 
 export interface AnswerSuccessResponse {
@@ -188,6 +190,31 @@ export interface AnswerErrorResponse {
 
 export type AnswerResponse = AnswerSuccessResponse | AnswerErrorResponse;
 
+// Streaming Types for Answer API
+export type AnswerStreamChunkType = "search_results" | "content" | "metadata" | "done" | "error";
+
+export interface AnswerStreamChunk {
+  type: AnswerStreamChunkType;
+
+  // For type="search_results"
+  search_results?: SearchResult[];
+
+  // For type="content"
+  content?: string;
+  finish_reason?: string;
+
+  // For type="metadata"
+  ai_tx_id?: string;
+  original_query?: string;
+  data_type?: "structured" | "unstructured";
+  search_metadata?: SearchMetadata;
+  ai_usage?: AIUsage;
+  cost?: Cost;
+
+  // For type="error"
+  error?: string;
+}
+
 // DeepResearch API Types
 export type DeepResearchMode = "lite" | "heavy";
 export type DeepResearchStatus =
@@ -196,7 +223,8 @@ export type DeepResearchStatus =
   | "completed"
   | "failed"
   | "cancelled";
-export type DeepResearchOutputFormat = "markdown" | "pdf";
+export type DeepResearchOutputFormat = "markdown" | "pdf" | Record<string, any>;
+export type DeepResearchOutputType = "markdown" | "json";
 export type ImageType = "chart" | "ai_generated";
 export type ChartType = "line" | "bar" | "area";
 
@@ -318,7 +346,8 @@ export interface DeepResearchStatusResponse {
   progress?: Progress;
   messages?: any[];
   completed_at?: number;
-  output?: string;
+  output?: string | Record<string, any>;
+  output_type?: DeepResearchOutputType;
   pdf_url?: string;
   images?: ImageMetadata[];
   sources?: DeepResearchSource[];

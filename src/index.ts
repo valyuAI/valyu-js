@@ -7,6 +7,9 @@ import {
   ContentsResponse,
   AnswerOptions,
   AnswerResponse,
+  AnswerSuccessResponse,
+  AnswerStreamChunk,
+  SearchResult,
   DeepResearchCreateOptions,
   DeepResearchCreateResponse,
   DeepResearchStatusResponse,
@@ -905,220 +908,341 @@ export class Valyu {
    * @param options.startDate - Start date filter (YYYY-MM-DD format)
    * @param options.endDate - End date filter (YYYY-MM-DD format)
    * @param options.fastMode - Fast mode for quicker but shorter results (default: false)
-   * @returns Promise resolving to answer response
+   * @param options.streaming - Enable streaming mode (default: false)
+   * @returns Promise resolving to answer response, or AsyncGenerator for streaming
    */
   async answer(
     query: string,
     options: AnswerOptions = {}
-  ): Promise<AnswerResponse> {
+  ): Promise<AnswerResponse | AsyncGenerator<AnswerStreamChunk, void, unknown>> {
+    // Validate inputs first
+    const validationError = this.validateAnswerParams(query, options);
+    if (validationError) {
+      if (options.streaming) {
+        return this.createErrorGenerator(validationError);
+      }
+      return { success: false, error: validationError };
+    }
+
+    const payload = this.buildAnswerPayload(query, options);
+
+    if (options.streaming) {
+      return this.streamAnswer(payload);
+    } else {
+      return this.fetchAnswer(payload);
+    }
+  }
+
+  /**
+   * Validate answer parameters
+   */
+  private validateAnswerParams(query: string, options: AnswerOptions): string | null {
+    // Validate query
+    if (!query || typeof query !== "string" || query.trim().length === 0) {
+      return "Query is required and must be a non-empty string";
+    }
+
+    // Validate searchType
+    const providedSearchTypeString = options.searchType?.toLowerCase();
+    if (
+      providedSearchTypeString !== undefined &&
+      providedSearchTypeString !== "web" &&
+      providedSearchTypeString !== "proprietary" &&
+      providedSearchTypeString !== "all" &&
+      providedSearchTypeString !== "news"
+    ) {
+      return "Invalid searchType provided. Must be one of: all, web, proprietary, news";
+    }
+
+    // Validate systemInstructions
+    if (options.systemInstructions !== undefined) {
+      if (typeof options.systemInstructions !== "string") {
+        return "systemInstructions must be a string";
+      }
+      const trimmed = options.systemInstructions.trim();
+      if (trimmed.length === 0) {
+        return "systemInstructions cannot be empty when provided";
+      }
+      if (trimmed.length > 2000) {
+        return "systemInstructions must be 2000 characters or less";
+      }
+    }
+
+    // Validate dataMaxPrice
+    if (options.dataMaxPrice !== undefined) {
+      if (typeof options.dataMaxPrice !== "number" || options.dataMaxPrice <= 0) {
+        return "dataMaxPrice must be a positive number";
+      }
+    }
+
+    // Validate date formats
+    if (options.startDate && !this.validateDateFormat(options.startDate)) {
+      return "Invalid startDate format. Must be YYYY-MM-DD";
+    }
+    if (options.endDate && !this.validateDateFormat(options.endDate)) {
+      return "Invalid endDate format. Must be YYYY-MM-DD";
+    }
+    if (options.startDate && options.endDate) {
+      const startDate = new Date(options.startDate);
+      const endDate = new Date(options.endDate);
+      if (startDate > endDate) {
+        return "startDate must be before endDate";
+      }
+    }
+
+    // Validate sources
+    if (options.includedSources !== undefined) {
+      if (!Array.isArray(options.includedSources)) {
+        return "includedSources must be an array";
+      }
+      const validation = this.validateSources(options.includedSources);
+      if (!validation.valid) {
+        return `Invalid includedSources format. Invalid sources: ${validation.invalidSources.join(", ")}.`;
+      }
+    }
+    if (options.excludedSources !== undefined) {
+      if (!Array.isArray(options.excludedSources)) {
+        return "excludedSources must be an array";
+      }
+      const validation = this.validateSources(options.excludedSources);
+      if (!validation.valid) {
+        return `Invalid excludedSources format. Invalid sources: ${validation.invalidSources.join(", ")}.`;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Build payload for answer API
+   */
+  private buildAnswerPayload(query: string, options: AnswerOptions): Record<string, any> {
+    const defaultSearchType: SearchType = "all";
+    const providedSearchTypeString = options.searchType?.toLowerCase();
+    let finalSearchType: SearchType = defaultSearchType;
+
+    if (
+      providedSearchTypeString === "web" ||
+      providedSearchTypeString === "proprietary" ||
+      providedSearchTypeString === "all" ||
+      providedSearchTypeString === "news"
+    ) {
+      finalSearchType = providedSearchTypeString as SearchType;
+    }
+
+    const payload: Record<string, any> = {
+      query: query.trim(),
+      search_type: finalSearchType,
+    };
+
+    if (options.dataMaxPrice !== undefined) payload.data_max_price = options.dataMaxPrice;
+    if (options.structuredOutput !== undefined) payload.structured_output = options.structuredOutput;
+    if (options.systemInstructions !== undefined) payload.system_instructions = options.systemInstructions.trim();
+    if (options.countryCode !== undefined) payload.country_code = options.countryCode;
+    if (options.includedSources !== undefined) payload.included_sources = options.includedSources;
+    if (options.excludedSources !== undefined) payload.excluded_sources = options.excludedSources;
+    if (options.startDate !== undefined) payload.start_date = options.startDate;
+    if (options.endDate !== undefined) payload.end_date = options.endDate;
+    if (options.fastMode !== undefined) payload.fast_mode = options.fastMode;
+
+    return payload;
+  }
+
+  /**
+   * Fetch answer (non-streaming mode)
+   */
+  private async fetchAnswer(payload: Record<string, any>): Promise<AnswerResponse> {
     try {
-      // Default values
-      const defaultSearchType: SearchType = "all";
-
-      // Validate query
-      if (!query || typeof query !== "string" || query.trim().length === 0) {
-        return {
-          success: false,
-          error: "Query is required and must be a non-empty string",
-        };
-      }
-
-      // Validate searchType
-      let finalSearchType: SearchType = defaultSearchType;
-      const providedSearchTypeString = options.searchType?.toLowerCase();
-
-      if (
-        providedSearchTypeString === "web" ||
-        providedSearchTypeString === "proprietary" ||
-        providedSearchTypeString === "all" ||
-        providedSearchTypeString === "news"
-      ) {
-        finalSearchType = providedSearchTypeString as SearchType;
-      } else if (options.searchType !== undefined) {
-        return {
-          success: false,
-          error:
-            "Invalid searchType provided. Must be one of: all, web, proprietary, news",
-        };
-      }
-
-      // Validate systemInstructions length
-      if (options.systemInstructions !== undefined) {
-        if (typeof options.systemInstructions !== "string") {
-          return {
-            success: false,
-            error: "systemInstructions must be a string",
-          };
-        }
-
-        const trimmed = options.systemInstructions.trim();
-        if (trimmed.length === 0) {
-          return {
-            success: false,
-            error: "systemInstructions cannot be empty when provided",
-          };
-        }
-
-        if (trimmed.length > 2000) {
-          return {
-            success: false,
-            error: "systemInstructions must be 2000 characters or less",
-          };
-        }
-      }
-
-      // Validate dataMaxPrice
-      if (options.dataMaxPrice !== undefined) {
-        if (
-          typeof options.dataMaxPrice !== "number" ||
-          options.dataMaxPrice <= 0
-        ) {
-          return {
-            success: false,
-            error: "dataMaxPrice must be a positive number",
-          };
-        }
-      }
-
-      // Validate date formats
-      if (options.startDate && !this.validateDateFormat(options.startDate)) {
-        return {
-          success: false,
-          error: "Invalid startDate format. Must be YYYY-MM-DD",
-        };
-      }
-
-      if (options.endDate && !this.validateDateFormat(options.endDate)) {
-        return {
-          success: false,
-          error: "Invalid endDate format. Must be YYYY-MM-DD",
-        };
-      }
-
-      // Validate date order
-      if (options.startDate && options.endDate) {
-        const startDate = new Date(options.startDate);
-        const endDate = new Date(options.endDate);
-        if (startDate > endDate) {
-          return {
-            success: false,
-            error: "startDate must be before endDate",
-          };
-        }
-      }
-
-      // Validate includedSources format
-      if (options.includedSources !== undefined) {
-        if (!Array.isArray(options.includedSources)) {
-          return {
-            success: false,
-            error: "includedSources must be an array",
-          };
-        }
-
-        const includedSourcesValidation = this.validateSources(
-          options.includedSources
-        );
-        if (!includedSourcesValidation.valid) {
-          return {
-            success: false,
-            error: `Invalid includedSources format. Invalid sources: ${includedSourcesValidation.invalidSources.join(
-              ", "
-            )}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
-          };
-        }
-      }
-
-      // Validate excludedSources format
-      if (options.excludedSources !== undefined) {
-        if (!Array.isArray(options.excludedSources)) {
-          return {
-            success: false,
-            error: "excludedSources must be an array",
-          };
-        }
-
-        const excludedSourcesValidation = this.validateSources(
-          options.excludedSources
-        );
-        if (!excludedSourcesValidation.valid) {
-          return {
-            success: false,
-            error: `Invalid excludedSources format. Invalid sources: ${excludedSourcesValidation.invalidSources.join(
-              ", "
-            )}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
-          };
-        }
-      }
-
-      // Build payload with snake_case for API
-      const payload: Record<string, any> = {
-        query: query.trim(),
-        search_type: finalSearchType,
-      };
-
-      // Add dataMaxPrice only if explicitly provided
-      if (options.dataMaxPrice !== undefined) {
-        payload.data_max_price = options.dataMaxPrice;
-      }
-
-      // Add optional parameters only if provided
-      if (options.structuredOutput !== undefined) {
-        payload.structured_output = options.structuredOutput;
-      }
-
-      if (options.systemInstructions !== undefined) {
-        payload.system_instructions = options.systemInstructions.trim();
-      }
-
-      if (options.countryCode !== undefined) {
-        payload.country_code = options.countryCode;
-      }
-
-      if (options.includedSources !== undefined) {
-        payload.included_sources = options.includedSources;
-      }
-
-      if (options.excludedSources !== undefined) {
-        payload.excluded_sources = options.excludedSources;
-      }
-
-      if (options.startDate !== undefined) {
-        payload.start_date = options.startDate;
-      }
-
-      if (options.endDate !== undefined) {
-        payload.end_date = options.endDate;
-      }
-
-      if (options.fastMode !== undefined) {
-        payload.fast_mode = options.fastMode;
-      }
-
-      const response = await axios.post(`${this.baseUrl}/answer`, payload, {
-        headers: this.headers,
+      const response = await fetch(`${this.baseUrl}/answer`, {
+        method: "POST",
+        headers: {
+          ...this.headers,
+          "Accept": "text/event-stream",
+        },
+        body: JSON.stringify(payload),
       });
 
-      if (!response.status || response.status < 200 || response.status >= 300) {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
         return {
           success: false,
-          error: response.data?.error || "Request failed",
+          error: errorData.error || `HTTP Error: ${response.status}`,
         };
       }
 
-      return response.data;
+      // Collect streamed data into final response
+      let fullContent = "";
+      let searchResults: SearchResult[] = [];
+      let finalMetadata: any = {};
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const dataStr = line.slice(6);
+
+            if (dataStr === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(dataStr);
+
+              // Handle search results
+              if (parsed.search_results && !parsed.success) {
+                searchResults = [...searchResults, ...parsed.search_results];
+              }
+              // Handle content chunks
+              else if (parsed.choices) {
+                const content = parsed.choices[0]?.delta?.content || "";
+                if (content) fullContent += content;
+              }
+              // Handle final metadata
+              else if (parsed.success !== undefined) {
+                finalMetadata = parsed;
+              }
+            } catch {
+              continue;
+            }
+          }
+        }
+      }
+
+      // Build final response
+      if (finalMetadata.success) {
+        const finalSearchResults = finalMetadata.search_results || searchResults;
+        return {
+          success: true,
+          ai_tx_id: finalMetadata.ai_tx_id || "",
+          original_query: finalMetadata.original_query || payload.query,
+          contents: fullContent || finalMetadata.contents || "",
+          data_type: finalMetadata.data_type || "unstructured",
+          search_results: finalSearchResults,
+          search_metadata: finalMetadata.search_metadata || { tx_ids: [], number_of_results: 0, total_characters: 0 },
+          ai_usage: finalMetadata.ai_usage || { input_tokens: 0, output_tokens: 0 },
+          cost: finalMetadata.cost || { total_deduction_dollars: 0, search_deduction_dollars: 0, ai_deduction_dollars: 0 },
+        } as AnswerSuccessResponse;
+      }
+
+      return {
+        success: false,
+        error: finalMetadata.error || "Unknown error occurred",
+      };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: e.message || "Request failed",
       };
     }
+  }
+
+  /**
+   * Stream answer using SSE
+   */
+  private async *streamAnswer(payload: Record<string, any>): AsyncGenerator<AnswerStreamChunk, void, unknown> {
+    try {
+      const response = await fetch(`${this.baseUrl}/answer`, {
+        method: "POST",
+        headers: {
+          ...this.headers,
+          "Accept": "text/event-stream",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        yield { type: "error", error: errorData.error || `HTTP Error: ${response.status}` };
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      if (!reader) {
+        yield { type: "error", error: "No response body" };
+        return;
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const dataStr = line.slice(6);
+
+          if (dataStr === "[DONE]") {
+            yield { type: "done" };
+            continue;
+          }
+
+          try {
+            const parsed = JSON.parse(dataStr);
+
+            // Handle search results
+            if (parsed.search_results && parsed.success === undefined) {
+              yield { type: "search_results", search_results: parsed.search_results };
+            }
+            // Handle content chunks
+            else if (parsed.choices) {
+              const delta = parsed.choices[0]?.delta || {};
+              const content = delta.content || "";
+              const finishReason = parsed.choices[0]?.finish_reason;
+
+              if (content || finishReason) {
+                yield { type: "content", content, finish_reason: finishReason };
+              }
+            }
+            // Handle final metadata
+            else if (parsed.success !== undefined) {
+              yield {
+                type: "metadata",
+                ai_tx_id: parsed.ai_tx_id,
+                original_query: parsed.original_query,
+                data_type: parsed.data_type,
+                search_results: parsed.search_results,
+                search_metadata: parsed.search_metadata,
+                ai_usage: parsed.ai_usage,
+                cost: parsed.cost,
+              };
+            }
+          } catch {
+            continue;
+          }
+        }
+      }
+    } catch (e: any) {
+      yield { type: "error", error: e.message || "Stream failed" };
+    }
+  }
+
+  /**
+   * Create an error generator for streaming errors
+   */
+  private async *createErrorGenerator(error: string): AsyncGenerator<AnswerStreamChunk, void, unknown> {
+    yield { type: "error", error };
   }
 }
 
 export type {
   SearchResponse,
   SearchType,
+  SearchResult,
   FeedbackSentiment,
   FeedbackResponse,
   SearchOptions,
@@ -1133,6 +1257,8 @@ export type {
   AnswerResponse,
   AnswerSuccessResponse,
   AnswerErrorResponse,
+  AnswerStreamChunk,
+  AnswerStreamChunkType,
   SearchMetadata,
   AIUsage,
   Cost,
