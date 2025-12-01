@@ -1120,9 +1120,9 @@ export class Valyu {
       // Build final response
       if (finalMetadata.success) {
         const finalSearchResults = finalMetadata.search_results || searchResults;
-        return {
+        const response: AnswerSuccessResponse = {
           success: true,
-          ai_tx_id: finalMetadata.ai_tx_id || "",
+          tx_id: finalMetadata.tx_id || "",
           original_query: finalMetadata.original_query || payload.query,
           contents: fullContent || finalMetadata.contents || "",
           data_type: finalMetadata.data_type || "unstructured",
@@ -1130,7 +1130,11 @@ export class Valyu {
           search_metadata: finalMetadata.search_metadata || { tx_ids: [], number_of_results: 0, total_characters: 0 },
           ai_usage: finalMetadata.ai_usage || { input_tokens: 0, output_tokens: 0 },
           cost: finalMetadata.cost || { total_deduction_dollars: 0, search_deduction_dollars: 0, ai_deduction_dollars: 0 },
-        } as AnswerSuccessResponse;
+        };
+        if (finalMetadata.extraction_metadata) {
+          response.extraction_metadata = finalMetadata.extraction_metadata;
+        }
+        return response;
       }
 
       return {
@@ -1212,13 +1216,14 @@ export class Valyu {
             else if (parsed.success !== undefined) {
               yield {
                 type: "metadata",
-                ai_tx_id: parsed.ai_tx_id,
+                tx_id: parsed.tx_id,
                 original_query: parsed.original_query,
                 data_type: parsed.data_type,
                 search_results: parsed.search_results,
                 search_metadata: parsed.search_metadata,
                 ai_usage: parsed.ai_usage,
                 cost: parsed.cost,
+                extraction_metadata: parsed.extraction_metadata,
               };
             }
           } catch {
@@ -1262,6 +1267,7 @@ export type {
   SearchMetadata,
   AIUsage,
   Cost,
+  ExtractionMetadata,
   DeepResearchMode,
   DeepResearchStatus,
   DeepResearchOutputFormat,
