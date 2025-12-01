@@ -167,13 +167,22 @@ export interface AIUsage {
 export interface Cost {
   total_deduction_dollars: number;
   search_deduction_dollars: number;
-  ai_deduction_dollars: number;
   contents_deduction_dollars?: number;
+  ai_deduction_dollars: number;
+}
+
+export interface ExtractionMetadata {
+  urls_requested: number;
+  urls_processed: number;
+  urls_failed: number;
+  total_characters: number;
+  response_length: string;
+  extract_effort: string;
 }
 
 export interface AnswerSuccessResponse {
   success: true;
-  ai_tx_id: string;
+  tx_id: string;
   original_query: string;
   contents: string | Record<string, any>;
   data_type: "structured" | "unstructured";
@@ -181,6 +190,7 @@ export interface AnswerSuccessResponse {
   search_metadata: SearchMetadata;
   ai_usage: AIUsage;
   cost: Cost;
+  extraction_metadata?: ExtractionMetadata;
 }
 
 export interface AnswerErrorResponse {
@@ -204,12 +214,13 @@ export interface AnswerStreamChunk {
   finish_reason?: string;
 
   // For type="metadata"
-  ai_tx_id?: string;
+  tx_id?: string;
   original_query?: string;
   data_type?: "structured" | "unstructured";
   search_metadata?: SearchMetadata;
   ai_usage?: AIUsage;
   cost?: Cost;
+  extraction_metadata?: ExtractionMetadata;
 
   // For type="error"
   error?: string;
