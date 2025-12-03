@@ -785,7 +785,7 @@ export class Valyu {
     try {
       const limit = options.limit || 10;
       const response = await axios.get(
-        `${this.baseUrl}/deepresearch/listtasks?api_key_id=${options.apiKeyId}&limit=${limit}`,
+        `${this.baseUrl}/deepresearch/list?api_key_id=${options.apiKeyId}&limit=${limit}`,
         { headers: this.headers }
       );
 
