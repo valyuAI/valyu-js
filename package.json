@@ -14,6 +14,12 @@
             "module": "./dist/index.mjs",
             "import": "./dist/index.mjs"
         },
+        "./skill": {
+            "types": "./dist/skill.d.ts",
+            "require": "./dist/skill.js",
+            "module": "./dist/skill.mjs",
+            "import": "./dist/skill.mjs"
+        },
         "./package.json": "./package.json"
     },
     "types": "./dist/index.d.ts",
@@ -32,9 +38,12 @@
         "sdk",
         "rag",
         "valyu",
+        "valyy",
         "search",
         "content-extraction",
-        "deepsearch"
+        "deepsearch",
+        "claude-skill",
+        "claude"
     ],
     "author": "Valyu <harvey@valyu.ai>",
     "license": "MIT",

@@ -1,0 +1,290 @@
+{
+  "name": "valyy",
+  "description": "Search and extract content using Valyu's DeepSearch API. Access academic papers, web search, structured data, and AI-powered content extraction.",
+  "version": "1.0.0",
+  "tools": [
+    {
+      "name": "search",
+      "description": "Search for information across web, proprietary sources (academic papers, datasets), or both. Returns ranked results with content, relevance scores, and metadata.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query string"
+          },
+          "searchType": {
+            "type": "string",
+            "enum": ["web", "proprietary", "all", "news"],
+            "description": "Search scope: 'web' for web search, 'proprietary' for academic/datasets, 'all' for both, 'news' for news articles",
+            "default": "all"
+          },
+          "maxNumResults": {
+            "type": "number",
+            "description": "Maximum number of results to return (1-100)",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "relevanceThreshold": {
+            "type": "number",
+            "description": "Minimum relevance score for results (0.0-1.0)",
+            "default": 0.5,
+            "minimum": 0,
+            "maximum": 1
+          },
+          "maxPrice": {
+            "type": "number",
+            "description": "Maximum price per thousand queries (CPM)"
+          },
+          "includedSources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Specific sources to include (URLs, domains, or dataset IDs like 'valyu/valyu-arxiv')"
+          },
+          "excludeSources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Sources or domains to exclude from search results"
+          },
+          "category": {
+            "type": "string",
+            "description": "Category filter for search results"
+          },
+          "startDate": {
+            "type": "string",
+            "description": "Start date filter in YYYY-MM-DD format"
+          },
+          "endDate": {
+            "type": "string",
+            "description": "End date filter in YYYY-MM-DD format"
+          },
+          "countryCode": {
+            "type": "string",
+            "description": "Country code filter (e.g., 'US', 'GB', 'JP', 'ALL')"
+          },
+          "responseLength": {
+            "type": "string",
+            "enum": ["short", "medium", "large", "max"],
+            "description": "Response content length: 'short' (25k chars), 'medium' (50k), 'large' (100k), 'max' (no limit)"
+          },
+          "fastMode": {
+            "type": "boolean",
+            "description": "Fast mode for quicker but shorter results",
+            "default": false
+          }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "contents",
+      "description": "Extract clean, structured content from web pages with optional AI-powered summarization and data extraction. Supports up to 10 URLs per request.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of URLs to process (maximum 10 URLs per request)",
+            "minItems": 1,
+            "maxItems": 10
+          },
+          "summary": {
+            "type": "boolean",
+            "description": "Enable AI summarization. Set to true for auto summary, false for raw content",
+            "default": false
+          },
+          "summaryInstructions": {
+            "type": "string",
+            "description": "Custom instructions for AI summarization (alternative to summary: true)"
+          },
+          "extractEffort": {
+            "type": "string",
+            "enum": ["normal", "high", "auto"],
+            "description": "Extraction thoroughness: 'normal' (fast) or 'high' (more thorough but slower)",
+            "default": "normal"
+          },
+          "responseLength": {
+            "type": "string",
+            "enum": ["short", "medium", "large", "max"],
+            "description": "Content length per URL: 'short' (25k chars), 'medium' (50k), 'large' (100k), 'max' (no limit)",
+            "default": "short"
+          },
+          "maxPriceDollars": {
+            "type": "number",
+            "description": "Maximum cost limit in USD"
+          }
+        },
+        "required": ["urls"]
+      }
+    },
+    {
+      "name": "answer",
+      "description": "Get AI-powered answers to questions using Valyu's Answer API. Searches for relevant information and provides comprehensive answers with citations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The question or query string"
+          },
+          "searchType": {
+            "type": "string",
+            "enum": ["web", "proprietary", "all", "news"],
+            "description": "Search scope: 'web' for web search, 'proprietary' for academic/datasets, 'all' for both, 'news' for news articles",
+            "default": "all"
+          },
+          "systemInstructions": {
+            "type": "string",
+            "description": "Custom system-level instructions (max 2000 chars) to guide the AI's response style or focus"
+          },
+          "dataMaxPrice": {
+            "type": "number",
+            "description": "Maximum spend (USD) for data retrieval"
+          },
+          "countryCode": {
+            "type": "string",
+            "description": "Country code filter for search results"
+          },
+          "includedSources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Specific sources to include in the search"
+          },
+          "excludedSources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Sources to exclude from the search"
+          },
+          "startDate": {
+            "type": "string",
+            "description": "Start date filter in YYYY-MM-DD format"
+          },
+          "endDate": {
+            "type": "string",
+            "description": "End date filter in YYYY-MM-DD format"
+          },
+          "fastMode": {
+            "type": "boolean",
+            "description": "Fast mode for quicker but shorter results",
+            "default": false
+          }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "deepresearch_create",
+      "description": "Create a new DeepResearch task. DeepResearch is an AI-powered research agent that conducts comprehensive, multi-step research with citations and cost tracking.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "description": "Research query or task description"
+          },
+          "model": {
+            "type": "string",
+            "enum": ["lite", "heavy"],
+            "description": "Research model: 'lite' (fast, Haiku) or 'heavy' (thorough, Sonnet)",
+            "default": "lite"
+          },
+          "outputFormats": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["markdown", "pdf"]
+            },
+            "description": "Output formats for the report",
+            "default": ["markdown"]
+          },
+          "strategy": {
+            "type": "string",
+            "description": "Natural language research strategy"
+          },
+          "searchType": {
+            "type": "string",
+            "enum": ["all", "web", "proprietary"],
+            "description": "Search type for DeepResearch"
+          },
+          "includedSources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Specific sources to include in the research"
+          },
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "URLs to extract and analyze"
+          },
+          "codeExecution": {
+            "type": "boolean",
+            "description": "Enable/disable code execution",
+            "default": true
+          }
+        },
+        "required": ["input"]
+      }
+    },
+    {
+      "name": "deepresearch_status",
+      "description": "Get the current status of a DeepResearch task, including progress, output, and metadata.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "description": "The DeepResearch task ID"
+          }
+        },
+        "required": ["taskId"]
+      }
+    },
+    {
+      "name": "deepresearch_wait",
+      "description": "Wait for a DeepResearch task to complete, polling until it reaches a terminal state (completed, failed, or cancelled).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "description": "The DeepResearch task ID"
+          },
+          "pollInterval": {
+            "type": "number",
+            "description": "Polling interval in milliseconds",
+            "default": 5000
+          },
+          "maxWaitTime": {
+            "type": "number",
+            "description": "Maximum wait time in milliseconds",
+            "default": 3600000
+          }
+        },
+        "required": ["taskId"]
+      }
+    }
+  ],
+  "environmentVariables": [
+    {
+      "name": "VALYU_API_KEY",
+      "description": "Your Valyu API key. Get one at https://platform.valyu.ai",
+      "required": true
+    }
+  ]
+}
