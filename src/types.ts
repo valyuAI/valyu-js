@@ -227,7 +227,7 @@ export interface AnswerStreamChunk {
 }
 
 // DeepResearch API Types
-export type DeepResearchMode = "lite" | "heavy";
+export type DeepResearchMode = "fast" | "lite" | "heavy";
 export type DeepResearchStatus =
   | "queued"
   | "running"
