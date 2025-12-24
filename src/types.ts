@@ -329,14 +329,6 @@ export interface DeepResearchSource {
   word_count?: number;
 }
 
-export interface DeepResearchUsage {
-  search_cost: number;
-  contents_cost: number;
-  ai_cost: number;
-  compute_cost: number;
-  total_cost: number;
-}
-
 export interface DeepResearchCreateResponse {
   success: boolean;
   deepresearch_id?: string;
@@ -367,7 +359,7 @@ export interface DeepResearchStatusResponse {
   pdf_url?: string;
   images?: ImageMetadata[];
   sources?: DeepResearchSource[];
-  usage?: DeepResearchUsage;
+  cost?: number;
   error?: string;
 }
 

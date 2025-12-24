@@ -1334,7 +1334,6 @@ export type {
   ChartDataSeries,
   ImageMetadata,
   DeepResearchSource,
-  DeepResearchUsage,
   DeepResearchCreateResponse,
   DeepResearchStatusResponse,
   DeepResearchTaskListItem,
