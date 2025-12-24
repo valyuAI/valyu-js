@@ -23,7 +23,6 @@ import {
   ListOptions,
 } from "./types";
 
-
 // Valyu API client
 export class Valyu {
   private baseUrl: string;
@@ -31,21 +30,29 @@ export class Valyu {
 
   // DeepResearch namespace
   public deepresearch: {
-    create: (options: DeepResearchCreateOptions) => Promise<DeepResearchCreateResponse>;
+    create: (
+      options: DeepResearchCreateOptions
+    ) => Promise<DeepResearchCreateResponse>;
     status: (taskId: string) => Promise<DeepResearchStatusResponse>;
-    wait: (taskId: string, options?: WaitOptions) => Promise<DeepResearchStatusResponse>;
+    wait: (
+      taskId: string,
+      options?: WaitOptions
+    ) => Promise<DeepResearchStatusResponse>;
     stream: (taskId: string, callback: StreamCallback) => Promise<void>;
     list: (options: ListOptions) => Promise<DeepResearchListResponse>;
-    update: (taskId: string, instruction: string) => Promise<DeepResearchUpdateResponse>;
+    update: (
+      taskId: string,
+      instruction: string
+    ) => Promise<DeepResearchUpdateResponse>;
     cancel: (taskId: string) => Promise<DeepResearchCancelResponse>;
     delete: (taskId: string) => Promise<DeepResearchDeleteResponse>;
-    togglePublic: (taskId: string, isPublic: boolean) => Promise<DeepResearchTogglePublicResponse>;
+    togglePublic: (
+      taskId: string,
+      isPublic: boolean
+    ) => Promise<DeepResearchTogglePublicResponse>;
   };
 
-  constructor(
-    apiKey?: string,
-    baseUrl: string = "https://api.valyu.ai/v1"
-  ) {
+  constructor(apiKey?: string, baseUrl: string = "https://api.valyu.ai/v1") {
     if (!apiKey) {
       apiKey = process.env.VALYU_API_KEY;
       if (!apiKey) {
@@ -610,7 +617,7 @@ export class Valyu {
       // Build payload with snake_case
       const payload: Record<string, any> = {
         input: options.input,
-        model: options.model || "lite",
+        model: options.model || "standard",
         output_formats: options.outputFormats || ["markdown"],
         code_execution: options.codeExecution !== false,
       };
@@ -914,7 +921,9 @@ export class Valyu {
   async answer(
     query: string,
     options: AnswerOptions = {}
-  ): Promise<AnswerResponse | AsyncGenerator<AnswerStreamChunk, void, unknown>> {
+  ): Promise<
+    AnswerResponse | AsyncGenerator<AnswerStreamChunk, void, unknown>
+  > {
     // Validate inputs first
     const validationError = this.validateAnswerParams(query, options);
     if (validationError) {
@@ -936,7 +945,10 @@ export class Valyu {
   /**
    * Validate answer parameters
    */
-  private validateAnswerParams(query: string, options: AnswerOptions): string | null {
+  private validateAnswerParams(
+    query: string,
+    options: AnswerOptions
+  ): string | null {
     // Validate query
     if (!query || typeof query !== "string" || query.trim().length === 0) {
       return "Query is required and must be a non-empty string";
@@ -970,7 +982,10 @@ export class Valyu {
 
     // Validate dataMaxPrice
     if (options.dataMaxPrice !== undefined) {
-      if (typeof options.dataMaxPrice !== "number" || options.dataMaxPrice <= 0) {
+      if (
+        typeof options.dataMaxPrice !== "number" ||
+        options.dataMaxPrice <= 0
+      ) {
         return "dataMaxPrice must be a positive number";
       }
     }
@@ -997,7 +1012,9 @@ export class Valyu {
       }
       const validation = this.validateSources(options.includedSources);
       if (!validation.valid) {
-        return `Invalid includedSources format. Invalid sources: ${validation.invalidSources.join(", ")}.`;
+        return `Invalid includedSources format. Invalid sources: ${validation.invalidSources.join(
+          ", "
+        )}.`;
       }
     }
     if (options.excludedSources !== undefined) {
@@ -1006,7 +1023,9 @@ export class Valyu {
       }
       const validation = this.validateSources(options.excludedSources);
       if (!validation.valid) {
-        return `Invalid excludedSources format. Invalid sources: ${validation.invalidSources.join(", ")}.`;
+        return `Invalid excludedSources format. Invalid sources: ${validation.invalidSources.join(
+          ", "
+        )}.`;
       }
     }
 
@@ -1016,7 +1035,10 @@ export class Valyu {
   /**
    * Build payload for answer API
    */
-  private buildAnswerPayload(query: string, options: AnswerOptions): Record<string, any> {
+  private buildAnswerPayload(
+    query: string,
+    options: AnswerOptions
+  ): Record<string, any> {
     const defaultSearchType: SearchType = "all";
     const providedSearchTypeString = options.searchType?.toLowerCase();
     let finalSearchType: SearchType = defaultSearchType;
@@ -1035,12 +1057,18 @@ export class Valyu {
       search_type: finalSearchType,
     };
 
-    if (options.dataMaxPrice !== undefined) payload.data_max_price = options.dataMaxPrice;
-    if (options.structuredOutput !== undefined) payload.structured_output = options.structuredOutput;
-    if (options.systemInstructions !== undefined) payload.system_instructions = options.systemInstructions.trim();
-    if (options.countryCode !== undefined) payload.country_code = options.countryCode;
-    if (options.includedSources !== undefined) payload.included_sources = options.includedSources;
-    if (options.excludedSources !== undefined) payload.excluded_sources = options.excludedSources;
+    if (options.dataMaxPrice !== undefined)
+      payload.data_max_price = options.dataMaxPrice;
+    if (options.structuredOutput !== undefined)
+      payload.structured_output = options.structuredOutput;
+    if (options.systemInstructions !== undefined)
+      payload.system_instructions = options.systemInstructions.trim();
+    if (options.countryCode !== undefined)
+      payload.country_code = options.countryCode;
+    if (options.includedSources !== undefined)
+      payload.included_sources = options.includedSources;
+    if (options.excludedSources !== undefined)
+      payload.excluded_sources = options.excludedSources;
     if (options.startDate !== undefined) payload.start_date = options.startDate;
     if (options.endDate !== undefined) payload.end_date = options.endDate;
     if (options.fastMode !== undefined) payload.fast_mode = options.fastMode;
@@ -1051,13 +1079,15 @@ export class Valyu {
   /**
    * Fetch answer (non-streaming mode)
    */
-  private async fetchAnswer(payload: Record<string, any>): Promise<AnswerResponse> {
+  private async fetchAnswer(
+    payload: Record<string, any>
+  ): Promise<AnswerResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/answer`, {
         method: "POST",
         headers: {
           ...this.headers,
-          "Accept": "text/event-stream",
+          Accept: "text/event-stream",
         },
         body: JSON.stringify(payload),
       });
@@ -1119,7 +1149,8 @@ export class Valyu {
 
       // Build final response
       if (finalMetadata.success) {
-        const finalSearchResults = finalMetadata.search_results || searchResults;
+        const finalSearchResults =
+          finalMetadata.search_results || searchResults;
         const response: AnswerSuccessResponse = {
           success: true,
           tx_id: finalMetadata.tx_id || "",
@@ -1127,9 +1158,20 @@ export class Valyu {
           contents: fullContent || finalMetadata.contents || "",
           data_type: finalMetadata.data_type || "unstructured",
           search_results: finalSearchResults,
-          search_metadata: finalMetadata.search_metadata || { tx_ids: [], number_of_results: 0, total_characters: 0 },
-          ai_usage: finalMetadata.ai_usage || { input_tokens: 0, output_tokens: 0 },
-          cost: finalMetadata.cost || { total_deduction_dollars: 0, search_deduction_dollars: 0, ai_deduction_dollars: 0 },
+          search_metadata: finalMetadata.search_metadata || {
+            tx_ids: [],
+            number_of_results: 0,
+            total_characters: 0,
+          },
+          ai_usage: finalMetadata.ai_usage || {
+            input_tokens: 0,
+            output_tokens: 0,
+          },
+          cost: finalMetadata.cost || {
+            total_deduction_dollars: 0,
+            search_deduction_dollars: 0,
+            ai_deduction_dollars: 0,
+          },
         };
         if (finalMetadata.extraction_metadata) {
           response.extraction_metadata = finalMetadata.extraction_metadata;
@@ -1152,20 +1194,25 @@ export class Valyu {
   /**
    * Stream answer using SSE
    */
-  private async *streamAnswer(payload: Record<string, any>): AsyncGenerator<AnswerStreamChunk, void, unknown> {
+  private async *streamAnswer(
+    payload: Record<string, any>
+  ): AsyncGenerator<AnswerStreamChunk, void, unknown> {
     try {
       const response = await fetch(`${this.baseUrl}/answer`, {
         method: "POST",
         headers: {
           ...this.headers,
-          "Accept": "text/event-stream",
+          Accept: "text/event-stream",
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        yield { type: "error", error: errorData.error || `HTTP Error: ${response.status}` };
+        yield {
+          type: "error",
+          error: errorData.error || `HTTP Error: ${response.status}`,
+        };
         return;
       }
 
@@ -1200,7 +1247,10 @@ export class Valyu {
 
             // Handle search results
             if (parsed.search_results && parsed.success === undefined) {
-              yield { type: "search_results", search_results: parsed.search_results };
+              yield {
+                type: "search_results",
+                search_results: parsed.search_results,
+              };
             }
             // Handle content chunks
             else if (parsed.choices) {
@@ -1239,7 +1289,9 @@ export class Valyu {
   /**
    * Create an error generator for streaming errors
    */
-  private async *createErrorGenerator(error: string): AsyncGenerator<AnswerStreamChunk, void, unknown> {
+  private async *createErrorGenerator(
+    error: string
+  ): AsyncGenerator<AnswerStreamChunk, void, unknown> {
     yield { type: "error", error };
   }
 }

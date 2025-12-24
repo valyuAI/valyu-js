@@ -46,10 +46,10 @@ export type ResponseLength = "short" | "medium" | "large" | "max" | number;
 export interface SearchResult {
   title: string;
   url: string;
-  content: string | object | any[];  // Can be string, object, or array for structured data
+  content: string | object | any[]; // Can be string, object, or array for structured data
   description?: string;
   source: string;
-  source_type?: string;  // "website", "data", "forum"
+  source_type?: string; // "website", "data", "forum"
   data_type?: DataType;
   date?: string;
   length: number;
@@ -150,7 +150,7 @@ export interface AnswerOptions {
   startDate?: string;
   endDate?: string;
   fastMode?: boolean;
-  streaming?: boolean;  // Default: false - when true, returns AsyncGenerator
+  streaming?: boolean; // Default: false - when true, returns AsyncGenerator
 }
 
 export interface SearchMetadata {
@@ -201,7 +201,12 @@ export interface AnswerErrorResponse {
 export type AnswerResponse = AnswerSuccessResponse | AnswerErrorResponse;
 
 // Streaming Types for Answer API
-export type AnswerStreamChunkType = "search_results" | "content" | "metadata" | "done" | "error";
+export type AnswerStreamChunkType =
+  | "search_results"
+  | "content"
+  | "metadata"
+  | "done"
+  | "error";
 
 export interface AnswerStreamChunk {
   type: AnswerStreamChunkType;
@@ -227,7 +232,7 @@ export interface AnswerStreamChunk {
 }
 
 // DeepResearch API Types
-export type DeepResearchMode = "fast" | "lite" | "heavy";
+export type DeepResearchMode = "fast" | "standard" | "heavy";
 export type DeepResearchStatus =
   | "queued"
   | "running"

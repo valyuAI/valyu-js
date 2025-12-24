@@ -1,5 +1,5 @@
-require('dotenv').config();
-const { Valyu } = require('../dist/index.js');
+require("dotenv").config();
+const { Valyu } = require("../dist/index.js");
 
 async function runAnswerExamples() {
   console.log("Valyu Answer API Examples");
@@ -16,7 +16,9 @@ async function runAnswerExamples() {
   // Example 1: Basic answer (non-streaming - default)
   console.log("1. Basic Answer (non-streaming):");
   try {
-    const response = await valyu.answer("What are the latest developments in quantum computing?");
+    const response = await valyu.answer(
+      "What are the latest developments in quantum computing?"
+    );
     console.log("Success:", response.success);
     if (response.success) {
       console.log("Answer:", response.contents.substring(0, 300) + "...");
@@ -34,7 +36,9 @@ async function runAnswerExamples() {
   // Example 2: Streaming answer
   console.log("2. Streaming Answer:");
   try {
-    const stream = await valyu.answer("What is machine learning?", { streaming: true });
+    const stream = await valyu.answer("What is machine learning?", {
+      streaming: true,
+    });
 
     let fullAnswer = "";
     let sourcesCount = 0;
@@ -49,8 +53,14 @@ async function runAnswerExamples() {
           fullAnswer += chunk.content;
         }
       } else if (chunk.type === "metadata") {
-        console.log(`\n\n[Metadata] Cost: $${chunk.cost.total_deduction_dollars.toFixed(4)}`);
-        console.log(`[Metadata] Tokens: ${chunk.ai_usage.input_tokens} in, ${chunk.ai_usage.output_tokens} out`);
+        console.log(
+          `\n\n[Metadata] Cost: $${chunk.cost.total_deduction_dollars.toFixed(
+            4
+          )}`
+        );
+        console.log(
+          `[Metadata] Tokens: ${chunk.ai_usage.input_tokens} in, ${chunk.ai_usage.output_tokens} out`
+        );
       } else if (chunk.type === "done") {
         console.log("\n[Stream complete]");
       } else if (chunk.type === "error") {
@@ -66,14 +76,12 @@ async function runAnswerExamples() {
   // Example 3: Answer with system instructions
   console.log("3. Answer with System Instructions:");
   try {
-    const response = await valyu.answer(
-      "Explain neural networks",
-      {
-        systemInstructions: "You are a computer science professor. Explain concepts clearly with examples.",
-        searchType: "web",
-        dataMaxPrice: 25.0
-      }
-    );
+    const response = await valyu.answer("Explain neural networks", {
+      systemInstructions:
+        "You are a computer science professor. Explain concepts clearly with examples.",
+      searchType: "web",
+      dataMaxPrice: 25.0,
+    });
     console.log("Success:", response.success);
     if (response.success) {
       console.log("Answer:", response.contents);
@@ -95,19 +103,19 @@ async function runAnswerExamples() {
       properties: {
         summary: {
           type: "string",
-          description: "Brief summary of the topic"
+          description: "Brief summary of the topic",
         },
         key_points: {
           type: "array",
           items: { type: "string" },
-          description: "List of key points"
+          description: "List of key points",
         },
         implications: {
           type: "string",
-          description: "Future implications or significance"
-        }
+          description: "Future implications or significance",
+        },
       },
-      required: ["summary", "key_points", "implications"]
+      required: ["summary", "key_points", "implications"],
     };
 
     const response = await valyu.answer(
@@ -115,7 +123,7 @@ async function runAnswerExamples() {
       {
         structuredOutput: schema,
         searchType: "all",
-        dataMaxPrice: 40.0
+        dataMaxPrice: 40.0,
       }
     );
     console.log("Success:", response.success);
@@ -142,7 +150,7 @@ async function runAnswerExamples() {
         excludedSources: ["stackoverflow.com"],
         startDate: "2024-01-01",
         dataMaxPrice: 35.0,
-        streaming: true
+        streaming: true,
       }
     );
 
@@ -157,7 +165,9 @@ async function runAnswerExamples() {
           process.stdout.write(chunk.content);
         }
       } else if (chunk.type === "metadata") {
-        console.log(`\n\n[Total characters: ${chunk.search_metadata.total_characters}]`);
+        console.log(
+          `\n\n[Total characters: ${chunk.search_metadata.total_characters}]`
+        );
       } else if (chunk.type === "done") {
         console.log("\n[Complete]");
       }
@@ -171,12 +181,9 @@ async function runAnswerExamples() {
   // Example 6: Error handling
   console.log("6. Error Handling Example:");
   try {
-    const response = await valyu.answer(
-      "How does photosynthesis work?",
-      {
-        includedSources: ["invalid..domain", "not-a-url"]  // Invalid sources
-      }
-    );
+    const response = await valyu.answer("How does photosynthesis work?", {
+      includedSources: ["invalid..domain", "not-a-url"], // Invalid sources
+    });
     console.log("Success:", response.success);
     if (!response.success) {
       console.log("Expected error:", response.error);
