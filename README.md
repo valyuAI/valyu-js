@@ -58,7 +58,7 @@ The `deepresearch` namespace provides access to Valyu's AI-powered research agen
 // Create a research task
 const task = await valyu.deepresearch.create({
   input: "What are the latest developments in quantum computing?",
-  model: "standard", // "standard" (fast, Haiku) or "heavy" (thorough, Sonnet)
+  model: "standard", // "standard" (fast) or "heavy" (thorough)
   outputFormats: ["markdown", "pdf"], // Output formats
 });
 
