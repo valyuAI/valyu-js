@@ -258,6 +258,34 @@ export interface MCPServerConfig {
   allowedTools?: string[];
 }
 
+export type DeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf";
+export type DeliverableStatus = "completed" | "failed";
+
+export interface Deliverable {
+  type: DeliverableType;
+  description: string;
+  columns?: string[];
+  includeHeaders?: boolean;
+  sheetName?: string;
+  slides?: number;
+  template?: string;
+}
+
+export interface DeliverableResult {
+  id: string;
+  request: string;
+  type: DeliverableType | "unknown";
+  status: DeliverableStatus;
+  title: string;
+  description?: string;
+  url: string;
+  s3_key: string;
+  row_count?: number;
+  column_count?: number;
+  error?: string;
+  created_at: number;
+}
+
 export interface DeepResearchSearchConfig {
   searchType?: "all" | "web" | "proprietary";
   includedSources?: string[];
@@ -271,6 +299,7 @@ export interface DeepResearchCreateOptions {
   search?: DeepResearchSearchConfig;
   urls?: string[];
   files?: FileAttachment[];
+  deliverables?: (string | Deliverable)[];
   mcpServers?: MCPServerConfig[];
   codeExecution?: boolean;
   previousReports?: string[];
@@ -361,6 +390,7 @@ export interface DeepResearchStatusResponse {
   output_type?: DeepResearchOutputType;
   pdf_url?: string;
   images?: ImageMetadata[];
+  deliverables?: DeliverableResult[];
   sources?: DeepResearchSource[];
   usage?: DeepResearchUsage;
   error?: string;
