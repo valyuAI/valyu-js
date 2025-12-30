@@ -677,7 +677,7 @@ export class Valyu {
     options: WaitOptions = {}
   ): Promise<DeepResearchStatusResponse> {
     const pollInterval = options.pollInterval || 5000;
-    const maxWaitTime = options.maxWaitTime || 3600000;
+    const maxWaitTime = options.maxWaitTime || 7200000;
     const startTime = Date.now();
 
     while (true) {
