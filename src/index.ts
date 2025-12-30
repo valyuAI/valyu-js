@@ -625,6 +625,7 @@ export class Valyu {
       }
       if (options.urls) payload.urls = options.urls;
       if (options.files) payload.files = options.files;
+      if (options.deliverables) payload.deliverables = options.deliverables;
       if (options.mcpServers) payload.mcp_servers = options.mcpServers;
       if (options.previousReports) {
         payload.previous_reports = options.previousReports;
