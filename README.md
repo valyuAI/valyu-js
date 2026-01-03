@@ -160,6 +160,86 @@ const task = await valyu.deepresearch.create({
 });
 ```
 
+### Batch API
+
+The `batch` namespace allows you to process multiple DeepResearch tasks efficiently. Perfect for running large-scale research operations.
+
+```javascript
+// Create a batch
+const batch = await valyu.batch.create({
+  name: "Q4 Research Batch",
+  model: "lite",                      // "lite", "standard", or "heavy"
+  outputFormats: ["markdown"]
+});
+
+// Add tasks to the batch
+await valyu.batch.addTasks(batch.batch_id, {
+  tasks: [
+    { input: "What are the latest AI developments?" },
+    { input: "Analyze climate change trends" },
+    { input: "Review quantum computing progress" }
+  ]
+});
+
+// Wait for completion
+const result = await valyu.batch.waitForCompletion(batch.batch_id, {
+  pollInterval: 10000,  // Check every 10 seconds
+  onProgress: (batch) => {
+    console.log(`Progress: ${batch.counts.completed}/${batch.counts.total}`);
+  }
+});
+
+console.log('Total cost:', result.usage.total_cost);
+```
+
+#### Batch Methods
+
+| Method | Description |
+|--------|-------------|
+| `create(options?)` | Create a new batch |
+| `status(batchId)` | Get batch status and task counts |
+| `addTasks(batchId, options)` | Add tasks to a batch |
+| `listTasks(batchId)` | List all tasks in a batch |
+| `list()` | List all batches |
+| `cancel(batchId)` | Cancel a batch and all pending tasks |
+| `waitForCompletion(batchId, options?)` | Wait for batch completion with polling |
+
+#### Batch Create Options
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | `string` | - | Optional batch name |
+| `model` | `"lite" \| "standard" \| "heavy"` | `"standard"` | DeepResearch model for all tasks |
+| `outputFormats` | `("markdown" \| "pdf")[]` | `["markdown"]` | Output formats |
+| `search` | `object` | - | Search configuration for all tasks |
+| `webhookUrl` | `string` | - | HTTPS URL for completion webhook |
+| `metadata` | `object` | - | Custom metadata key-value pairs |
+
+#### Batch Status Response
+
+```javascript
+{
+  success: true,
+  batch: {
+    batch_id: "batch_xxx",
+    status: "processing",  // "open", "processing", "completed", "cancelled"
+    counts: {
+      total: 10,
+      queued: 3,
+      running: 2,
+      completed: 4,
+      failed: 1,
+      cancelled: 0
+    },
+    usage: {
+      search_cost: 0.05,
+      ai_cost: 0.15,
+      total_cost: 0.20
+    }
+  }
+}
+```
+
 ### Search Method
 
 The `search()` method is the core of the Valyu SDK. It accepts a query string as the first parameter, followed by optional configuration parameters.
