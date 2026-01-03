@@ -456,3 +456,132 @@ export interface ListOptions {
   apiKeyId: string;
   limit?: number;
 }
+
+// Batch API Types
+export type BatchStatus =
+  | "open"
+  | "processing"
+  | "completed"
+  | "completed_with_errors"
+  | "cancelled";
+
+export interface BatchCounts {
+  total: number;
+  queued: number;
+  running: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+}
+
+export interface BatchUsage {
+  search_cost: number;
+  contents_cost: number;
+  ai_cost: number;
+  total_cost: number;
+}
+
+export interface DeepResearchBatch {
+  batch_id: string;
+  organisation_id: string;
+  api_key_id: string;
+  credit_id: string;
+  name?: string;
+  status: BatchStatus;
+  model: DeepResearchMode;
+  output_formats?: DeepResearchOutputFormat[];
+  search_params?: {
+    search_type?: "all" | "web" | "proprietary";
+    included_sources?: string[];
+  };
+  counts: BatchCounts;
+  usage: BatchUsage;
+  webhook_url?: string;
+  webhook_secret?: string;
+  created_at: number;
+  updated_at: number;
+  completed_at?: number;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export interface CreateBatchOptions {
+  name?: string;
+  model?: DeepResearchMode;
+  outputFormats?: DeepResearchOutputFormat[];
+  search?: {
+    searchType?: "all" | "web" | "proprietary";
+    includedSources?: string[];
+  };
+  webhookUrl?: string;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export interface BatchTaskInput {
+  id?: string;
+  input: string;
+  strategy?: string;
+  urls?: string[];
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export interface AddBatchTasksOptions {
+  tasks: BatchTaskInput[];
+}
+
+export interface CreateBatchResponse {
+  success: boolean;
+  batch_id?: string;
+  status?: BatchStatus;
+  webhook_secret?: string;
+  error?: string;
+}
+
+export interface BatchStatusResponse {
+  success: boolean;
+  batch?: DeepResearchBatch;
+  error?: string;
+}
+
+export interface AddBatchTasksResponse {
+  success: boolean;
+  added_count?: number;
+  task_ids?: string[];
+  error?: string;
+}
+
+export interface BatchTaskListItem {
+  deepresearch_id: string;
+  batch_id: string;
+  batch_task_id?: string;
+  query: string;
+  status: DeepResearchStatus;
+  created_at: number;
+  completed_at?: number;
+  error?: string;
+}
+
+export interface ListBatchTasksResponse {
+  success: boolean;
+  tasks?: BatchTaskListItem[];
+  total_count?: number;
+  error?: string;
+}
+
+export interface CancelBatchResponse {
+  success: boolean;
+  message?: string;
+  batch_id?: string;
+  error?: string;
+}
+
+export interface ListBatchesResponse {
+  success: boolean;
+  batches?: DeepResearchBatch[];
+  error?: string;
+}
+
+export interface BatchWaitOptions {
+  pollInterval?: number;
+  maxWaitTime?: number;
+  onProgress?: (batch: DeepResearchBatch) => void;
+}
