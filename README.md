@@ -58,7 +58,7 @@ The `deepresearch` namespace provides access to Valyu's AI-powered research agen
 // Create a research task
 const task = await valyu.deepresearch.create({
     input: "What are the latest developments in quantum computing?",
-    model: "lite",                      // "lite" (fast, Haiku) or "heavy" (thorough, Sonnet)
+    model: "fast",                      // "fast" (Haiku) or "heavy" (thorough, Sonnet)
     outputFormats: ["markdown", "pdf"]  // Output formats
 });
 
@@ -94,7 +94,7 @@ console.log(result.pdf_url); // PDF download URL
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `input` | `string` | *required* | Research query or task description |
-| `model` | `"lite" \| "heavy"` | `"lite"` | Research model - lite (fast) or heavy (thorough) |
+| `model` | `"fast" \| "heavy"` | `"fast"` | Research model - fast or heavy (thorough) |
 | `outputFormats` | `("markdown" \| "pdf")[]` | `["markdown"]` | Output formats for the report |
 | `strategy` | `string` | - | Natural language research strategy |
 | `search` | `object` | - | Search configuration (type, sources) |
@@ -112,7 +112,7 @@ console.log(result.pdf_url); // PDF download URL
 ```javascript
 const task = await valyu.deepresearch.create({
     input: "Summarize recent AI safety research",
-    model: "lite"
+    model: "fast"
 });
 
 const result = await valyu.deepresearch.wait(task.deepresearch_id);
@@ -168,7 +168,7 @@ The `batch` namespace allows you to process multiple DeepResearch tasks efficien
 // Create a batch
 const batch = await valyu.batch.create({
   name: "Q4 Research Batch",
-  model: "lite",                      // "lite", "standard", or "heavy"
+  model: "fast",                      // "fast", "standard", or "heavy"
   outputFormats: ["markdown"]
 });
 
@@ -209,7 +209,7 @@ console.log('Total cost:', result.usage.total_cost);
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `name` | `string` | - | Optional batch name |
-| `model` | `"lite" \| "standard" \| "heavy"` | `"standard"` | DeepResearch model for all tasks |
+| `model` | `"fast" \| "standard" \| "heavy"` | `"standard"` | DeepResearch model for all tasks |
 | `outputFormats` | `("markdown" \| "pdf")[]` | `["markdown"]` | Output formats |
 | `search` | `object` | - | Search configuration for all tasks |
 | `webhookUrl` | `string` | - | HTTPS URL for completion webhook |

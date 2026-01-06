@@ -12,7 +12,7 @@ async function main() {
         console.log('1. Creating a basic research task...');
         const task = await valyu.deepresearch.create({
             input: "What are the key differences between RAG and fine-tuning for LLMs?",
-            model: "lite",
+            model: "fast",
             outputFormats: ["markdown"]
         });
 

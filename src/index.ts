@@ -642,7 +642,7 @@ export class Valyu {
       // Build payload with snake_case
       const payload: Record<string, any> = {
         input: options.input,
-        model: options.model || "lite",
+        model: options.model || "fast",
         output_formats: options.outputFormats || ["markdown"],
         code_execution: options.codeExecution !== false,
       };

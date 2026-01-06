@@ -17,7 +17,7 @@ async function batchExample() {
     console.log('Step 1: Creating batch...');
     const batch = await client.batch.create({
       name: 'Research Questions Batch',
-      model: 'lite', // or 'standard', 'heavy'
+      model: 'fast', // or 'standard', 'heavy'
       outputFormats: ['markdown'],
       metadata: {
         project: 'Q4-Research',
