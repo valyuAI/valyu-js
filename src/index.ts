@@ -21,6 +21,16 @@ import {
   WaitOptions,
   StreamCallback,
   ListOptions,
+  CreateBatchOptions,
+  CreateBatchResponse,
+  BatchStatusResponse,
+  AddBatchTasksOptions,
+  AddBatchTasksResponse,
+  ListBatchTasksResponse,
+  CancelBatchResponse,
+  ListBatchesResponse,
+  BatchWaitOptions,
+  DeepResearchBatch,
 } from "./types";
 
 
@@ -40,6 +50,17 @@ export class Valyu {
     cancel: (taskId: string) => Promise<DeepResearchCancelResponse>;
     delete: (taskId: string) => Promise<DeepResearchDeleteResponse>;
     togglePublic: (taskId: string, isPublic: boolean) => Promise<DeepResearchTogglePublicResponse>;
+  };
+
+  // Batch API namespace
+  public batch: {
+    create: (options?: CreateBatchOptions) => Promise<CreateBatchResponse>;
+    status: (batchId: string) => Promise<BatchStatusResponse>;
+    addTasks: (batchId: string, options: AddBatchTasksOptions) => Promise<AddBatchTasksResponse>;
+    listTasks: (batchId: string) => Promise<ListBatchTasksResponse>;
+    cancel: (batchId: string) => Promise<CancelBatchResponse>;
+    list: () => Promise<ListBatchesResponse>;
+    waitForCompletion: (batchId: string, options?: BatchWaitOptions) => Promise<DeepResearchBatch>;
   };
 
   constructor(
@@ -69,6 +90,17 @@ export class Valyu {
       cancel: this._deepresearchCancel.bind(this),
       delete: this._deepresearchDelete.bind(this),
       togglePublic: this._deepresearchTogglePublic.bind(this),
+    };
+
+    // Initialize Batch namespace
+    this.batch = {
+      create: this._batchCreate.bind(this),
+      status: this._batchStatus.bind(this),
+      addTasks: this._batchAddTasks.bind(this),
+      listTasks: this._batchListTasks.bind(this),
+      cancel: this._batchCancel.bind(this),
+      list: this._batchList.bind(this),
+      waitForCompletion: this._batchWaitForCompletion.bind(this),
     };
   }
 
@@ -610,7 +642,7 @@ export class Valyu {
       // Build payload with snake_case
       const payload: Record<string, any> = {
         input: options.input,
-        model: options.model || "lite",
+        model: options.model || "fast",
         output_formats: options.outputFormats || ["markdown"],
         code_execution: options.codeExecution !== false,
       };
@@ -892,6 +924,231 @@ export class Valyu {
         success: false,
         error: e.response?.data?.error || e.message,
       };
+    }
+  }
+
+  /**
+   * Batch: Create a new batch
+   * @param options - Batch configuration options
+   * @param options.name - Optional name for the batch
+   * @param options.model - DeepResearch mode: "fast", "standard", or "heavy" (default: "standard")
+   * @param options.outputFormats - Output formats for tasks (default: ["markdown"])
+   * @param options.search - Search configuration for all tasks in batch
+   * @param options.webhookUrl - Optional HTTPS URL for completion notification
+   * @param options.metadata - Optional metadata key-value pairs
+   * @returns Promise resolving to batch creation response with batch_id and webhook_secret
+   */
+  private async _batchCreate(
+    options: CreateBatchOptions = {}
+  ): Promise<CreateBatchResponse> {
+    try {
+      const payload: Record<string, any> = {};
+
+      if (options.name) payload.name = options.name;
+      if (options.model) payload.model = options.model;
+      if (options.outputFormats) payload.output_formats = options.outputFormats;
+      if (options.search) {
+        payload.search = {
+          search_type: options.search.searchType,
+          included_sources: options.search.includedSources,
+        };
+      }
+      if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
+      if (options.metadata) payload.metadata = options.metadata;
+
+      const response = await axios.post(
+        `${this.baseUrl}/deepresearch/batches`,
+        payload,
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * Batch: Get batch status
+   * @param batchId - The batch ID to query
+   * @returns Promise resolving to batch status with counts and usage
+   */
+  private async _batchStatus(
+    batchId: string
+  ): Promise<BatchStatusResponse> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/deepresearch/batches/${batchId}`,
+        { headers: this.headers }
+      );
+
+      return { success: true, batch: response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * Batch: Add tasks to a batch
+   * @param batchId - The batch ID to add tasks to
+   * @param options - Task configuration options
+   * @param options.tasks - Array of task inputs
+   * @returns Promise resolving to response with added_count and task_ids
+   */
+  private async _batchAddTasks(
+    batchId: string,
+    options: AddBatchTasksOptions
+  ): Promise<AddBatchTasksResponse> {
+    try {
+      if (!options.tasks || !Array.isArray(options.tasks)) {
+        return {
+          success: false,
+          error: "tasks must be an array",
+        };
+      }
+
+      if (options.tasks.length === 0) {
+        return {
+          success: false,
+          error: "tasks array cannot be empty",
+        };
+      }
+
+      const response = await axios.post(
+        `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
+        { tasks: options.tasks },
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * Batch: List all tasks in a batch
+   * @param batchId - The batch ID to query
+   * @returns Promise resolving to list of tasks with their status
+   */
+  private async _batchListTasks(
+    batchId: string
+  ): Promise<ListBatchTasksResponse> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * Batch: Cancel a batch and all its pending tasks
+   * @param batchId - The batch ID to cancel
+   * @returns Promise resolving to cancellation confirmation
+   */
+  private async _batchCancel(
+    batchId: string
+  ): Promise<CancelBatchResponse> {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/deepresearch/batches/${batchId}/cancel`,
+        {},
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * Batch: List all batches
+   * @returns Promise resolving to list of all batches
+   */
+  private async _batchList(): Promise<ListBatchesResponse> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/deepresearch/batches`,
+        { headers: this.headers }
+      );
+
+      return { success: true, batches: response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * Batch: Wait for batch completion with polling
+   * @param batchId - The batch ID to wait for
+   * @param options - Wait configuration options
+   * @param options.pollInterval - Polling interval in milliseconds (default: 10000)
+   * @param options.maxWaitTime - Maximum wait time in milliseconds (default: 7200000)
+   * @param options.onProgress - Callback for progress updates
+   * @returns Promise resolving to final batch status
+   */
+  private async _batchWaitForCompletion(
+    batchId: string,
+    options: BatchWaitOptions = {}
+  ): Promise<DeepResearchBatch> {
+    const pollInterval = options.pollInterval || 10000; // 10 seconds default
+    const maxWaitTime = options.maxWaitTime || 7200000; // 2 hours default
+    const startTime = Date.now();
+
+    while (true) {
+      const statusResponse = await this._batchStatus(batchId);
+
+      if (!statusResponse.success || !statusResponse.batch) {
+        throw new Error(statusResponse.error || "Failed to get batch status");
+      }
+
+      const batch = statusResponse.batch;
+
+      // Notify progress callback
+      if (options.onProgress) {
+        options.onProgress(batch);
+      }
+
+      // Terminal states
+      if (
+        batch.status === "completed" ||
+        batch.status === "completed_with_errors" ||
+        batch.status === "cancelled"
+      ) {
+        return batch;
+      }
+
+      // Check timeout
+      if (Date.now() - startTime > maxWaitTime) {
+        throw new Error("Maximum wait time exceeded");
+      }
+
+      // Wait before next poll
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
   }
 
@@ -1295,4 +1552,19 @@ export type {
   WaitOptions,
   StreamCallback,
   ListOptions,
+  BatchStatus,
+  BatchCounts,
+  BatchUsage,
+  DeepResearchBatch,
+  CreateBatchOptions,
+  BatchTaskInput,
+  AddBatchTasksOptions,
+  CreateBatchResponse,
+  BatchStatusResponse,
+  AddBatchTasksResponse,
+  BatchTaskListItem,
+  ListBatchTasksResponse,
+  CancelBatchResponse,
+  ListBatchesResponse,
+  BatchWaitOptions,
 } from "./types";

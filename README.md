@@ -58,7 +58,7 @@ The `deepresearch` namespace provides access to Valyu's AI-powered research agen
 // Create a research task
 const task = await valyu.deepresearch.create({
     input: "What are the latest developments in quantum computing?",
-    model: "lite",                      // "lite" (fast, Haiku) or "heavy" (thorough, Sonnet)
+    model: "fast",                      // "fast" (Haiku) or "heavy" (thorough, Sonnet)
     outputFormats: ["markdown", "pdf"]  // Output formats
 });
 
@@ -94,7 +94,7 @@ console.log(result.pdf_url); // PDF download URL
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `input` | `string` | *required* | Research query or task description |
-| `model` | `"lite" \| "heavy"` | `"lite"` | Research model - lite (fast) or heavy (thorough) |
+| `model` | `"fast" \| "heavy"` | `"fast"` | Research model - fast or heavy (thorough) |
 | `outputFormats` | `("markdown" \| "pdf")[]` | `["markdown"]` | Output formats for the report |
 | `strategy` | `string` | - | Natural language research strategy |
 | `search` | `object` | - | Search configuration (type, sources) |
@@ -112,7 +112,7 @@ console.log(result.pdf_url); // PDF download URL
 ```javascript
 const task = await valyu.deepresearch.create({
     input: "Summarize recent AI safety research",
-    model: "lite"
+    model: "fast"
 });
 
 const result = await valyu.deepresearch.wait(task.deepresearch_id);
@@ -158,6 +158,86 @@ const task = await valyu.deepresearch.create({
     }],
     urls: ["https://arxiv.org/abs/2103.14030"]
 });
+```
+
+### Batch API
+
+The `batch` namespace allows you to process multiple DeepResearch tasks efficiently. Perfect for running large-scale research operations.
+
+```javascript
+// Create a batch
+const batch = await valyu.batch.create({
+  name: "Q4 Research Batch",
+  model: "fast",                      // "fast", "standard", or "heavy"
+  outputFormats: ["markdown"]
+});
+
+// Add tasks to the batch
+await valyu.batch.addTasks(batch.batch_id, {
+  tasks: [
+    { input: "What are the latest AI developments?" },
+    { input: "Analyze climate change trends" },
+    { input: "Review quantum computing progress" }
+  ]
+});
+
+// Wait for completion
+const result = await valyu.batch.waitForCompletion(batch.batch_id, {
+  pollInterval: 10000,  // Check every 10 seconds
+  onProgress: (batch) => {
+    console.log(`Progress: ${batch.counts.completed}/${batch.counts.total}`);
+  }
+});
+
+console.log('Total cost:', result.usage.total_cost);
+```
+
+#### Batch Methods
+
+| Method | Description |
+|--------|-------------|
+| `create(options?)` | Create a new batch |
+| `status(batchId)` | Get batch status and task counts |
+| `addTasks(batchId, options)` | Add tasks to a batch |
+| `listTasks(batchId)` | List all tasks in a batch |
+| `list()` | List all batches |
+| `cancel(batchId)` | Cancel a batch and all pending tasks |
+| `waitForCompletion(batchId, options?)` | Wait for batch completion with polling |
+
+#### Batch Create Options
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | `string` | - | Optional batch name |
+| `model` | `"fast" \| "standard" \| "heavy"` | `"standard"` | DeepResearch model for all tasks |
+| `outputFormats` | `("markdown" \| "pdf")[]` | `["markdown"]` | Output formats |
+| `search` | `object` | - | Search configuration for all tasks |
+| `webhookUrl` | `string` | - | HTTPS URL for completion webhook |
+| `metadata` | `object` | - | Custom metadata key-value pairs |
+
+#### Batch Status Response
+
+```javascript
+{
+  success: true,
+  batch: {
+    batch_id: "batch_xxx",
+    status: "processing",  // "open", "processing", "completed", "cancelled"
+    counts: {
+      total: 10,
+      queued: 3,
+      running: 2,
+      completed: 4,
+      failed: 1,
+      cancelled: 0
+    },
+    usage: {
+      search_cost: 0.05,
+      ai_cost: 0.15,
+      total_cost: 0.20
+    }
+  }
+}
 ```
 
 ### Search Method
