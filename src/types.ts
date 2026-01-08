@@ -120,6 +120,7 @@ export interface ContentResult {
   length: number;
   source: string;
   price: number;
+  description?: string;
   summary?: string | object;
   summary_success?: boolean;
   data_type?: string;
