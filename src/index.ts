@@ -644,6 +644,13 @@ export class Valyu {
 
   /**
    * DeepResearch: Create a new research task
+   * @param options.search - Search configuration options
+   * @param options.search.searchType - Type of search: "all", "web", or "proprietary" (default: "all")
+   * @param options.search.includedSources - Array of source types to include (e.g., ["academic", "finance", "web"])
+   * @param options.search.excludedSources - Array of source types to exclude (e.g., ["web", "patent"])
+   * @param options.search.startDate - Start date filter in ISO format (YYYY-MM-DD)
+   * @param options.search.endDate - End date filter in ISO format (YYYY-MM-DD)
+   * @param options.search.category - Category filter for search results
    */
   private async _deepresearchCreate(
     options: DeepResearchCreateOptions
@@ -668,10 +675,25 @@ export class Valyu {
       // Add optional fields
       if (options.strategy) payload.strategy = options.strategy;
       if (options.search) {
-        payload.search = {
-          search_type: options.search.searchType,
-          included_sources: options.search.includedSources,
-        };
+        payload.search = {};
+        if (options.search.searchType) {
+          payload.search.search_type = options.search.searchType;
+        }
+        if (options.search.includedSources) {
+          payload.search.included_sources = options.search.includedSources;
+        }
+        if (options.search.excludedSources) {
+          payload.search.excluded_sources = options.search.excludedSources;
+        }
+        if (options.search.startDate) {
+          payload.search.start_date = options.search.startDate;
+        }
+        if (options.search.endDate) {
+          payload.search.end_date = options.search.endDate;
+        }
+        if (options.search.category) {
+          payload.search.category = options.search.category;
+        }
       }
       if (options.urls) payload.urls = options.urls;
       if (options.files) payload.files = options.files;
@@ -952,6 +974,12 @@ export class Valyu {
    * @param options.model - DeepResearch mode: "fast", "standard", or "heavy" (default: "standard")
    * @param options.outputFormats - Output formats for tasks (default: ["markdown"])
    * @param options.search - Search configuration for all tasks in batch
+   * @param options.search.searchType - Type of search: "all", "web", or "proprietary" (default: "all")
+   * @param options.search.includedSources - Array of source types to include (e.g., ["academic", "finance", "web"])
+   * @param options.search.excludedSources - Array of source types to exclude (e.g., ["web", "patent"])
+   * @param options.search.startDate - Start date filter in ISO format (YYYY-MM-DD)
+   * @param options.search.endDate - End date filter in ISO format (YYYY-MM-DD)
+   * @param options.search.category - Category filter for search results
    * @param options.webhookUrl - Optional HTTPS URL for completion notification
    * @param options.metadata - Optional metadata key-value pairs
    * @returns Promise resolving to batch creation response with batch_id and webhook_secret
@@ -966,10 +994,25 @@ export class Valyu {
       if (options.model) payload.model = options.model;
       if (options.outputFormats) payload.output_formats = options.outputFormats;
       if (options.search) {
-        payload.search = {
-          search_type: options.search.searchType,
-          included_sources: options.search.includedSources,
-        };
+        payload.search = {};
+        if (options.search.searchType) {
+          payload.search.search_type = options.search.searchType;
+        }
+        if (options.search.includedSources) {
+          payload.search.included_sources = options.search.includedSources;
+        }
+        if (options.search.excludedSources) {
+          payload.search.excluded_sources = options.search.excludedSources;
+        }
+        if (options.search.startDate) {
+          payload.search.start_date = options.search.startDate;
+        }
+        if (options.search.endDate) {
+          payload.search.end_date = options.search.endDate;
+        }
+        if (options.search.category) {
+          payload.search.category = options.search.category;
+        }
       }
       if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
       if (options.metadata) payload.metadata = options.metadata;
@@ -1036,9 +1079,32 @@ export class Valyu {
         };
       }
 
+      if (options.tasks.length > 100) {
+        return {
+          success: false,
+          error: "Maximum 100 tasks allowed per request",
+        };
+      }
+
+      // Convert tasks to snake_case format for API
+      // Note: Tasks can only include: id, input, strategy, urls, metadata
+      // Tasks inherit model, output_formats, and search_params from batch
+      const tasksPayload = options.tasks.map((task) => {
+        const taskPayload: Record<string, any> = {
+          input: task.input,
+        };
+
+        if (task.id) taskPayload.id = task.id;
+        if (task.strategy) taskPayload.strategy = task.strategy;
+        if (task.urls) taskPayload.urls = task.urls;
+        if (task.metadata) taskPayload.metadata = task.metadata;
+
+        return taskPayload;
+      });
+
       const response = await axios.post(
         `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
-        { tasks: options.tasks },
+        { tasks: tasksPayload },
         { headers: this.headers }
       );
 
