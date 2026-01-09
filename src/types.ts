@@ -298,6 +298,10 @@ export interface DeliverableResult {
 export interface DeepResearchSearchConfig {
   searchType?: "all" | "web" | "proprietary";
   includedSources?: string[];
+  excludedSources?: string[];
+  startDate?: string; // ISO date format (YYYY-MM-DD)
+  endDate?: string; // ISO date format (YYYY-MM-DD)
+  category?: string;
 }
 
 export interface DeepResearchCreateOptions {
@@ -517,10 +521,7 @@ export interface CreateBatchOptions {
   name?: string;
   model?: DeepResearchMode;
   outputFormats?: DeepResearchOutputFormat[];
-  search?: {
-    searchType?: "all" | "web" | "proprietary";
-    includedSources?: string[];
-  };
+  search?: DeepResearchSearchConfig;
   webhookUrl?: string;
   metadata?: Record<string, string | number | boolean>;
 }
