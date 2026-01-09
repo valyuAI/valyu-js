@@ -46,10 +46,10 @@ export type ResponseLength = "short" | "medium" | "large" | "max" | number;
 export interface SearchResult {
   title: string;
   url: string;
-  content: string | object | any[];  // Can be string, object, or array for structured data
+  content: string | object | any[]; // Can be string, object, or array for structured data
   description?: string;
   source: string;
-  source_type?: string;  // "website", "data", "forum"
+  source_type?: string; // "website", "data", "forum"
   data_type?: DataType;
   date?: string;
   length: number;
@@ -110,6 +110,7 @@ export interface ContentsOptions {
   extractEffort?: ExtractEffort;
   responseLength?: ContentResponseLength;
   maxPriceDollars?: number;
+  screenshot?: boolean;
 }
 
 export interface ContentResult {
@@ -118,10 +119,13 @@ export interface ContentResult {
   content: string | number;
   length: number;
   source: string;
+  price: number;
+  description?: string;
   summary?: string | object;
   summary_success?: boolean;
   data_type?: string;
   image_url?: Record<string, string>;
+  screenshot_url?: string | null;
   citation?: string;
 }
 
@@ -150,7 +154,7 @@ export interface AnswerOptions {
   startDate?: string;
   endDate?: string;
   fastMode?: boolean;
-  streaming?: boolean;  // Default: false - when true, returns AsyncGenerator
+  streaming?: boolean; // Default: false - when true, returns AsyncGenerator
 }
 
 export interface SearchMetadata {
@@ -201,7 +205,12 @@ export interface AnswerErrorResponse {
 export type AnswerResponse = AnswerSuccessResponse | AnswerErrorResponse;
 
 // Streaming Types for Answer API
-export type AnswerStreamChunkType = "search_results" | "content" | "metadata" | "done" | "error";
+export type AnswerStreamChunkType =
+  | "search_results"
+  | "content"
+  | "metadata"
+  | "done"
+  | "error";
 
 export interface AnswerStreamChunk {
   type: AnswerStreamChunkType;
