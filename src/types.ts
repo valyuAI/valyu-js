@@ -236,7 +236,7 @@ export interface AnswerStreamChunk {
 }
 
 // DeepResearch API Types
-export type DeepResearchMode = "fast" | "standard" | "lite" | "heavy"; // "lite" is deprecated, use "standard" instead
+export type DeepResearchMode = "fast" | "standard" | "lite" | "heavy"; // "lite" is deprecated, use "fast" instead
 export type DeepResearchStatus =
   | "queued"
   | "running"
