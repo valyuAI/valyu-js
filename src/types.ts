@@ -243,7 +243,11 @@ export type DeepResearchStatus =
   | "completed"
   | "failed"
   | "cancelled";
-export type DeepResearchOutputFormat = "markdown" | "pdf" | Record<string, any>;
+export type DeepResearchOutputFormat =
+  | "markdown"
+  | "pdf"
+  | "toon"
+  | Record<string, any>;
 export type DeepResearchOutputType = "markdown" | "json";
 export type ImageType = "chart" | "ai_generated";
 export type ChartType = "line" | "bar" | "area";
@@ -527,11 +531,14 @@ export interface CreateBatchOptions {
 }
 
 export interface BatchTaskInput {
-  id?: string;
-  input: string;
-  strategy?: string;
-  urls?: string[];
-  metadata?: Record<string, string | number | boolean>;
+  id?: string; // Custom task identifier (for tracking)
+  input: string; // Research query or task description (required)
+  strategy?: string; // Custom research strategy instructions
+  urls?: string[]; // Array of URLs to extract content from
+  metadata?: Record<string, string | number | boolean>; // Custom metadata
+  // Note: Tasks inherit model, output_formats, and search_params from batch
+  // Tasks cannot override: model, output_formats, search_params
+  // Tasks cannot use: deliverables, files, mcp_servers, code_execution, previous_reports, brand_collection_id, alert_email
 }
 
 export interface AddBatchTasksOptions {

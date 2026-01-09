@@ -1079,9 +1079,32 @@ export class Valyu {
         };
       }
 
+      if (options.tasks.length > 100) {
+        return {
+          success: false,
+          error: "Maximum 100 tasks allowed per request",
+        };
+      }
+
+      // Convert tasks to snake_case format for API
+      // Note: Tasks can only include: id, input, strategy, urls, metadata
+      // Tasks inherit model, output_formats, and search_params from batch
+      const tasksPayload = options.tasks.map((task) => {
+        const taskPayload: Record<string, any> = {
+          input: task.input,
+        };
+
+        if (task.id) taskPayload.id = task.id;
+        if (task.strategy) taskPayload.strategy = task.strategy;
+        if (task.urls) taskPayload.urls = task.urls;
+        if (task.metadata) taskPayload.metadata = task.metadata;
+
+        return taskPayload;
+      });
+
       const response = await axios.post(
         `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
-        { tasks: options.tasks },
+        { tasks: tasksPayload },
         { headers: this.headers }
       );
 
