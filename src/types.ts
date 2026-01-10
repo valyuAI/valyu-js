@@ -309,7 +309,8 @@ export interface DeepResearchSearchConfig {
 }
 
 export interface DeepResearchCreateOptions {
-  input: string;
+  query?: string; // Research query or task description
+  input?: string; // Deprecated: use query instead
   model?: DeepResearchMode;
   outputFormats?: DeepResearchOutputFormat[];
   strategy?: string;
@@ -415,7 +416,8 @@ export interface DeepResearchStatusResponse {
 
 export interface DeepResearchTaskListItem {
   deepresearch_id: string;
-  query: string;
+  query: string; // Research query
+  input?: string; // Deprecated: use query instead
   status: DeepResearchStatus;
   created_at: number;
   public?: boolean;
@@ -515,9 +517,9 @@ export interface DeepResearchBatch {
   usage: BatchUsage;
   webhook_url?: string;
   webhook_secret?: string;
-  created_at: number;
-  updated_at: number;
-  completed_at?: number;
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
+  completed_at?: string; // ISO string (optional)
   metadata?: Record<string, string | number | boolean>;
 }
 
@@ -532,7 +534,8 @@ export interface CreateBatchOptions {
 
 export interface BatchTaskInput {
   id?: string; // Custom task identifier (for tracking)
-  input: string; // Research query or task description (required)
+  query?: string; // Research query or task description
+  input?: string; // Deprecated: use query instead
   strategy?: string; // Custom research strategy instructions
   urls?: string[]; // Array of URLs to extract content from
   metadata?: Record<string, string | number | boolean>; // Custom metadata
@@ -548,7 +551,11 @@ export interface AddBatchTasksOptions {
 export interface CreateBatchResponse {
   success: boolean;
   batch_id?: string;
+  name?: string;
   status?: BatchStatus;
+  model?: DeepResearchMode;
+  counts?: BatchCounts;
+  created_at?: string; // ISO string
   webhook_secret?: string;
   error?: string;
 }
@@ -559,28 +566,41 @@ export interface BatchStatusResponse {
   error?: string;
 }
 
+export interface BatchTaskCreated {
+  task_id?: string;
+  deepresearch_id: string;
+  status: string;
+}
+
 export interface AddBatchTasksResponse {
   success: boolean;
-  added_count?: number;
-  task_ids?: string[];
+  batch_id?: string;
+  added?: number; // Number of tasks added
+  tasks?: BatchTaskCreated[]; // Array of created tasks
+  counts?: BatchCounts; // Updated batch counts
   error?: string;
 }
 
 export interface BatchTaskListItem {
   deepresearch_id: string;
-  batch_id: string;
-  batch_task_id?: string;
-  query: string;
+  task_id?: string;
+  query: string; // Always use query in responses
   status: DeepResearchStatus;
-  created_at: number;
-  completed_at?: number;
-  error?: string;
+  created_at: string; // ISO string
+  completed_at?: string; // ISO string (optional)
+}
+
+export interface BatchPagination {
+  count: number;
+  last_key?: string;
+  has_more: boolean;
 }
 
 export interface ListBatchTasksResponse {
   success: boolean;
+  batch_id?: string;
   tasks?: BatchTaskListItem[];
-  total_count?: number;
+  pagination?: BatchPagination;
   error?: string;
 }
 

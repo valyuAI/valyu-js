@@ -11,7 +11,7 @@ async function main() {
     // Example 1: Basic research task
     console.log("1. Creating a basic research task...");
     const task = await valyu.deepresearch.create({
-      input:
+      query:
         "What are the key differences between RAG and fine-tuning for LLMs?",
       model: "fast",
       outputFormats: ["markdown"],
@@ -48,9 +48,12 @@ async function main() {
 
     console.log("\n✓ Research completed!");
     console.log(`  Status: ${result.status}`);
-    console.log(
-      `  Completed at: ${new Date(result.completed_at * 1000).toLocaleString()}`
-    );
+    if (result.completed_at) {
+      const completedDate = typeof result.completed_at === 'string' 
+        ? new Date(result.completed_at)
+        : new Date(result.completed_at * 1000);
+      console.log(`  Completed at: ${completedDate.toLocaleString()}`);
+    }
 
     // Display output
     if (result.output) {

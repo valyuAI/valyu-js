@@ -37,15 +37,15 @@ async function batchExample() {
     const addResult = await client.batch.addTasks(batchId, {
       tasks: [
         {
-          input: 'What are the latest developments in quantum computing?',
+          query: 'What are the latest developments in quantum computing?',
           metadata: { priority: 'high' }
         },
         {
-          input: 'Analyze the impact of AI on healthcare in 2024',
+          query: 'Analyze the impact of AI on healthcare in 2024',
           metadata: { priority: 'medium' }
         },
         {
-          input: 'Compare renewable energy trends across Europe',
+          query: 'Compare renewable energy trends across Europe',
           metadata: { priority: 'low' }
         }
       ]
@@ -55,7 +55,7 @@ async function batchExample() {
       console.log(`⚠ Warning: ${addResult.error}`);
       console.log('Note: Tasks may still be added despite error (backend issue)\n');
     } else {
-      console.log(`✓ Added ${addResult.added_count} tasks\n`);
+      console.log(`✓ Added ${addResult.added} tasks\n`);
     }
 
     // 3. Check batch status

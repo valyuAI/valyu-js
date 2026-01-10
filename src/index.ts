@@ -656,17 +656,20 @@ export class Valyu {
     options: DeepResearchCreateOptions
   ): Promise<DeepResearchCreateResponse> {
     try {
+      // Use query field (input is supported for backward compatibility)
+      const queryValue = options.query ?? options.input;
+
       // Validation
-      if (!options.input?.trim()) {
+      if (!queryValue?.trim()) {
         return {
           success: false,
-          error: "input is required and cannot be empty",
+          error: "query is required and cannot be empty",
         };
       }
 
       // Build payload with snake_case
       const payload: Record<string, any> = {
-        input: options.input,
+        query: queryValue,
         model: options.model || "fast",
         output_formats: options.outputFormats || ["markdown"],
         code_execution: options.codeExecution !== false,
@@ -1057,8 +1060,8 @@ export class Valyu {
    * Batch: Add tasks to a batch
    * @param batchId - The batch ID to add tasks to
    * @param options - Task configuration options
-   * @param options.tasks - Array of task inputs
-   * @returns Promise resolving to response with added_count and task_ids
+   * @param options.tasks - Array of task inputs (use 'query' field for each task)
+   * @returns Promise resolving to response with added, tasks array, counts, and batch_id
    */
   private async _batchAddTasks(
     batchId: string,
@@ -1086,13 +1089,27 @@ export class Valyu {
         };
       }
 
+      // Validate that each task has a query
+      for (const task of options.tasks) {
+        if (!task.query && !task.input) {
+          return {
+            success: false,
+            error: "Each task must have a 'query' field",
+          };
+        }
+      }
+
       // Convert tasks to snake_case format for API
-      // Note: Tasks can only include: id, input, strategy, urls, metadata
+      // Note: Tasks can only include: id, query, strategy, urls, metadata
       // Tasks inherit model, output_formats, and search_params from batch
       const tasksPayload = options.tasks.map((task) => {
-        const taskPayload: Record<string, any> = {
-          input: task.input,
-        };
+        const taskPayload: Record<string, any> = {};
+
+        // Use query field (input is supported for backward compatibility)
+        const queryValue = task.query ?? task.input;
+        if (queryValue) {
+          taskPayload.query = queryValue;
+        }
 
         if (task.id) taskPayload.id = task.id;
         if (task.strategy) taskPayload.strategy = task.strategy;
@@ -1686,7 +1703,9 @@ export type {
   CreateBatchResponse,
   BatchStatusResponse,
   AddBatchTasksResponse,
+  BatchTaskCreated,
   BatchTaskListItem,
+  BatchPagination,
   ListBatchTasksResponse,
   CancelBatchResponse,
   ListBatchesResponse,
