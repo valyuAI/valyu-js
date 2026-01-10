@@ -176,7 +176,7 @@ The `batch` namespace allows you to process multiple DeepResearch tasks efficien
 // Create a batch
 const batch = await valyu.batch.create({
   name: "Q4 Research Batch",
-  model: "fast", // "fast", "standard", or "heavy"
+  mode: "fast", // "fast", "standard", or "heavy"
   outputFormats: ["markdown"],
 });
 
@@ -197,7 +197,7 @@ const result = await valyu.batch.waitForCompletion(batch.batch_id, {
   },
 });
 
-console.log("Total cost:", result.usage.total_cost);
+console.log("Total cost:", result.cost);
 ```
 
 #### Batch Methods
@@ -217,7 +217,7 @@ console.log("Total cost:", result.usage.total_cost);
 | Parameter       | Type                              | Default        | Description                        |
 | --------------- | --------------------------------- | -------------- | ---------------------------------- |
 | `name`          | `string`                          | -              | Optional batch name                |
-| `model`         | `"fast" \| "standard" \| "heavy"` | `"standard"`   | DeepResearch model for all tasks   |
+| `mode`          | `"fast" \| "standard" \| "heavy"` | `"standard"`   | DeepResearch mode for all tasks    |
 | `outputFormats` | `("markdown" \| "pdf")[]`         | `["markdown"]` | Output formats                     |
 | `search`        | `object`                          | -              | Search configuration for all tasks |
 | `webhookUrl`    | `string`                          | -              | HTTPS URL for completion webhook   |
@@ -231,6 +231,8 @@ console.log("Total cost:", result.usage.total_cost);
   batch: {
     batch_id: "batch_xxx",
     status: "processing",  // "open", "processing", "completed", "cancelled"
+    mode: "standard",  // "fast", "standard", or "heavy"
+    name: "My Batch",
     counts: {
       total: 10,
       queued: 3,
@@ -239,11 +241,9 @@ console.log("Total cost:", result.usage.total_cost);
       failed: 1,
       cancelled: 0
     },
-    usage: {
-      search_cost: 0.05,
-      ai_cost: 0.15,
-      total_cost: 0.20
-    }
+    cost: 0.20,  // Total cost (replaces usage object)
+    created_at: "2025-01-10T12:00:00Z",  // ISO 8601 date-time string
+    completed_at: "2025-01-10T12:30:00Z"  // ISO 8601 date-time string (when completed)
   }
 }
 ```

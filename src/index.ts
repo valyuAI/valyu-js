@@ -994,7 +994,9 @@ export class Valyu {
       const payload: Record<string, any> = {};
 
       if (options.name) payload.name = options.name;
-      if (options.model) payload.model = options.model;
+      // Accept both mode (preferred) and model (backward compatible)
+      const mode = options.mode ?? options.model;
+      if (mode) payload.mode = mode;
       if (options.outputFormats) payload.output_formats = options.outputFormats;
       if (options.search) {
         payload.search = {};
@@ -1695,7 +1697,6 @@ export type {
   ListOptions,
   BatchStatus,
   BatchCounts,
-  BatchUsage,
   DeepResearchBatch,
   CreateBatchOptions,
   BatchTaskInput,

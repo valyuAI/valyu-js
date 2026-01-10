@@ -493,39 +493,34 @@ export interface BatchCounts {
   cancelled: number;
 }
 
-export interface BatchUsage {
-  search_cost: number;
-  contents_cost: number;
-  ai_cost: number;
-  total_cost: number;
-}
+// BatchUsage interface removed - replaced by 'cost' field in DeepResearchBatch
 
 export interface DeepResearchBatch {
   batch_id: string;
   organisation_id: string;
   api_key_id: string;
   credit_id: string;
-  name?: string;
   status: BatchStatus;
-  model: DeepResearchMode;
+  mode: DeepResearchMode; // Renamed from 'model' in responses
+  name?: string;
   output_formats?: DeepResearchOutputFormat[];
   search_params?: {
     search_type?: "all" | "web" | "proprietary";
     included_sources?: string[];
   };
+  created_at: string; // ISO 8601 date-time string
+  completed_at?: string; // ISO 8601 date-time string
   counts: BatchCounts;
-  usage: BatchUsage;
-  webhook_url?: string;
-  webhook_secret?: string;
-  created_at: string; // ISO string
-  updated_at: string; // ISO string
-  completed_at?: string; // ISO string (optional)
+  cost: number; // Replaces 'usage' object
+  webhook_secret?: string; // Only returned on batch creation
   metadata?: Record<string, string | number | boolean>;
+  // Removed: updated_at, usage
 }
 
 export interface CreateBatchOptions {
   name?: string;
-  model?: DeepResearchMode;
+  mode?: DeepResearchMode;
+  model?: DeepResearchMode; // Backward compatible (not documented)
   outputFormats?: DeepResearchOutputFormat[];
   search?: DeepResearchSearchConfig;
   webhookUrl?: string;
@@ -551,12 +546,19 @@ export interface AddBatchTasksOptions {
 export interface CreateBatchResponse {
   success: boolean;
   batch_id?: string;
-  name?: string;
   status?: BatchStatus;
-  model?: DeepResearchMode;
+  mode?: DeepResearchMode; // Renamed from 'model' in responses
+  name?: string;
+  output_formats?: DeepResearchOutputFormat[];
+  search_params?: {
+    search_type?: "all" | "web" | "proprietary";
+    included_sources?: string[];
+  };
+  created_at?: string; // ISO 8601 date-time string
+  completed_at?: string; // ISO 8601 date-time string
   counts?: BatchCounts;
-  created_at?: string; // ISO string
-  webhook_secret?: string;
+  cost?: number; // Replaces 'usage' object
+  webhook_secret?: string; // Only returned on batch creation
   error?: string;
 }
 
