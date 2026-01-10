@@ -17,8 +17,17 @@ async function batchExample() {
     console.log("Step 1: Creating batch...");
     const batch = await client.batch.create({
       name: "Research Questions Batch",
-      mode: "fast", // or 'standard', 'heavy'
+      mode: "fast", // Preferred over "model" - or 'standard', 'heavy'
       outputFormats: ["markdown"],
+      // Optional: Add search configuration (applies to all tasks)
+      // search: {
+      //   searchType: "all",
+      //   includedSources: ["source1", "source2"],
+      //   excludedSources: ["source3"],
+      //   startDate: "2025-01-01",
+      //   endDate: "2025-12-31",
+      //   category: "technology"
+      // },
       metadata: {
         project: "Q4-Research",
         user: "analyst-1",
@@ -75,9 +84,16 @@ async function batchExample() {
       console.log();
     }
 
-    // 4. List tasks in the batch
+    // 4. List tasks in the batch (with optional filtering and pagination)
     console.log("Step 4: Listing tasks...");
-    const tasksList = await client.batch.listTasks(batchId);
+    const tasksList = await client.batch.listTasks(batchId, {
+      // Optional: Filter by status
+      // status: "completed",
+      // Optional: Limit results
+      // limit: 50,
+      // Optional: Pagination token
+      // lastKey: previousPageLastKey
+    });
 
     if (tasksList.success && tasksList.tasks) {
       console.log(`Found ${tasksList.tasks.length} tasks:`);
@@ -130,7 +146,10 @@ async function batchExample() {
 async function listAllBatches() {
   console.log("\n=== List All Batches ===\n");
 
-  const result = await client.batch.list();
+  const result = await client.batch.list({
+    // Optional: Limit number of batches returned
+    // limit: 20
+  });
 
   if (result.success && result.batches) {
     console.log(`Found ${result.batches.length} batches:\n`);
@@ -153,6 +172,12 @@ async function cancelBatchExample(batchId) {
 
   if (result.success) {
     console.log(`✓ Batch ${batchId} cancelled successfully`);
+    if (result.cancelled_count !== undefined) {
+      console.log(`  Cancelled ${result.cancelled_count} tasks`);
+    }
+    if (result.status) {
+      console.log(`  Status: ${result.status}`);
+    }
   } else {
     console.log(`✗ Failed to cancel: ${result.error}`);
   }
