@@ -248,7 +248,7 @@ export type DeepResearchOutputFormat =
   | "pdf"
   | "toon"
   | Record<string, any>;
-export type DeepResearchOutputType = "markdown" | "json";
+export type DeepResearchOutputType = "markdown" | "json" | "toon";
 export type ImageType = "chart" | "ai_generated";
 export type ChartType = "line" | "bar" | "area";
 
@@ -309,8 +309,10 @@ export interface DeepResearchSearchConfig {
 }
 
 export interface DeepResearchCreateOptions {
-  input: string;
-  model?: DeepResearchMode;
+  query?: string; // Research query or task description
+  input?: string; // Deprecated: use query instead
+  mode?: DeepResearchMode; // Preferred field name
+  model?: DeepResearchMode; // Deprecated: use mode instead (backward compatible)
   outputFormats?: DeepResearchOutputFormat[];
   strategy?: string;
   search?: DeepResearchSearchConfig;
@@ -321,6 +323,7 @@ export interface DeepResearchCreateOptions {
   codeExecution?: boolean;
   previousReports?: string[];
   webhookUrl?: string;
+  brandCollectionId?: string;
   metadata?: Record<string, string | number | boolean>;
 }
 
@@ -382,7 +385,8 @@ export interface DeepResearchCreateResponse {
   success: boolean;
   deepresearch_id?: string;
   status?: DeepResearchStatus;
-  model?: DeepResearchMode;
+  mode?: DeepResearchMode; // API returns 'mode' (preferred)
+  model?: DeepResearchMode; // Deprecated: kept for backward compatibility
   created_at?: string;
   metadata?: Record<string, string | number | boolean>;
   public?: boolean;
@@ -398,24 +402,28 @@ export interface DeepResearchStatusResponse {
   query?: string;
   mode?: DeepResearchMode;
   output_formats?: DeepResearchOutputFormat[];
-  created_at?: number;
+  created_at?: string; // ISO 8601 timestamp string
   public?: boolean;
   progress?: Progress;
   messages?: any[];
-  completed_at?: number;
+  completed_at?: string; // ISO 8601 timestamp string
   output?: string | Record<string, any>;
   output_type?: DeepResearchOutputType;
   pdf_url?: string;
   images?: ImageMetadata[];
   deliverables?: DeliverableResult[];
   sources?: DeepResearchSource[];
-  usage?: DeepResearchUsage;
+  cost?: number; // Total cost in dollars (preferred)
+  usage?: DeepResearchUsage; // Detailed cost breakdown (backward compatible)
+  batch_id?: string; // Batch ID if task belongs to a batch
+  batch_task_id?: string; // Batch task ID if task belongs to a batch
   error?: string;
 }
 
 export interface DeepResearchTaskListItem {
   deepresearch_id: string;
-  query: string;
+  query: string; // Research query
+  input?: string; // Deprecated: use query instead
   status: DeepResearchStatus;
   created_at: number;
   public?: boolean;
@@ -456,6 +464,17 @@ export interface DeepResearchTogglePublicResponse {
   error?: string;
 }
 
+export interface DeepResearchGetAssetsOptions {
+  token?: string; // Asset access token (alternative to API key)
+}
+
+export interface DeepResearchGetAssetsResponse {
+  success: boolean;
+  data?: Buffer; // Binary asset data
+  contentType?: string; // MIME type of the asset
+  error?: string;
+}
+
 export interface WaitOptions {
   pollInterval?: number;
   maxWaitTime?: number;
@@ -491,39 +510,38 @@ export interface BatchCounts {
   cancelled: number;
 }
 
-export interface BatchUsage {
-  search_cost: number;
-  contents_cost: number;
-  ai_cost: number;
-  total_cost: number;
-}
+// BatchUsage interface removed - replaced by 'cost' field in DeepResearchBatch
 
 export interface DeepResearchBatch {
   batch_id: string;
   organisation_id: string;
   api_key_id: string;
   credit_id: string;
-  name?: string;
   status: BatchStatus;
-  model: DeepResearchMode;
+  mode: DeepResearchMode; // Renamed from 'model' in responses
+  name?: string;
   output_formats?: DeepResearchOutputFormat[];
   search_params?: {
     search_type?: "all" | "web" | "proprietary";
     included_sources?: string[];
+    excluded_sources?: string[];
+    start_date?: string; // ISO date format (YYYY-MM-DD)
+    end_date?: string; // ISO date format (YYYY-MM-DD)
+    category?: string;
   };
+  created_at: string; // ISO 8601 date-time string
+  completed_at?: string; // ISO 8601 date-time string
   counts: BatchCounts;
-  usage: BatchUsage;
-  webhook_url?: string;
-  webhook_secret?: string;
-  created_at: number;
-  updated_at: number;
-  completed_at?: number;
+  cost: number; // Replaces 'usage' object
+  webhook_secret?: string; // Only returned on batch creation
   metadata?: Record<string, string | number | boolean>;
+  // Removed: updated_at, usage
 }
 
 export interface CreateBatchOptions {
   name?: string;
-  model?: DeepResearchMode;
+  mode?: DeepResearchMode;
+  model?: DeepResearchMode; // Backward compatible (not documented)
   outputFormats?: DeepResearchOutputFormat[];
   search?: DeepResearchSearchConfig;
   webhookUrl?: string;
@@ -532,7 +550,8 @@ export interface CreateBatchOptions {
 
 export interface BatchTaskInput {
   id?: string; // Custom task identifier (for tracking)
-  input: string; // Research query or task description (required)
+  query?: string; // Research query or task description
+  input?: string; // Deprecated: use query instead
   strategy?: string; // Custom research strategy instructions
   urls?: string[]; // Array of URLs to extract content from
   metadata?: Record<string, string | number | boolean>; // Custom metadata
@@ -549,7 +568,22 @@ export interface CreateBatchResponse {
   success: boolean;
   batch_id?: string;
   status?: BatchStatus;
-  webhook_secret?: string;
+  mode?: DeepResearchMode; // Renamed from 'model' in responses
+  name?: string;
+  output_formats?: DeepResearchOutputFormat[];
+  search_params?: {
+    search_type?: "all" | "web" | "proprietary";
+    included_sources?: string[];
+    excluded_sources?: string[];
+    start_date?: string; // ISO date format (YYYY-MM-DD)
+    end_date?: string; // ISO date format (YYYY-MM-DD)
+    category?: string;
+  };
+  created_at?: string; // ISO 8601 date-time string
+  completed_at?: string; // ISO 8601 date-time string
+  counts?: BatchCounts;
+  cost?: number; // Replaces 'usage' object
+  webhook_secret?: string; // Only returned on batch creation
   error?: string;
 }
 
@@ -559,36 +593,61 @@ export interface BatchStatusResponse {
   error?: string;
 }
 
+export interface BatchTaskCreated {
+  task_id?: string;
+  deepresearch_id: string;
+  status: string;
+}
+
 export interface AddBatchTasksResponse {
   success: boolean;
-  added_count?: number;
-  task_ids?: string[];
+  batch_id?: string;
+  added?: number; // Number of tasks added
+  tasks?: BatchTaskCreated[]; // Array of created tasks
+  counts?: BatchCounts; // Updated batch counts
   error?: string;
 }
 
 export interface BatchTaskListItem {
   deepresearch_id: string;
-  batch_id: string;
-  batch_task_id?: string;
-  query: string;
+  task_id?: string;
+  query: string; // Always use query in responses
   status: DeepResearchStatus;
-  created_at: number;
-  completed_at?: number;
-  error?: string;
+  created_at: string; // ISO string
+  completed_at?: string; // ISO string (optional)
+}
+
+export interface BatchPagination {
+  count: number;
+  last_key?: string;
+  has_more: boolean;
+}
+
+export interface ListBatchTasksOptions {
+  status?: DeepResearchStatus; // Filter by status
+  limit?: number; // Maximum number of tasks to return
+  lastKey?: string; // Pagination token from previous response
 }
 
 export interface ListBatchTasksResponse {
   success: boolean;
+  batch_id?: string;
   tasks?: BatchTaskListItem[];
-  total_count?: number;
+  pagination?: BatchPagination;
   error?: string;
 }
 
 export interface CancelBatchResponse {
   success: boolean;
-  message?: string;
   batch_id?: string;
+  status?: BatchStatus; // Always "cancelled" when successful
+  cancelled_count?: number; // Number of tasks cancelled
+  message?: string; // Optional status message
   error?: string;
+}
+
+export interface ListBatchesOptions {
+  limit?: number; // Maximum number of batches to return
 }
 
 export interface ListBatchesResponse {

@@ -11,10 +11,21 @@ async function main() {
     // Example 1: Basic research task
     console.log("1. Creating a basic research task...");
     const task = await valyu.deepresearch.create({
-      input:
+      query:
         "What are the key differences between RAG and fine-tuning for LLMs?",
-      model: "fast",
+      mode: "fast", // Preferred over "model"
       outputFormats: ["markdown"],
+      // Optional: Add search configuration
+      // search: {
+      //   searchType: "all",
+      //   includedSources: ["valyu/valyu-arxiv"],
+      //   excludedSources: ["web"],
+      //   startDate: "2025-01-01",
+      //   endDate: "2025-12-31",
+      //   category: "technology"
+      // },
+      // Optional: Add brand collection
+      // brandCollectionId: "brand_collection_123"
     });
 
     if (!task.success) {
@@ -24,7 +35,7 @@ async function main() {
 
     console.log(`✓ Task created: ${task.deepresearch_id}`);
     console.log(`  Status: ${task.status}`);
-    console.log(`  Model: ${task.model}\n`);
+    console.log(`  Mode: ${task.mode || task.model}\n`); // Prefer mode, fallback to model for backward compatibility
 
     // Example 2: Wait for completion with progress updates
     console.log("2. Waiting for task completion...");
@@ -48,9 +59,14 @@ async function main() {
 
     console.log("\n✓ Research completed!");
     console.log(`  Status: ${result.status}`);
-    console.log(
-      `  Completed at: ${new Date(result.completed_at * 1000).toLocaleString()}`
-    );
+    if (result.completed_at) {
+      // Handle ISO 8601 timestamp string (preferred format)
+      const completedDate =
+        typeof result.completed_at === "string"
+          ? new Date(result.completed_at)
+          : new Date(result.completed_at * 1000); // Fallback for Unix timestamp (backward compatibility)
+      console.log(`  Completed at: ${completedDate.toLocaleString()}`);
+    }
 
     // Display output
     if (result.output) {
@@ -70,14 +86,10 @@ async function main() {
       }
     }
 
-    // Display usage and cost
-    if (result.usage) {
-      console.log("\n=== Cost Breakdown ===");
-      console.log(`  Search cost: $${result.usage.search_cost.toFixed(4)}`);
-      console.log(`  Contents cost: $${result.usage.contents_cost.toFixed(4)}`);
-      console.log(`  AI cost: $${result.usage.ai_cost.toFixed(4)}`);
-      console.log(`  Compute cost: $${result.usage.compute_cost.toFixed(4)}`);
-      console.log(`  Total cost: $${result.usage.total_cost.toFixed(4)}`);
+    // Display cost (prefer cost field, fallback to usage for detailed breakdown)
+    if (result.cost !== undefined) {
+      console.log("\n=== Cost ===");
+      console.log(`  Total cost: $${result.cost.toFixed(4)}`);
     }
 
     // Display images if any

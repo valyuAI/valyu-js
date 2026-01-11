@@ -18,6 +18,8 @@ import {
   DeepResearchCancelResponse,
   DeepResearchDeleteResponse,
   DeepResearchTogglePublicResponse,
+  DeepResearchGetAssetsOptions,
+  DeepResearchGetAssetsResponse,
   WaitOptions,
   StreamCallback,
   ListOptions,
@@ -26,8 +28,10 @@ import {
   BatchStatusResponse,
   AddBatchTasksOptions,
   AddBatchTasksResponse,
+  ListBatchTasksOptions,
   ListBatchTasksResponse,
   CancelBatchResponse,
+  ListBatchesOptions,
   ListBatchesResponse,
   BatchWaitOptions,
   DeepResearchBatch,
@@ -60,6 +64,11 @@ export class Valyu {
       taskId: string,
       isPublic: boolean
     ) => Promise<DeepResearchTogglePublicResponse>;
+    getAssets: (
+      taskId: string,
+      assetId: string,
+      options?: DeepResearchGetAssetsOptions
+    ) => Promise<DeepResearchGetAssetsResponse>;
   };
 
   // Batch API namespace
@@ -70,9 +79,12 @@ export class Valyu {
       batchId: string,
       options: AddBatchTasksOptions
     ) => Promise<AddBatchTasksResponse>;
-    listTasks: (batchId: string) => Promise<ListBatchTasksResponse>;
+    listTasks: (
+      batchId: string,
+      options?: ListBatchTasksOptions
+    ) => Promise<ListBatchTasksResponse>;
     cancel: (batchId: string) => Promise<CancelBatchResponse>;
-    list: () => Promise<ListBatchesResponse>;
+    list: (options?: ListBatchesOptions) => Promise<ListBatchesResponse>;
     waitForCompletion: (
       batchId: string,
       options?: BatchWaitOptions
@@ -103,6 +115,7 @@ export class Valyu {
       cancel: this._deepresearchCancel.bind(this),
       delete: this._deepresearchDelete.bind(this),
       togglePublic: this._deepresearchTogglePublic.bind(this),
+      getAssets: this._deepresearchGetAssets.bind(this),
     };
 
     // Initialize Batch namespace
@@ -656,18 +669,23 @@ export class Valyu {
     options: DeepResearchCreateOptions
   ): Promise<DeepResearchCreateResponse> {
     try {
+      // Use query field (input is supported for backward compatibility)
+      const queryValue = options.query ?? options.input;
+
       // Validation
-      if (!options.input?.trim()) {
+      if (!queryValue?.trim()) {
         return {
           success: false,
-          error: "input is required and cannot be empty",
+          error: "query is required and cannot be empty",
         };
       }
 
       // Build payload with snake_case
+      // Prefer mode over model (backward compatible)
+      const mode = options.mode ?? options.model;
       const payload: Record<string, any> = {
-        input: options.input,
-        model: options.model || "fast",
+        query: queryValue,
+        mode: mode || "fast", // API defaults to "standard", but we keep "fast" for backward compatibility
         output_formats: options.outputFormats || ["markdown"],
         code_execution: options.codeExecution !== false,
       };
@@ -703,6 +721,8 @@ export class Valyu {
         payload.previous_reports = options.previousReports;
       }
       if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
+      if (options.brandCollectionId)
+        payload.brand_collection_id = options.brandCollectionId;
       if (options.metadata) payload.metadata = options.metadata;
 
       const response = await axios.post(
@@ -968,6 +988,52 @@ export class Valyu {
   }
 
   /**
+   * DeepResearch: Get task assets (images, deliverables, PDFs)
+   */
+  private async _deepresearchGetAssets(
+    taskId: string,
+    assetId: string,
+    options: DeepResearchGetAssetsOptions = {}
+  ): Promise<DeepResearchGetAssetsResponse> {
+    try {
+      // Build query params
+      const params = new URLSearchParams();
+      if (options.token) {
+        params.append("token", options.token);
+      }
+
+      // Build headers - use API key if no token provided
+      const headers: Record<string, string> = {};
+      if (!options.token) {
+        headers["x-api-key"] = this.headers["x-api-key"];
+      }
+
+      const url = `${
+        this.baseUrl
+      }/deepresearch/tasks/${taskId}/assets/${assetId}${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+
+      const response = await axios.get(url, {
+        headers,
+        responseType: "arraybuffer", // For binary data
+      });
+
+      return {
+        success: true,
+        data: Buffer.from(response.data),
+        contentType:
+          response.headers["content-type"] || "application/octet-stream",
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
    * Batch: Create a new batch
    * @param options - Batch configuration options
    * @param options.name - Optional name for the batch
@@ -991,7 +1057,9 @@ export class Valyu {
       const payload: Record<string, any> = {};
 
       if (options.name) payload.name = options.name;
-      if (options.model) payload.model = options.model;
+      // Accept both mode (preferred) and model (backward compatible)
+      const mode = options.mode ?? options.model;
+      if (mode) payload.mode = mode;
       if (options.outputFormats) payload.output_formats = options.outputFormats;
       if (options.search) {
         payload.search = {};
@@ -1057,8 +1125,8 @@ export class Valyu {
    * Batch: Add tasks to a batch
    * @param batchId - The batch ID to add tasks to
    * @param options - Task configuration options
-   * @param options.tasks - Array of task inputs
-   * @returns Promise resolving to response with added_count and task_ids
+   * @param options.tasks - Array of task inputs (use 'query' field for each task)
+   * @returns Promise resolving to response with added, tasks array, counts, and batch_id
    */
   private async _batchAddTasks(
     batchId: string,
@@ -1086,13 +1154,27 @@ export class Valyu {
         };
       }
 
+      // Validate that each task has a query
+      for (const task of options.tasks) {
+        if (!task.query && !task.input) {
+          return {
+            success: false,
+            error: "Each task must have a 'query' field",
+          };
+        }
+      }
+
       // Convert tasks to snake_case format for API
-      // Note: Tasks can only include: id, input, strategy, urls, metadata
+      // Note: Tasks can only include: id, query, strategy, urls, metadata
       // Tasks inherit model, output_formats, and search_params from batch
       const tasksPayload = options.tasks.map((task) => {
-        const taskPayload: Record<string, any> = {
-          input: task.input,
-        };
+        const taskPayload: Record<string, any> = {};
+
+        // Use query field (input is supported for backward compatibility)
+        const queryValue = task.query ?? task.input;
+        if (queryValue) {
+          taskPayload.query = queryValue;
+        }
 
         if (task.id) taskPayload.id = task.id;
         if (task.strategy) taskPayload.strategy = task.strategy;
@@ -1120,16 +1202,33 @@ export class Valyu {
   /**
    * Batch: List all tasks in a batch
    * @param batchId - The batch ID to query
-   * @returns Promise resolving to list of tasks with their status
+   * @param options - Optional pagination and filtering options
+   * @param options.status - Filter by status: "queued", "running", "completed", "failed", or "cancelled"
+   * @param options.limit - Maximum number of tasks to return
+   * @param options.lastKey - Pagination token from previous response
+   * @returns Promise resolving to list of tasks with their status and pagination info
    */
   private async _batchListTasks(
-    batchId: string
+    batchId: string,
+    options: ListBatchTasksOptions = {}
   ): Promise<ListBatchTasksResponse> {
     try {
-      const response = await axios.get(
-        `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
-        { headers: this.headers }
-      );
+      // Build query params
+      const params = new URLSearchParams();
+      if (options.status) {
+        params.append("status", options.status);
+      }
+      if (options.limit !== undefined) {
+        params.append("limit", options.limit.toString());
+      }
+      if (options.lastKey) {
+        params.append("last_key", options.lastKey);
+      }
+
+      const url = `${this.baseUrl}/deepresearch/batches/${batchId}/tasks${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      const response = await axios.get(url, { headers: this.headers });
 
       return { success: true, ...response.data };
     } catch (e: any) {
@@ -1164,11 +1263,24 @@ export class Valyu {
 
   /**
    * Batch: List all batches
+   * @param options - Optional options
+   * @param options.limit - Maximum number of batches to return
    * @returns Promise resolving to list of all batches
    */
-  private async _batchList(): Promise<ListBatchesResponse> {
+  private async _batchList(
+    options: ListBatchesOptions = {}
+  ): Promise<ListBatchesResponse> {
     try {
-      const response = await axios.get(`${this.baseUrl}/deepresearch/batches`, {
+      // Build query params
+      const params = new URLSearchParams();
+      if (options.limit !== undefined) {
+        params.append("limit", options.limit.toString());
+      }
+
+      const url = `${this.baseUrl}/deepresearch/batches${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      const response = await axios.get(url, {
         headers: this.headers,
       });
 
@@ -1673,12 +1785,13 @@ export type {
   DeepResearchCancelResponse,
   DeepResearchDeleteResponse,
   DeepResearchTogglePublicResponse,
+  DeepResearchGetAssetsOptions,
+  DeepResearchGetAssetsResponse,
   WaitOptions,
   StreamCallback,
   ListOptions,
   BatchStatus,
   BatchCounts,
-  BatchUsage,
   DeepResearchBatch,
   CreateBatchOptions,
   BatchTaskInput,
@@ -1686,9 +1799,13 @@ export type {
   CreateBatchResponse,
   BatchStatusResponse,
   AddBatchTasksResponse,
+  BatchTaskCreated,
   BatchTaskListItem,
+  BatchPagination,
+  ListBatchTasksOptions,
   ListBatchTasksResponse,
   CancelBatchResponse,
+  ListBatchesOptions,
   ListBatchesResponse,
   BatchWaitOptions,
 } from "./types";
