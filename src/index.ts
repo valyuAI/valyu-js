@@ -35,6 +35,9 @@ import {
   ListBatchesResponse,
   BatchWaitOptions,
   DeepResearchBatch,
+  DatasourcesListOptions,
+  DatasourcesListResponse,
+  DatasourcesCategoriesResponse,
 } from "./types";
 
 // Valyu API client
@@ -91,6 +94,12 @@ export class Valyu {
     ) => Promise<DeepResearchBatch>;
   };
 
+  // Datasources API namespace
+  public datasources: {
+    list: (options?: DatasourcesListOptions) => Promise<DatasourcesListResponse>;
+    categories: () => Promise<DatasourcesCategoriesResponse>;
+  };
+
   constructor(apiKey?: string, baseUrl: string = "https://api.valyu.ai/v1") {
     if (!apiKey) {
       apiKey = process.env.VALYU_API_KEY;
@@ -127,6 +136,12 @@ export class Valyu {
       cancel: this._batchCancel.bind(this),
       list: this._batchList.bind(this),
       waitForCompletion: this._batchWaitForCompletion.bind(this),
+    };
+
+    // Initialize Datasources namespace
+    this.datasources = {
+      list: this._datasourcesList.bind(this),
+      categories: this._datasourcesCategories.bind(this),
     };
   }
 
@@ -1736,6 +1751,55 @@ export class Valyu {
   ): AsyncGenerator<AnswerStreamChunk, void, unknown> {
     yield { type: "error", error };
   }
+
+  /**
+   * Datasources: List all available datasources
+   * @param options - Optional filter options
+   * @param options.category - Filter by category (e.g., "research", "markets", "healthcare")
+   * @returns Promise resolving to list of datasources with their metadata
+   */
+  private async _datasourcesList(
+    options: DatasourcesListOptions = {}
+  ): Promise<DatasourcesListResponse> {
+    try {
+      // Build query params
+      const params = new URLSearchParams();
+      if (options.category) {
+        params.append("category", options.category);
+      }
+
+      const url = `${this.baseUrl}/datasources${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      const response = await axios.get(url, { headers: this.headers });
+
+      return { success: true, datasources: response.data.datasources };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * Datasources: Get all available categories
+   * @returns Promise resolving to list of categories with their metadata
+   */
+  private async _datasourcesCategories(): Promise<DatasourcesCategoriesResponse> {
+    try {
+      const response = await axios.get(`${this.baseUrl}/datasources/categories`, {
+        headers: this.headers,
+      });
+
+      return { success: true, categories: response.data.categories };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
 }
 
 export type {
@@ -1808,4 +1872,13 @@ export type {
   ListBatchesOptions,
   ListBatchesResponse,
   BatchWaitOptions,
+  DatasourceCategoryId,
+  DatasourceModality,
+  DatasourcePricing,
+  DatasourceCoverage,
+  Datasource,
+  DatasourceCategory,
+  DatasourcesListOptions,
+  DatasourcesListResponse,
+  DatasourcesCategoriesResponse,
 } from "./types";
