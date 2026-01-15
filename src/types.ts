@@ -661,3 +661,68 @@ export interface BatchWaitOptions {
   maxWaitTime?: number;
   onProgress?: (batch: DeepResearchBatch) => void;
 }
+
+// Datasources API Types
+export type DatasourceCategoryId =
+  | "research"
+  | "healthcare"
+  | "patents"
+  | "markets"
+  | "company"
+  | "economic"
+  | "predictions"
+  | "transportation"
+  | "legal"
+  | "politics";
+
+export type DatasourceModality = "text" | "images" | "tabular";
+
+export interface DatasourcePricing {
+  cpm: number; // Cost per million tokens
+}
+
+export interface DatasourceCoverage {
+  start_date?: string | null; // ISO 8601 date-time string
+  end_date?: string | null; // ISO 8601 date-time string
+}
+
+export interface Datasource {
+  id: string; // e.g., "valyu/valyu-arxiv"
+  name: string;
+  description: string;
+  category: DatasourceCategoryId;
+  type: string; // e.g., "paper", "dataset"
+  modality: DatasourceModality[];
+  topics: string[];
+  languages?: string[];
+  source?: string;
+  example_queries: string[];
+  pricing: DatasourcePricing;
+  response_schema?: Record<string, any>; // JSON schema for parsing responses
+  update_frequency?: string; // e.g., "Monthly", "Quarterly", "Realtime"
+  size?: number; // Number of records/documents
+  coverage?: DatasourceCoverage;
+}
+
+export interface DatasourceCategory {
+  id: string;
+  name: string;
+  description: string;
+  dataset_count: number;
+}
+
+export interface DatasourcesListOptions {
+  category?: DatasourceCategoryId;
+}
+
+export interface DatasourcesListResponse {
+  success: boolean;
+  datasources?: Datasource[];
+  error?: string;
+}
+
+export interface DatasourcesCategoriesResponse {
+  success: boolean;
+  categories?: DatasourceCategory[];
+  error?: string;
+}

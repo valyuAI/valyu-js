@@ -34,3 +34,6 @@ temp/
 
 # Optional eslint cache
 .eslintcache
+
+# Claude config
+.claude/
