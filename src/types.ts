@@ -306,6 +306,7 @@ export interface DeepResearchSearchConfig {
   startDate?: string; // ISO date format (YYYY-MM-DD)
   endDate?: string; // ISO date format (YYYY-MM-DD)
   category?: string;
+  countryCode?: CountryCode; // Country code for location-filtered searches
 }
 
 export interface DeepResearchCreateOptions {
@@ -528,6 +529,7 @@ export interface DeepResearchBatch {
     start_date?: string; // ISO date format (YYYY-MM-DD)
     end_date?: string; // ISO date format (YYYY-MM-DD)
     category?: string;
+    country_code?: CountryCode; // Country code for location-filtered searches
   };
   created_at: string; // ISO 8601 date-time string
   completed_at?: string; // ISO 8601 date-time string
@@ -578,6 +580,7 @@ export interface CreateBatchResponse {
     start_date?: string; // ISO date format (YYYY-MM-DD)
     end_date?: string; // ISO date format (YYYY-MM-DD)
     category?: string;
+    country_code?: CountryCode; // Country code for location-filtered searches
   };
   created_at?: string; // ISO 8601 date-time string
   completed_at?: string; // ISO 8601 date-time string
