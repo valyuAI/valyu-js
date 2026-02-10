@@ -335,61 +335,92 @@ Each `SearchResult` contains:
 
 The `contents()` method extracts clean, structured content from web pages with optional AI-powered data extraction and summarization. It accepts an array of URLs as the first parameter, followed by optional configuration parameters.
 
+- **Sync mode** (≤10 URLs): Returns results immediately
+- **Async mode** (>10 URLs or `async: true`): Returns a job object; use `getContentsJob()` or `waitForJob()` to get results
+
 ```javascript
-valyu.contents(
-  urls, // Array of URLs to process (max 10)
-  {
-    summary: false, // AI processing: false, true, string, or JSON schema
-    extractEffort: "normal", // Extraction effort: "normal" or "high"
-    responseLength: "short", // Content length control
-    maxPriceDollars: null, // Maximum cost limit in USD
-  }
-);
+// Sync (≤10 URLs)
+const response = await valyu.contents(urls, { summary: true });
+
+// Async (11-50 URLs) - returns job, then poll or wait
+const job = await valyu.contents(urls, { async: true });
+const final = await valyu.waitForJob(job.jobId, { pollInterval: 5000 });
 ```
 
 ### Parameters
 
 | Parameter         | Type                          | Default    | Description                                                                                                                                  |
 | ----------------- | ----------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `urls`            | `string[]`                    | _required_ | Array of URLs to process (maximum 10 URLs per request)                                                                                       |
+| `urls`            | `string[]`                    | _required_ | Array of URLs to process (max 10 sync, max 50 with `async: true`)                                                                             |
 | `summary`         | `boolean \| string \| object` | `false`    | AI summary configuration: `false` (raw content), `true` (auto summary), string (custom instructions), or JSON schema (structured extraction) |
-| `extractEffort`   | `string`                      | `"normal"` | Extraction thoroughness: `"normal"` (fast) or `"high"` (more thorough but slower)                                                            |
+| `extractEffort`   | `string`                      | `"normal"` | Extraction thoroughness: `"normal"`, `"high"`, or `"auto"`                                                                                     |
 | `responseLength`  | `string \| number`            | `"short"`  | Content length per URL: `"short"` (25k chars), `"medium"` (50k), `"large"` (100k), `"max"` (no limit), or custom number                      |
 | `maxPriceDollars` | `number`                      | `null`     | Maximum cost limit in USD                                                                                                                    |
+| `screenshot`      | `boolean`                     | `false`    | Capture page screenshots                                                                                                                      |
+| `async`           | `boolean`                     | `false`    | Force async processing (required for >10 URLs)                                                                                               |
+| `webhookUrl`      | `string`                      | -          | HTTPS URL for completion notification (async only). Save `webhookSecret` for signature verification.                                          |
 
-### Contents Response Format
+### Contents Response Format (Sync)
 
-The contents method returns a `ContentsResponse` object with the following structure:
+When sync, returns `ContentsResponse`:
 
 ```javascript
 {
-    success: boolean,                           // Request success status
-    error: string | null,                       // Error message if any
-    tx_id: string,                              // Transaction ID for tracking
-    urls_requested: number,                     // Total URLs requested
-    urls_processed: number,                     // Successfully processed URLs
-    urls_failed: number,                        // Failed URL count
-    results: ContentResult[],                   // Array of processed results
-    total_cost_dollars: number,                 // Actual cost charged
-    total_characters: number                    // Total characters extracted
+    success: boolean,
+    tx_id: string,
+    urls_requested: number,
+    urls_processed: number,
+    urls_failed: number,
+    results: ContentResult[],
+    total_cost_dollars: number,
+    total_characters: number
 }
 ```
 
-Each `ContentResult` contains:
+### Contents Async Response
+
+When async, returns `ContentsAsyncJobResponse` with `jobId`. Use `getContentsJob(jobId)` or `waitForJob(jobId)` to get results.
 
 ```javascript
-{
-    url: string,                                // Source URL
-    title: string,                              // Page/document title
-    content: string | number,                   // Extracted content
-    length: number,                             // Content length in characters
-    source: string,                             // Data source identifier
-    summary?: string | object,                  // AI-generated summary (if enabled)
-    summary_success?: boolean,                  // Whether summary generation succeeded
-    data_type?: string,                         // Type of data extracted
-    image_url?: Record<string, string>,         // Extracted images
-    citation?: string                           // APA-style citation
+// Poll for status
+const status = await valyu.getContentsJob(jobId);
+
+// Or wait until complete (like DeepResearch wait)
+const final = await valyu.waitForJob(jobId, {
+  pollInterval: 5000,
+  maxWaitTime: 7200000,
+  onProgress: (s) => console.log(`${s.urlsProcessed}/${s.urlsTotal}`)
+});
+```
+
+### ContentResult (with status)
+
+Each result has a `status` field. Check before accessing success-only fields:
+
+```javascript
+for (const r of response.results) {
+  if (r.status === 'success') {
+    console.log(r.title, r.content);
+  } else {
+    console.log(`Failed: ${r.url} - ${r.error}`);
+  }
 }
+```
+
+### Webhook Signature Verification
+
+When using `webhookUrl`, verify the `X-Webhook-Signature` header with the `webhookSecret` from job creation:
+
+```javascript
+const { verifyContentsWebhookSignature } = require('valyu-js');
+
+// In your webhook handler - use raw request body
+const isValid = verifyContentsWebhookSignature(
+  rawBody,           // Raw request body string
+  signatureHeader,   // X-Webhook-Signature
+  timestampHeader,   // X-Webhook-Timestamp
+  webhookSecret
+);
 ```
 
 ## Examples

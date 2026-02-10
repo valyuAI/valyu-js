@@ -111,22 +111,78 @@ export interface ContentsOptions {
   responseLength?: ContentResponseLength;
   maxPriceDollars?: number;
   screenshot?: boolean;
+  async?: boolean;
+  webhookUrl?: string;
 }
 
-export interface ContentResult {
+// ContentResult - discriminated union (success | failed)
+export interface ContentResultBase {
   url: string;
+  status: "success" | "failed";
+}
+
+export interface ContentResultSuccess extends ContentResultBase {
+  status: "success";
   title: string;
   content: string | number;
   length: number;
   source: string;
-  price: number;
+  price?: number;
   description?: string;
   summary?: string | object;
   summary_success?: boolean;
   data_type?: string;
   image_url?: Record<string, string>;
   screenshot_url?: string | null;
+  source_type?: string;
+  publication_date?: string;
   citation?: string;
+}
+
+export interface ContentResultFailed extends ContentResultBase {
+  status: "failed";
+  error: string;
+}
+
+export type ContentResult = ContentResultSuccess | ContentResultFailed;
+
+export type ContentsJobStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "partial"
+  | "failed";
+
+export interface ContentsJobWaitOptions {
+  pollInterval?: number;
+  maxWaitTime?: number;
+  onProgress?: (status: ContentsJobResponse) => void;
+}
+
+export interface ContentsJobResponse {
+  success: boolean;
+  jobId: string;
+  status: ContentsJobStatus;
+  urlsTotal: number;
+  urlsProcessed: number;
+  urlsFailed: number;
+  createdAt: number;
+  updatedAt: number;
+  currentBatch?: number;
+  totalBatches?: number;
+  results?: ContentResult[];
+  actualCostDollars?: number;
+  error?: string;
+  webhookSecret?: string;
+}
+
+export interface ContentsAsyncJobResponse {
+  success: boolean;
+  jobId: string;
+  status: "pending";
+  urlsTotal: number;
+  webhookSecret?: string;
+  txId: string;
 }
 
 export interface ContentsResponse {

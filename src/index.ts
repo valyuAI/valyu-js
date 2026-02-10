@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import axios from "axios";
 import {
   SearchResponse,
@@ -5,6 +6,9 @@ import {
   SearchOptions,
   ContentsOptions,
   ContentsResponse,
+  ContentsAsyncJobResponse,
+  ContentsJobResponse,
+  ContentsJobWaitOptions,
   AnswerOptions,
   AnswerResponse,
   AnswerSuccessResponse,
@@ -39,6 +43,65 @@ import {
   DatasourcesListResponse,
   DatasourcesCategoriesResponse,
 } from "./types";
+
+/** Normalize API job response (snake_case) to SDK format (camelCase). Omits poll_url. */
+function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
+  return {
+    success: api.success ?? true,
+    jobId: api.job_id ?? api.jobId,
+    status: api.status ?? "pending",
+    urlsTotal: api.urls_total ?? api.urlsTotal ?? 0,
+    urlsProcessed: api.urls_processed ?? api.urlsProcessed ?? 0,
+    urlsFailed: api.urls_failed ?? api.urlsFailed ?? 0,
+    createdAt: api.created_at ?? api.createdAt ?? 0,
+    updatedAt: api.updated_at ?? api.updatedAt ?? 0,
+    currentBatch: api.current_batch ?? api.currentBatch,
+    totalBatches: api.total_batches ?? api.totalBatches,
+    results: api.results,
+    actualCostDollars: api.actual_cost_dollars ?? api.actualCostDollars,
+    error: api.error,
+    webhookSecret: api.webhook_secret ?? api.webhookSecret,
+  };
+}
+
+/** Normalize API async job creation response (202) to SDK format. */
+function normalizeContentsAsyncJobResponse(
+  api: Record<string, any>
+): ContentsAsyncJobResponse {
+  return {
+    success: api.success ?? true,
+    jobId: api.job_id ?? api.jobId,
+    status: "pending",
+    urlsTotal: api.urls_total ?? api.urlsTotal ?? 0,
+    webhookSecret: api.webhook_secret ?? api.webhookSecret,
+    txId: api.tx_id ?? api.txId ?? "",
+  };
+}
+
+/**
+ * Verify webhook signature for Contents API async completion notifications.
+ * Use the raw request body (not parsed JSON) as payload.
+ * @param payload - Raw request body string
+ * @param signature - X-Webhook-Signature header value
+ * @param timestamp - X-Webhook-Timestamp header value
+ * @param secret - webhookSecret from job creation
+ */
+export function verifyContentsWebhookSignature(
+  payload: string,
+  signature: string,
+  timestamp: string,
+  secret: string
+): boolean {
+  const expected = createHmac("sha256", secret)
+    .update(`${timestamp}.${payload}`)
+    .digest("hex");
+  const expectedSignature = `sha256=${expected}`;
+  if (signature.length !== expectedSignature.length) return false;
+  return timingSafeEqual(
+    Buffer.from(signature, "utf8"),
+    Buffer.from(expectedSignature, "utf8")
+  );
+}
 
 // Valyu API client
 export class Valyu {
@@ -505,19 +568,21 @@ export class Valyu {
 
   /**
    * Extract content from URLs with optional AI processing
-   * @param urls - Array of URLs to process (max 10)
+   * @param urls - Array of URLs to process (max 10 sync, max 50 with async: true)
    * @param options - Content extraction configuration options
    * @param options.summary - AI summary configuration: false (raw), true (auto), string (custom), or JSON schema
    * @param options.extractEffort - Extraction thoroughness: "normal", "high", or "auto"
    * @param options.responseLength - Content length per URL
    * @param options.maxPriceDollars - Maximum cost limit in USD
    * @param options.screenshot - Request page screenshots (default: false)
-   * @returns Promise resolving to content extraction results
+   * @param options.async - Force async processing (required for >10 URLs)
+   * @param options.webhookUrl - HTTPS URL for completion notification (async only)
+   * @returns Promise resolving to sync results or async job (when async: true or >10 URLs)
    */
   async contents(
     urls: string[],
     options: ContentsOptions = {}
-  ): Promise<ContentsResponse> {
+  ): Promise<ContentsResponse | ContentsAsyncJobResponse> {
     try {
       // Validate URLs array
       if (!urls || !Array.isArray(urls)) {
@@ -546,10 +611,26 @@ export class Valyu {
         };
       }
 
-      if (urls.length > 10) {
+      const isAsync = options.async === true || urls.length > 10;
+
+      if (urls.length > 10 && !options.async) {
         return {
           success: false,
-          error: "Maximum 10 URLs allowed per request",
+          error:
+            "Requests with more than 10 URLs require async processing. Add async: true to the request.",
+          urls_requested: urls.length,
+          urls_processed: 0,
+          urls_failed: urls.length,
+          results: [],
+          total_cost_dollars: 0,
+          total_characters: 0,
+        };
+      }
+
+      if (urls.length > 50) {
+        return {
+          success: false,
+          error: "Maximum 50 URLs allowed per request",
           urls_requested: urls.length,
           urls_processed: 0,
           urls_failed: urls.length,
@@ -638,6 +719,13 @@ export class Valyu {
         payload.screenshot = options.screenshot;
       }
 
+      if (isAsync) {
+        payload.async = true;
+      }
+      if (options.webhookUrl !== undefined) {
+        payload.webhook_url = options.webhookUrl;
+      }
+
       const response = await axios.post(`${this.baseUrl}/contents`, payload, {
         headers: this.headers,
       });
@@ -655,7 +743,12 @@ export class Valyu {
         };
       }
 
-      return response.data;
+      // 202 Accepted - async job created
+      if (response.status === 202) {
+        return normalizeContentsAsyncJobResponse(response.data);
+      }
+
+      return response.data as ContentsResponse;
     } catch (e: any) {
       return {
         success: false,
@@ -667,6 +760,82 @@ export class Valyu {
         total_cost_dollars: 0,
         total_characters: 0,
       };
+    }
+  }
+
+  /**
+   * Get async Contents job status and results
+   * @param jobId - Job ID from contents() async response
+   * @returns Promise resolving to job status
+   */
+  async getContentsJob(jobId: string): Promise<ContentsJobResponse> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/contents/jobs/${jobId}`,
+        { headers: this.headers }
+      );
+      return normalizeContentsJobResponse(response.data);
+    } catch (e: any) {
+      const errData = e.response?.data;
+      const status = e.response?.status;
+      return {
+        success: false,
+        jobId,
+        status: "failed",
+        urlsTotal: 0,
+        urlsProcessed: 0,
+        urlsFailed: 0,
+        createdAt: 0,
+        updatedAt: 0,
+        error:
+          errData?.error ||
+          (status === 403
+            ? "Forbidden - you do not have access to this job"
+            : status === 404
+              ? `Job ${jobId} not found`
+              : e.message),
+      };
+    }
+  }
+
+  /**
+   * Wait for async Contents job completion (polls until terminal state)
+   * @param jobId - Job ID from contents() async response
+   * @param options - Wait configuration (pollInterval, maxWaitTime, onProgress)
+   * @returns Promise resolving to final job status with results
+   */
+  async waitForJob(
+    jobId: string,
+    options: ContentsJobWaitOptions = {}
+  ): Promise<ContentsJobResponse> {
+    const pollInterval = options.pollInterval ?? 5000;
+    const maxWaitTime = options.maxWaitTime ?? 7200000;
+    const startTime = Date.now();
+
+    while (true) {
+      const status = await this.getContentsJob(jobId);
+
+      if (!status.success && status.error) {
+        throw new Error(status.error);
+      }
+
+      if (options.onProgress) {
+        options.onProgress(status);
+      }
+
+      if (
+        status.status === "completed" ||
+        status.status === "partial" ||
+        status.status === "failed"
+      ) {
+        return status;
+      }
+
+      if (Date.now() - startTime > maxWaitTime) {
+        throw new Error("Maximum wait time exceeded");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
   }
 
@@ -1813,7 +1982,13 @@ export type {
   ResponseLength,
   ContentsOptions,
   ContentsResponse,
+  ContentsAsyncJobResponse,
+  ContentsJobResponse,
+  ContentsJobStatus,
+  ContentsJobWaitOptions,
   ContentResult,
+  ContentResultSuccess,
+  ContentResultFailed,
   ExtractEffort,
   ContentResponseLength,
   AnswerOptions,

@@ -173,10 +173,15 @@ async function testContents(valyu) {
     console.log(`Success: ${response2.success}`);
     console.log(`URLs processed: ${response2.urls_processed}/${response2.urls_requested}`);
     
-    if (response2.results && response2.results.length > 0) {
-      console.log(`First result title: ${response2.results[0].title}`);
-      console.log(`Content length: ${response2.results[0].length} characters`);
-      console.log(`Has summary: ${response2.results[0].summary ? 'Yes' : 'No'}`);
+    const r0 = response2.results?.[0];
+    if (r0) {
+      if (r0.status === "failed") {
+        console.log(`First result failed: ${r0.url} - ${r0.error}`);
+      } else {
+        console.log(`First result title: ${r0.title}`);
+        console.log(`Content length: ${r0.length} characters`);
+        console.log(`Has summary: ${r0.summary ? "Yes" : "No"}`);
+      }
     }
     
     console.log("AI summary test completed!");
@@ -219,8 +224,9 @@ async function testContents(valyu) {
     console.log("Custom instructions response received");
     console.log(`Success: ${response4.success}`);
     
-    if (response4.results && response4.results.length > 0) {
-      console.log(`Summary type: ${typeof response4.results[0].summary}`);
+    const r0 = response4.results?.[0];
+    if (r0 && r0.status !== "failed") {
+      console.log(`Summary type: ${typeof r0.summary}`);
     }
     
     console.log("Custom instructions test completed!");
@@ -256,8 +262,9 @@ async function testContents(valyu) {
     console.log("Structured extraction response received");
     console.log(`Success: ${response5.success}`);
     
-    if (response5.results && response5.results.length > 0 && response5.results[0].summary) {
-      console.log("Extracted structured data:", JSON.stringify(response5.results[0].summary, null, 2));
+    const r0 = response5.results?.[0];
+    if (r0 && r0.status !== "failed" && r0.summary) {
+      console.log("Extracted structured data:", JSON.stringify(r0.summary, null, 2));
     }
     
     console.log("Structured extraction test completed!");
@@ -266,17 +273,21 @@ async function testContents(valyu) {
     return false;
   }
 
-  // Test 6: Error handling - too many URLs
-  console.log("\nTest 6: Error handling - too many URLs");
+  // Test 6: Error handling - too many URLs without async
+  console.log("\nTest 6: Error handling - too many URLs without async");
   const tooManyUrls = Array(11).fill("https://example.com");
-  
+
   try {
     const response6 = await valyu.contents(tooManyUrls);
-    
-    if (!response6.success && response6.error && response6.error.includes("Maximum 10 URLs")) {
-      console.log("Error handling test PASSED - correctly rejected >10 URLs");
+
+    if (
+      !response6.success &&
+      response6.error &&
+      (response6.error.includes("10 URLs") || response6.error.includes("async"))
+    ) {
+      console.log("Error handling test PASSED - correctly rejected >10 URLs without async");
     } else {
-      console.error("Error handling test FAILED - should reject >10 URLs");
+      console.error("Error handling test FAILED - should reject >10 URLs without async");
       return false;
     }
   } catch (error) {
