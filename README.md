@@ -305,7 +305,6 @@ The search method returns a `SearchResponse` object with the following structure
         web: number,
         proprietary: number
     },
-    total_deduction_pcm: number,               // Cost in CPM
     total_deduction_dollars: number,           // Cost in dollars
     total_characters: number                   // Total characters returned
 }
