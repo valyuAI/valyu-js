@@ -294,7 +294,6 @@ export class Valyu {
           query,
           results: [],
           results_by_source: { web: 0, proprietary: 0 },
-          total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
           total_characters: 0,
         };
@@ -309,7 +308,6 @@ export class Valyu {
           query,
           results: [],
           results_by_source: { web: 0, proprietary: 0 },
-          total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
           total_characters: 0,
         };
@@ -323,7 +321,6 @@ export class Valyu {
           query,
           results: [],
           results_by_source: { web: 0, proprietary: 0 },
-          total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
           total_characters: 0,
         };
@@ -339,7 +336,6 @@ export class Valyu {
           query,
           results: [],
           results_by_source: { web: 0, proprietary: 0 },
-          total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
           total_characters: 0,
         };
@@ -355,8 +351,7 @@ export class Valyu {
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
-            total_deduction_pcm: 0.0,
-            total_deduction_dollars: 0.0,
+              total_deduction_dollars: 0.0,
             total_characters: 0,
           };
         }
@@ -374,8 +369,7 @@ export class Valyu {
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
-            total_deduction_pcm: 0.0,
-            total_deduction_dollars: 0.0,
+              total_deduction_dollars: 0.0,
             total_characters: 0,
           };
         }
@@ -391,8 +385,7 @@ export class Valyu {
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
-            total_deduction_pcm: 0.0,
-            total_deduction_dollars: 0.0,
+              total_deduction_dollars: 0.0,
             total_characters: 0,
           };
         }
@@ -410,8 +403,7 @@ export class Valyu {
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
-            total_deduction_pcm: 0.0,
-            total_deduction_dollars: 0.0,
+              total_deduction_dollars: 0.0,
             total_characters: 0,
           };
         }
@@ -481,7 +473,6 @@ export class Valyu {
           query,
           results: [],
           results_by_source: { web: 0, proprietary: 0 },
-          total_deduction_pcm: 0.0,
           total_deduction_dollars: 0.0,
           total_characters: 0,
         };
@@ -496,7 +487,6 @@ export class Valyu {
         query,
         results: [],
         results_by_source: { web: 0, proprietary: 0 },
-        total_deduction_pcm: 0.0,
         total_deduction_dollars: 0.0,
         total_characters: 0,
       };

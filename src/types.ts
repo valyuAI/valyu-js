@@ -86,7 +86,6 @@ export interface SearchResponse {
     web: number;
     proprietary: number;
   };
-  total_deduction_pcm: number;
   total_deduction_dollars: number;
   total_characters: number;
 }
