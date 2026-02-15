@@ -187,8 +187,7 @@ export interface AnswerSuccessResponse {
   success: true;
   tx_id: string;
   original_query: string;
-  contents: string | Record<string, any>;
-  data_type: "structured" | "unstructured";
+  answer: string;
   search_results: SearchResult[];
   search_metadata: SearchMetadata;
   ai_usage: AIUsage;
@@ -224,7 +223,7 @@ export interface AnswerStreamChunk {
   // For type="metadata"
   tx_id?: string;
   original_query?: string;
-  data_type?: "structured" | "unstructured";
+  answer?: string;
   search_metadata?: SearchMetadata;
   ai_usage?: AIUsage;
   cost?: Cost;
