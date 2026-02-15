@@ -1602,7 +1602,7 @@ export class Valyu {
           success: true,
           tx_id: finalMetadata.tx_id || "",
           original_query: finalMetadata.original_query || payload.query,
-          answer: finalMetadata.answer || fullContent || "",
+          contents: finalMetadata.contents || fullContent || "",
           search_results: finalSearchResults,
           search_metadata: finalMetadata.search_metadata || {
             tx_ids: [],
@@ -1714,7 +1714,7 @@ export class Valyu {
                 type: "metadata",
                 tx_id: parsed.tx_id,
                 original_query: parsed.original_query,
-                answer: parsed.answer,
+                contents: parsed.contents,
                 search_results: parsed.search_results,
                 search_metadata: parsed.search_metadata,
                 ai_usage: parsed.ai_usage,
