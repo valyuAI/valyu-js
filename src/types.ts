@@ -234,6 +234,11 @@ export interface AnswerStreamChunk {
 }
 
 // DeepResearch API Types
+export interface AlertEmailConfig {
+  email: string;
+  custom_url?: string; // Must contain {id} placeholder, replaced with deepresearch task ID
+}
+
 export type DeepResearchMode = "fast" | "standard" | "lite" | "heavy" | "max"; // "lite" is deprecated, use "fast" instead
 export type DeepResearchStatus =
   | "queued"
@@ -322,6 +327,7 @@ export interface DeepResearchCreateOptions {
   codeExecution?: boolean;
   previousReports?: string[];
   webhookUrl?: string;
+  alertEmail?: string | AlertEmailConfig; // Email or { email, custom_url } with {id} placeholder
   brandCollectionId?: string;
   metadata?: Record<string, string | number | boolean>;
 }

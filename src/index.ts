@@ -728,6 +728,16 @@ export class Valyu {
       if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
       if (options.brandCollectionId)
         payload.brand_collection_id = options.brandCollectionId;
+      if (options.alertEmail) {
+        if (typeof options.alertEmail === "string") {
+          payload.alert_email = options.alertEmail;
+        } else {
+          payload.alert_email = {
+            email: options.alertEmail.email,
+            custom_url: options.alertEmail.custom_url,
+          };
+        }
+      }
       if (options.metadata) payload.metadata = options.metadata;
 
       const response = await axios.post(
@@ -1815,6 +1825,7 @@ export type {
   AIUsage,
   Cost,
   ExtractionMetadata,
+  AlertEmailConfig,
   DeepResearchMode,
   DeepResearchStatus,
   DeepResearchOutputFormat,
