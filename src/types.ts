@@ -494,7 +494,6 @@ export interface StreamCallback {
 }
 
 export interface ListOptions {
-  apiKeyId: string;
   limit?: number;
 }
 

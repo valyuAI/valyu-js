@@ -888,12 +888,12 @@ export class Valyu {
    * DeepResearch: List all tasks
    */
   private async _deepresearchList(
-    options: ListOptions
+    options?: ListOptions
   ): Promise<DeepResearchListResponse> {
     try {
-      const limit = options.limit || 10;
+      const limit = options?.limit || 10;
       const response = await axios.get(
-        `${this.baseUrl}/deepresearch/list?api_key_id=${options.apiKeyId}&limit=${limit}`,
+        `${this.baseUrl}/deepresearch/list?limit=${limit}`,
         { headers: this.headers }
       );
 
