@@ -621,6 +621,15 @@ export interface BatchTaskListItem {
   status: DeepResearchStatus;
   created_at: string; // ISO string
   completed_at?: string; // ISO string (optional)
+  // Included when include_output=true
+  output_type?: string;
+  output?: string | Record<string, any>;
+  sources?: any[];
+  images?: any[];
+  pdf_url?: string;
+  deliverables?: any;
+  error?: string;
+  cost?: number;
 }
 
 export interface BatchPagination {
@@ -633,6 +642,7 @@ export interface ListBatchTasksOptions {
   status?: DeepResearchStatus; // Filter by status
   limit?: number; // Maximum number of tasks to return
   lastKey?: string; // Pagination token from previous response
+  includeOutput?: boolean; // Include full output and sources (default: false)
 }
 
 export interface ListBatchTasksResponse {
