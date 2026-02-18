@@ -1239,6 +1239,9 @@ export class Valyu {
       if (options.lastKey) {
         params.append("last_key", options.lastKey);
       }
+      if (options.includeOutput !== undefined) {
+        params.append("include_output", options.includeOutput.toString());
+      }
 
       const url = `${this.baseUrl}/deepresearch/batches/${batchId}/tasks${
         params.toString() ? `?${params.toString()}` : ""
