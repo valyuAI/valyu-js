@@ -35,8 +35,6 @@ import {
   ListBatchesResponse,
   BatchWaitOptions,
   DeepResearchBatch,
-  GetBatchResultsOptions,
-  BatchResultsResponse,
   DatasourcesListOptions,
   DatasourcesListResponse,
   DatasourcesCategoriesResponse,
@@ -88,10 +86,6 @@ export class Valyu {
       batchId: string,
       options?: ListBatchTasksOptions
     ) => Promise<ListBatchTasksResponse>;
-    getResults: (
-      batchId: string,
-      options?: GetBatchResultsOptions
-    ) => Promise<BatchResultsResponse>;
     cancel: (batchId: string) => Promise<CancelBatchResponse>;
     list: (options?: ListBatchesOptions) => Promise<ListBatchesResponse>;
     waitForCompletion: (
@@ -139,7 +133,6 @@ export class Valyu {
       status: this._batchStatus.bind(this),
       addTasks: this._batchAddTasks.bind(this),
       listTasks: this._batchListTasks.bind(this),
-      getResults: this._batchGetResults.bind(this),
       cancel: this._batchCancel.bind(this),
       list: this._batchList.bind(this),
       waitForCompletion: this._batchWaitForCompletion.bind(this),
@@ -1246,51 +1239,11 @@ export class Valyu {
       if (options.lastKey) {
         params.append("last_key", options.lastKey);
       }
-
-      const url = `${this.baseUrl}/deepresearch/batches/${batchId}/tasks${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
-      const response = await axios.get(url, { headers: this.headers });
-
-      return { success: true, ...response.data };
-    } catch (e: any) {
-      return {
-        success: false,
-        error: e.response?.data?.error || e.message,
-      };
-    }
-  }
-
-  /**
-   * Batch: Get paginated task results with full output
-   * @param batchId - The batch ID to get results for
-   * @param options - Optional filtering and pagination options
-   * @param options.status - Filter by status: "completed", "failed", "cancelled", "running", "queued"
-   * @param options.limit - Results per page (default: 25, max: 50)
-   * @param options.lastKey - Pagination cursor from previous response
-   * @param options.includeOutput - Include full output and sources (default: true)
-   * @returns Promise resolving to paginated task results with full output
-   */
-  private async _batchGetResults(
-    batchId: string,
-    options: GetBatchResultsOptions = {}
-  ): Promise<BatchResultsResponse> {
-    try {
-      const params = new URLSearchParams();
-      if (options.status) {
-        params.append("status", options.status);
-      }
-      if (options.limit !== undefined) {
-        params.append("limit", options.limit.toString());
-      }
-      if (options.lastKey) {
-        params.append("last_key", options.lastKey);
-      }
       if (options.includeOutput !== undefined) {
         params.append("include_output", options.includeOutput.toString());
       }
 
-      const url = `${this.baseUrl}/deepresearch/batches/${batchId}/results${
+      const url = `${this.baseUrl}/deepresearch/batches/${batchId}/tasks${
         params.toString() ? `?${params.toString()}` : ""
       }`;
       const response = await axios.get(url, { headers: this.headers });
@@ -1922,9 +1875,6 @@ export type {
   ListBatchesOptions,
   ListBatchesResponse,
   BatchWaitOptions,
-  GetBatchResultsOptions,
-  BatchTaskResult,
-  BatchResultsResponse,
   DatasourceCategoryId,
   DatasourceModality,
   DatasourcePricing,
