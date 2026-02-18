@@ -621,6 +621,15 @@ export interface BatchTaskListItem {
   status: DeepResearchStatus;
   created_at: string; // ISO string
   completed_at?: string; // ISO string (optional)
+  // Included when include_output=true
+  output_type?: string;
+  output?: string | Record<string, any>;
+  sources?: any[];
+  images?: any[];
+  pdf_url?: string;
+  deliverables?: any;
+  error?: string;
+  cost?: number;
 }
 
 export interface BatchPagination {
@@ -633,6 +642,7 @@ export interface ListBatchTasksOptions {
   status?: DeepResearchStatus; // Filter by status
   limit?: number; // Maximum number of tasks to return
   lastKey?: string; // Pagination token from previous response
+  includeOutput?: boolean; // Include full output and sources (default: false)
 }
 
 export interface ListBatchTasksResponse {
@@ -666,38 +676,6 @@ export interface BatchWaitOptions {
   pollInterval?: number;
   maxWaitTime?: number;
   onProgress?: (batch: DeepResearchBatch) => void;
-}
-
-export interface GetBatchResultsOptions {
-  status?: string;          // Filter: "completed", "failed", "cancelled", "running", "queued"
-  limit?: number;           // Results per page (default: 25, max: 50)
-  lastKey?: string;         // Pagination cursor from previous response
-  includeOutput?: boolean;  // Include full output and sources (default: true)
-}
-
-export interface BatchTaskResult {
-  task_id?: string;
-  deepresearch_id: string;
-  status: DeepResearchStatus;
-  query: string;
-  output_type?: string;
-  output?: string;
-  sources?: any[];
-  images?: string[];
-  pdf_url?: string;
-  deliverables?: any;
-  error?: string;
-  cost?: number;
-  created_at: string;
-  completed_at?: string;
-}
-
-export interface BatchResultsResponse {
-  success: boolean;
-  batch_id?: string;
-  results?: BatchTaskResult[];
-  pagination?: BatchPagination;
-  error?: string;
 }
 
 // Datasources API Types
