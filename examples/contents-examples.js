@@ -23,10 +23,15 @@ async function runContentsExamples() {
     
     console.log(`Success: ${response.success}`);
     console.log(`URLs processed: ${response.urls_processed}/${response.urls_requested}`);
-    if (response.results && response.results[0]) {
-      console.log(`Title: ${response.results[0].title}`);
-      console.log(`Content length: ${response.results[0].length} characters`);
-      console.log(`First 200 chars: ${response.results[0].content.substring(0, 200)}...`);
+    const r0 = response.results?.[0];
+    if (r0) {
+      if (r0.status === "success") {
+        console.log(`Title: ${r0.title}`);
+        console.log(`Content length: ${r0.length} characters`);
+        console.log(`First 200 chars: ${String(r0.content).substring(0, 200)}...`);
+      } else {
+        console.log(`Failed: ${r0.url} - ${r0.error}`);
+      }
     }
   } catch (error) {
     console.error("Error:", error.message);
@@ -47,12 +52,13 @@ async function runContentsExamples() {
     );
     
     console.log(`Success: ${response.success}`);
-    if (response.results && response.results[0]) {
-      console.log(`Title: ${response.results[0].title}`);
-      console.log(`Has summary: ${response.results[0].summary ? 'Yes' : 'No'}`);
-      if (response.results[0].summary) {
-        console.log(`Summary: ${response.results[0].summary}`);
-      }
+    const r0 = response.results?.[0];
+    if (r0?.status === "success") {
+      console.log(`Title: ${r0.title}`);
+      console.log(`Has summary: ${r0.summary ? "Yes" : "No"}`);
+      if (r0.summary) console.log(`Summary: ${r0.summary}`);
+    } else if (r0) {
+      console.log(`Failed: ${r0.url} - ${r0.error}`);
     }
   } catch (error) {
     console.error("Error:", error.message);
@@ -109,9 +115,13 @@ async function runContentsExamples() {
     
     if (response.results) {
       response.results.forEach((result, index) => {
-        console.log(`\n${index + 1}. ${result.title}`);
-        console.log(`   URL: ${result.url}`);
-        console.log(`   Length: ${result.length} characters`);
+        if (result.status === 'success') {
+          console.log(`\n${index + 1}. ${result.title}`);
+          console.log(`   URL: ${result.url}`);
+          console.log(`   Length: ${result.length} characters`);
+        } else {
+          console.log(`\n${index + 1}. Failed: ${result.url} - ${result.error}`);
+        }
       });
     }
   } catch (error) {
@@ -120,8 +130,60 @@ async function runContentsExamples() {
 
   console.log("\n---\n");
 
-  // Example 5: Structured data extraction with JSON schema
-  console.log("Example 5: Structured Data Extraction");
+  // Example 5: Async mode with waitForJob (11+ URLs)
+  console.log("Example 5: Async Mode with waitForJob");
+  console.log("=====================================");
+  try {
+    // Use async for >10 URLs - simulate with 12 URLs
+    const manyUrls = [
+      "https://www.python.org",
+      "https://nodejs.org",
+      "https://www.rust-lang.org",
+      "https://go.dev",
+      "https://www.ruby-lang.org",
+      "https://www.php.net",
+      "https://kotlinlang.org",
+      "https://www.typescriptlang.org",
+      "https://swift.org",
+      "https://dart.dev",
+      "https://elixir-lang.org",
+      "https://www.scala-lang.org",
+    ];
+    const job = await valyu.contents(manyUrls, {
+      async: true,
+      responseLength: "short",
+    });
+
+    // Check if async job (has jobId)
+    if (job.jobId) {
+      console.log(`Job created: ${job.jobId}`);
+      const final = await valyu.waitForJob(job.jobId, {
+        pollInterval: 5000,
+        onProgress: (s) =>
+          console.log(`  Progress: ${s.urlsProcessed}/${s.urlsTotal} (${s.status})`),
+      });
+      console.log(`Completed: ${final.status}`);
+      console.log(`Processed: ${final.urlsProcessed}, Failed: ${final.urlsFailed}`);
+      if (final.results) {
+        final.results.slice(0, 3).forEach((r, i) => {
+          if (r.status === "success") {
+            console.log(`  ${i + 1}. ${r.title}`);
+          } else {
+            console.log(`  ${i + 1}. Failed: ${r.url}`);
+          }
+        });
+      }
+    } else {
+      console.log("Sync response received");
+    }
+  } catch (error) {
+    console.error("Error:", error.message);
+  }
+
+  console.log("\n---\n");
+
+  // Example 6: Structured data extraction with JSON schema
+  console.log("Example 6: Structured Data Extraction");
   console.log("======================================");
   try {
     const response = await valyu.contents(
@@ -170,8 +232,8 @@ async function runContentsExamples() {
 
   console.log("\n---\n");
 
-  // Example 6: Different response lengths
-  console.log("Example 6: Response Length Control");
+  // Example 7: Different response lengths
+  console.log("Example 7: Response Length Control");
   console.log("===================================");
   const testUrl = ["https://en.wikipedia.org/wiki/Quantum_computing"];
   
@@ -194,8 +256,8 @@ async function runContentsExamples() {
 
   console.log("\n---\n");
 
-  // Example 7: High extraction effort for complex pages
-  console.log("Example 7: High Extraction Effort");
+  // Example 8: High extraction effort for complex pages
+  console.log("Example 8: High Extraction Effort");
   console.log("==================================");
   try {
     const response = await valyu.contents(
@@ -222,8 +284,8 @@ async function runContentsExamples() {
 
   console.log("\n---\n");
 
-  // Example 8: Cost control with max price
-  console.log("Example 8: Cost Control");
+  // Example 9: Cost control with max price
+  console.log("Example 9: Cost Control");
   console.log("========================");
   try {
     const response = await valyu.contents(
