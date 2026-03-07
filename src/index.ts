@@ -496,6 +496,10 @@ export class Valyu {
         payload.exclude_sources = options.excludeSources;
       }
 
+      if (options.sourceBiases !== undefined) {
+        payload.source_biases = options.sourceBiases;
+      }
+
       if (options.category !== undefined) {
         payload.category = options.category;
       }
@@ -877,6 +881,9 @@ export class Valyu {
         if (options.search.excludedSources) {
           payload.search.excluded_sources = options.search.excludedSources;
         }
+        if (options.search.sourceBiases) {
+          payload.search.source_biases = options.search.sourceBiases;
+        }
         if (options.search.startDate) {
           payload.search.start_date = options.search.startDate;
         }
@@ -1255,6 +1262,9 @@ export class Valyu {
         }
         if (options.search.excludedSources) {
           payload.search.excluded_sources = options.search.excludedSources;
+        }
+        if (options.search.sourceBiases) {
+          payload.search.source_biases = options.search.sourceBiases;
         }
         if (options.search.startDate) {
           payload.search.start_date = options.search.startDate;
