@@ -67,6 +67,7 @@ export interface SearchOptions {
   relevanceThreshold?: number;
   includedSources?: string[];
   excludeSources?: string[];
+  sourceBiases?: Record<string, number>;
   category?: string;
   startDate?: string;
   endDate?: string;
@@ -362,6 +363,7 @@ export interface DeepResearchSearchConfig {
   searchType?: "all" | "web" | "proprietary";
   includedSources?: string[];
   excludedSources?: string[];
+  sourceBiases?: Record<string, number>;
   startDate?: string; // ISO date format (YYYY-MM-DD)
   endDate?: string; // ISO date format (YYYY-MM-DD)
   category?: string;
