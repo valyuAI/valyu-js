@@ -376,7 +376,9 @@ export interface DeepResearchCreateOptions {
   mode?: DeepResearchMode; // Preferred field name
   model?: DeepResearchMode; // Deprecated: use mode instead (backward compatible)
   outputFormats?: DeepResearchOutputFormat[];
-  strategy?: string;
+  strategy?: string; // Deprecated: use researchStrategy instead
+  researchStrategy?: string; // Natural language strategy to guide the research phase
+  reportFormat?: string; // Natural language instructions for output format (highest priority)
   search?: DeepResearchSearchConfig;
   urls?: string[];
   files?: FileAttachment[];
@@ -615,7 +617,9 @@ export interface BatchTaskInput {
   id?: string; // Custom task identifier (for tracking)
   query?: string; // Research query or task description
   input?: string; // Deprecated: use query instead
-  strategy?: string; // Custom research strategy instructions
+  strategy?: string; // Deprecated: use researchStrategy instead
+  researchStrategy?: string; // Natural language strategy to guide the research phase
+  reportFormat?: string; // Natural language instructions for output format (highest priority)
   urls?: string[]; // Array of URLs to extract content from
   metadata?: Record<string, string | number | boolean>; // Custom metadata
   // Note: Tasks inherit model, output_formats, and search_params from batch
