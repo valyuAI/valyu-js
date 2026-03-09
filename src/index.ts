@@ -496,6 +496,10 @@ export class Valyu {
         payload.exclude_sources = options.excludeSources;
       }
 
+      if (options.sourceBiases !== undefined) {
+        payload.source_biases = options.sourceBiases;
+      }
+
       if (options.category !== undefined) {
         payload.category = options.category;
       }
@@ -866,6 +870,10 @@ export class Valyu {
 
       // Add optional fields
       if (options.strategy) payload.strategy = options.strategy;
+      if (options.researchStrategy)
+        payload.research_strategy = options.researchStrategy;
+      if (options.reportFormat)
+        payload.report_format = options.reportFormat;
       if (options.search) {
         payload.search = {};
         if (options.search.searchType) {
@@ -876,6 +884,9 @@ export class Valyu {
         }
         if (options.search.excludedSources) {
           payload.search.excluded_sources = options.search.excludedSources;
+        }
+        if (options.search.sourceBiases) {
+          payload.search.source_biases = options.search.sourceBiases;
         }
         if (options.search.startDate) {
           payload.search.start_date = options.search.startDate;
@@ -1256,6 +1267,9 @@ export class Valyu {
         if (options.search.excludedSources) {
           payload.search.excluded_sources = options.search.excludedSources;
         }
+        if (options.search.sourceBiases) {
+          payload.search.source_biases = options.search.sourceBiases;
+        }
         if (options.search.startDate) {
           payload.search.start_date = options.search.startDate;
         }
@@ -1362,6 +1376,10 @@ export class Valyu {
 
         if (task.id) taskPayload.id = task.id;
         if (task.strategy) taskPayload.strategy = task.strategy;
+        if (task.researchStrategy)
+          taskPayload.research_strategy = task.researchStrategy;
+        if (task.reportFormat)
+          taskPayload.report_format = task.reportFormat;
         if (task.urls) taskPayload.urls = task.urls;
         if (task.metadata) taskPayload.metadata = task.metadata;
 
