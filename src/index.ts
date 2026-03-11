@@ -44,7 +44,7 @@ import {
   DatasourcesCategoriesResponse,
 } from "./types";
 
-/** Normalize API job response (snake_case) to SDK format (camelCase). Omits poll_url. */
+/** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
   return {
     success: api.success ?? true,
@@ -73,6 +73,7 @@ function normalizeContentsAsyncJobResponse(
     jobId: api.job_id ?? api.jobId,
     status: "pending",
     urlsTotal: api.urls_total ?? api.urlsTotal ?? 0,
+    pollUrl: api.poll_url ?? api.pollUrl,
     webhookSecret: api.webhook_secret ?? api.webhookSecret,
     txId: api.tx_id ?? api.txId ?? "",
   };
