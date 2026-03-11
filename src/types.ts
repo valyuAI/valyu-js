@@ -181,6 +181,7 @@ export interface ContentsAsyncJobResponse {
   jobId: string;
   status: "pending";
   urlsTotal: number;
+  pollUrl?: string;
   webhookSecret?: string;
   txId: string;
 }
