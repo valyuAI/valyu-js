@@ -301,6 +301,8 @@ export type DeepResearchMode = "fast" | "standard" | "lite" | "heavy" | "max"; /
 export type DeepResearchStatus =
   | "queued"
   | "running"
+  | "awaiting_input"
+  | "paused"
   | "completed"
   | "failed"
   | "cancelled";
@@ -391,6 +393,39 @@ export interface DeepResearchCreateOptions {
   alertEmail?: string | AlertEmailConfig; // Email or { email, custom_url } with {id} placeholder
   brandCollectionId?: string;
   metadata?: Record<string, string | number | boolean>;
+  hitl?: HitlConfig; // Human-in-the-loop configuration (not available for batch)
+}
+
+// Human-in-the-Loop (HITL) Types
+export interface HitlConfig {
+  planningQuestions?: boolean; // Pause before research to ask clarifying questions
+  planReview?: boolean; // Pause after planning for user to review the research plan
+  sourceReview?: boolean; // Pause after research for user to filter sources by domain
+  outlineReview?: boolean; // Pause after source review for user to review the report outline
+}
+
+export type InteractionType =
+  | "planning_questions"
+  | "plan_review"
+  | "source_review"
+  | "outline_review";
+
+export interface Interaction {
+  interaction_id: string; // Use this when responding
+  type: InteractionType;
+  data: Record<string, any>; // Checkpoint-specific data
+  created_at: number; // Unix timestamp (ms)
+  timeout_ms: number; // Timeout duration in ms
+  expected_response?: Record<string, any>; // Schema hint for the response shape
+}
+
+export interface InteractionHistoryEntry {
+  interaction_id: string;
+  type: InteractionType;
+  created_at: number; // When the checkpoint fired (ms)
+  responded_at?: number; // When the user responded (ms) — absent if timed out
+  auto_continued: boolean; // true = timed out, false = user responded
+  response?: Record<string, any>; // The user's response — absent if timed out
 }
 
 export interface Progress {
@@ -483,6 +518,9 @@ export interface DeepResearchStatusResponse {
   usage?: DeepResearchUsage; // Detailed cost breakdown (backward compatible)
   batch_id?: string; // Batch ID if task belongs to a batch
   batch_task_id?: string; // Batch task ID if task belongs to a batch
+  hitl_config?: Record<string, boolean>; // HITL configuration (mirrors request hitl param)
+  interaction?: Interaction; // Current HITL checkpoint (present when awaiting_input or paused)
+  hitl_history?: InteractionHistoryEntry[]; // History of completed HITL checkpoints
   error?: string;
 }
 
@@ -538,6 +576,13 @@ export interface DeepResearchGetAssetsResponse {
   success: boolean;
   data?: Buffer; // Binary asset data
   contentType?: string; // MIME type of the asset
+  error?: string;
+}
+
+export interface DeepResearchRespondResponse {
+  success: boolean;
+  status?: string;
+  deepresearch_id?: string;
   error?: string;
 }
 

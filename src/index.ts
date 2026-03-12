@@ -24,6 +24,7 @@ import {
   DeepResearchTogglePublicResponse,
   DeepResearchGetAssetsOptions,
   DeepResearchGetAssetsResponse,
+  DeepResearchRespondResponse,
   WaitOptions,
   StreamCallback,
   ListOptions,
@@ -136,6 +137,11 @@ export class Valyu {
       assetId: string,
       options?: DeepResearchGetAssetsOptions
     ) => Promise<DeepResearchGetAssetsResponse>;
+    respond: (
+      taskId: string,
+      interactionId: string,
+      response: Record<string, any>
+    ) => Promise<DeepResearchRespondResponse>;
   };
 
   // Batch API namespace
@@ -189,6 +195,7 @@ export class Valyu {
       delete: this._deepresearchDelete.bind(this),
       togglePublic: this._deepresearchTogglePublic.bind(this),
       getAssets: this._deepresearchGetAssets.bind(this),
+      respond: this._deepresearchRespond.bind(this),
     };
 
     // Initialize Batch namespace
@@ -948,6 +955,17 @@ export class Valyu {
         }
       }
       if (options.metadata) payload.metadata = options.metadata;
+      if (options.hitl) {
+        payload.hitl = {};
+        if (options.hitl.planningQuestions !== undefined)
+          payload.hitl.planning_questions = options.hitl.planningQuestions;
+        if (options.hitl.planReview !== undefined)
+          payload.hitl.plan_review = options.hitl.planReview;
+        if (options.hitl.sourceReview !== undefined)
+          payload.hitl.source_review = options.hitl.sourceReview;
+        if (options.hitl.outlineReview !== undefined)
+          payload.hitl.outline_review = options.hitl.outlineReview;
+      }
 
       const response = await axios.post(
         `${this.baseUrl}/deepresearch/tasks`,
@@ -1137,6 +1155,36 @@ export class Valyu {
       );
 
       return { success: true, ...response.data };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.response?.data?.error || e.message,
+      };
+    }
+  }
+
+  /**
+   * DeepResearch: Respond to a HITL checkpoint
+   * @param taskId - The task ID to respond to
+   * @param interactionId - The interaction_id from the task's interaction field
+   * @param response - Response data matching the checkpoint type
+   */
+  private async _deepresearchRespond(
+    taskId: string,
+    interactionId: string,
+    response: Record<string, any>
+  ): Promise<DeepResearchRespondResponse> {
+    try {
+      const resp = await axios.post(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/respond`,
+        {
+          interaction_id: interactionId,
+          response,
+        },
+        { headers: this.headers }
+      );
+
+      return { success: true, ...resp.data };
     } catch (e: any) {
       return {
         success: false,
@@ -2076,6 +2124,11 @@ export type {
   DeepResearchTogglePublicResponse,
   DeepResearchGetAssetsOptions,
   DeepResearchGetAssetsResponse,
+  DeepResearchRespondResponse,
+  HitlConfig,
+  InteractionType,
+  Interaction,
+  InteractionHistoryEntry,
   WaitOptions,
   StreamCallback,
   ListOptions,
