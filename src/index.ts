@@ -142,6 +142,10 @@ export class Valyu {
       interactionId: string,
       response: Record<string, any>
     ) => Promise<DeepResearchRespondResponse>;
+    respondPlanningQuestions: (taskId: string, interactionId: string, answers: { question: string; answer: string }[]) => Promise<DeepResearchRespondResponse>;
+    approvePlan: (taskId: string, interactionId: string, modifications?: string) => Promise<DeepResearchRespondResponse>;
+    respondSourceReview: (taskId: string, interactionId: string, options?: { includedDomains?: string[]; excludedDomains?: string[] }) => Promise<DeepResearchRespondResponse>;
+    approveOutline: (taskId: string, interactionId: string, modifications?: string) => Promise<DeepResearchRespondResponse>;
   };
 
   // Batch API namespace
@@ -196,6 +200,10 @@ export class Valyu {
       togglePublic: this._deepresearchTogglePublic.bind(this),
       getAssets: this._deepresearchGetAssets.bind(this),
       respond: this._deepresearchRespond.bind(this),
+      respondPlanningQuestions: this._deepresearchRespondPlanningQuestions.bind(this),
+      approvePlan: this._deepresearchApprovePlan.bind(this),
+      respondSourceReview: this._deepresearchRespondSourceReview.bind(this),
+      approveOutline: this._deepresearchApproveOutline.bind(this),
     };
 
     // Initialize Batch namespace
@@ -1026,6 +1034,24 @@ export class Valyu {
         options.onProgress(status);
       }
 
+      // HITL checkpoint handling
+      if (
+        (status.status === "awaiting_input" || status.status === "paused") &&
+        status.interaction
+      ) {
+        if (options.onInteraction) {
+          const response = await options.onInteraction(status.interaction);
+          if (response) {
+            await this._deepresearchRespond(
+              taskId,
+              status.interaction.interaction_id,
+              response
+            );
+            continue;
+          }
+        }
+      }
+
       // Terminal states
       if (
         status.status === "completed" ||
@@ -1191,6 +1217,68 @@ export class Valyu {
         error: e.response?.data?.error || e.message,
       };
     }
+  }
+
+  /**
+   * DeepResearch: Respond to a planning_questions checkpoint
+   */
+  private async _deepresearchRespondPlanningQuestions(
+    taskId: string,
+    interactionId: string,
+    answers: { question: string; answer: string }[]
+  ): Promise<DeepResearchRespondResponse> {
+    return this._deepresearchRespond(taskId, interactionId, {
+      answers,
+    });
+  }
+
+  /**
+   * DeepResearch: Approve or request modifications to a plan_review checkpoint
+   */
+  private async _deepresearchApprovePlan(
+    taskId: string,
+    interactionId: string,
+    modifications?: string
+  ): Promise<DeepResearchRespondResponse> {
+    const response: Record<string, any> = { approved: true };
+    if (modifications) {
+      response.approved = false;
+      response.modifications = modifications;
+    }
+    return this._deepresearchRespond(taskId, interactionId, response);
+  }
+
+  /**
+   * DeepResearch: Respond to a source_review checkpoint
+   */
+  private async _deepresearchRespondSourceReview(
+    taskId: string,
+    interactionId: string,
+    options: {
+      includedDomains?: string[];
+      excludedDomains?: string[];
+    } = {}
+  ): Promise<DeepResearchRespondResponse> {
+    return this._deepresearchRespond(taskId, interactionId, {
+      included_domains: options.includedDomains || [],
+      excluded_domains: options.excludedDomains || [],
+    });
+  }
+
+  /**
+   * DeepResearch: Approve or request modifications to an outline_review checkpoint
+   */
+  private async _deepresearchApproveOutline(
+    taskId: string,
+    interactionId: string,
+    modifications?: string
+  ): Promise<DeepResearchRespondResponse> {
+    const response: Record<string, any> = { approved: true };
+    if (modifications) {
+      response.approved = false;
+      response.modifications = modifications;
+    }
+    return this._deepresearchRespond(taskId, interactionId, response);
   }
 
   /**
