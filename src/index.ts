@@ -859,6 +859,34 @@ export class Valyu {
         };
       }
 
+      if (queryValue.length > 25000) {
+        return {
+          success: false,
+          error: `query exceeds 25,000 character limit (${queryValue.length} characters)`,
+        };
+      }
+
+      const strategyLen = (options.researchStrategy ?? "").length;
+      const formatLen = (options.reportFormat ?? "").length;
+      if (strategyLen + formatLen > 15000) {
+        return {
+          success: false,
+          error: `Combined length of researchStrategy (${strategyLen}) and reportFormat (${formatLen}) exceeds 15,000 character limit`,
+        };
+      }
+
+      if (options.files) {
+        for (let i = 0; i < options.files.length; i++) {
+          const ctx = options.files[i].context;
+          if (ctx && ctx.length > 10000) {
+            return {
+              success: false,
+              error: `files[${i}].context exceeds 10,000 character limit (${ctx.length} characters)`,
+            };
+          }
+        }
+      }
+
       // Build payload with snake_case
       // Prefer mode over model (backward compatible)
       const mode = options.mode ?? options.model;
