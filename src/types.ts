@@ -590,6 +590,7 @@ export interface WaitOptions {
   pollInterval?: number;
   maxWaitTime?: number;
   onProgress?: (status: DeepResearchStatusResponse) => void;
+  onInteraction?: (interaction: Interaction) => Promise<Record<string, any> | null | undefined> | Record<string, any> | null | undefined;
 }
 
 export interface StreamCallback {
