@@ -312,7 +312,7 @@ export type DeepResearchOutputFormat =
   | "toon"
   | Record<string, any>;
 export type DeepResearchOutputType = "markdown" | "json" | "toon";
-export type ImageType = "chart" | "ai_generated";
+export type ImageType = "chart" | "ai_generated" | "screenshot";
 export type ChartType = "line" | "bar" | "area";
 
 export interface FileAttachment {
@@ -373,6 +373,11 @@ export interface DeepResearchSearchConfig {
   countryCode?: CountryCode; // Country code for location-filtered searches
 }
 
+export interface DeepResearchTools {
+  code_execution?: boolean;
+  screenshots?: boolean;
+}
+
 export interface DeepResearchCreateOptions {
   query?: string; // Research query or task description
   input?: string; // Deprecated: use query instead
@@ -387,7 +392,9 @@ export interface DeepResearchCreateOptions {
   files?: FileAttachment[];
   deliverables?: (string | Deliverable)[];
   mcpServers?: MCPServerConfig[];
+  /** @deprecated Use tools.code_execution instead */
   codeExecution?: boolean;
+  tools?: DeepResearchTools;
   previousReports?: string[];
   webhookUrl?: string;
   alertEmail?: string | AlertEmailConfig; // Email or { email, custom_url } with {id} placeholder
@@ -456,6 +463,9 @@ export interface ImageMetadata {
   x_axis_label?: string;
   y_axis_label?: string;
   data_series?: ChartDataSeries[];
+  // Screenshot-only fields
+  source_url?: string;
+  captured_at?: number;
 }
 
 export interface DeepResearchSource {
@@ -480,6 +490,13 @@ export interface DeepResearchUsage {
   ai_cost: number;
   compute_cost: number;
   total_cost: number;
+}
+
+export interface DeepResearchCostBreakdown {
+  task: number;
+  screenshots?: number;
+  code_execution?: number;
+  deliverables?: number;
 }
 
 export interface DeepResearchCreateResponse {
@@ -516,6 +533,8 @@ export interface DeepResearchStatusResponse {
   sources?: DeepResearchSource[];
   cost?: number; // Total cost in dollars (preferred)
   usage?: DeepResearchUsage; // Detailed cost breakdown (backward compatible)
+  cost_breakdown?: DeepResearchCostBreakdown;  // Itemized cost breakdown
+  tools?: DeepResearchTools;  // Resolved tools configuration
   batch_id?: string; // Batch ID if task belongs to a batch
   batch_task_id?: string; // Batch task ID if task belongs to a batch
   hitl_config?: Record<string, boolean>; // HITL configuration (mirrors request hitl param)
