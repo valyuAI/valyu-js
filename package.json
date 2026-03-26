@@ -25,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ValyuNetwork/valyu-js.git"
+    "url": "git+https://github.com/valyuAI/valyu-js.git"
   },
   "keywords": [
     "ai",
@@ -39,7 +39,7 @@
   "author": "Valyu <harvey@valyu.ai>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ValyuNetwork/valyu-js/issues"
+    "url": "https://github.com/valyuAI/valyu-js/issues"
   },
   "homepage": "https://valyu.ai",
   "dependencies": {

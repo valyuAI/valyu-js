@@ -1,35 +1,67 @@
-name: Node.js Package Publisher
+name: Build & Publish
 
 on:
   push:
     branches:
       - main
 
-jobs:
-  build-test-publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+permissions: {}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          node-version: '18'
-          registry-url: 'https://registry.npmjs.org/'
+          persist-credentials: false
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '22'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build package
+      - name: Build
         run: npm run build
 
-      # - name: Run integration test
-      #   env:
-      #     VALYU_API_KEY: ${{ secrets.VALYU_API_KEY }}
-      #   run: node tests/integration-test.js
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    environment: npm
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
-      - name: Publish to npm
-        if: success() # Only publish if build and tests succeed
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '22'
+
+      - name: Upgrade npm for OIDC support
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Check if version already published
+        id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "valyu-js@$VERSION" version 2>/dev/null; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish with provenance
+        if: steps.check.outputs.skip == 'false'
+        run: npm publish --provenance --access public
