@@ -909,8 +909,15 @@ export class Valyu {
         query: queryValue,
         mode: mode || "fast", // API defaults to "standard", but we keep "fast" for backward compatibility
         output_formats: options.outputFormats || ["markdown"],
-        code_execution: options.codeExecution !== false,
       };
+
+      // Handle tools configuration
+      if (options.tools) {
+        payload.tools = options.tools;
+      } else if (options.codeExecution !== undefined) {
+        // Backward compatibility: top-level code_execution (deprecated)
+        payload.code_execution = options.codeExecution;
+      }
 
       // Add optional fields
       if (options.strategy) payload.strategy = options.strategy;
@@ -2202,6 +2209,8 @@ export type {
   ImageMetadata,
   DeepResearchSource,
   DeepResearchUsage,
+  DeepResearchCostBreakdown,
+  DeepResearchTools,
   DeepResearchCreateResponse,
   DeepResearchStatusResponse,
   DeepResearchTaskListItem,
