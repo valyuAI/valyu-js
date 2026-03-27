@@ -42,6 +42,10 @@
     "url": "https://github.com/valyuAI/valyu-js/issues"
   },
   "homepage": "https://valyu.ai",
+  "overrides": {
+    "form-data": ">=4.0.4",
+    "rollup": ">=4.59.0"
+  },
   "dependencies": {
     "axios": "^1.4.0"
   },
