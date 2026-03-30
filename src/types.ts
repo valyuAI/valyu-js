@@ -453,11 +453,9 @@ export interface ChartDataSeries {
 export interface ImageMetadata {
   image_id: string;
   image_type: ImageType;
-  deepresearch_id: string;
   title: string;
   description?: string;
   image_url: string;
-  s3_key: string;
   created_at: number;
   chart_type?: ChartType;
   x_axis_label?: string;
