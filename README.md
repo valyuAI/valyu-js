@@ -1,26 +1,13 @@
-# Valyu SDK
+# Valyu JavaScript SDK
 
-**Search for AIs**
+[![npm version](https://img.shields.io/npm/v/valyu-js.svg)](https://www.npmjs.com/package/valyu-js)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Valyu's Deepsearch API gives AI the context it needs. Integrate trusted, high-quality public and proprietary sources, with full-text multimodal retrieval.
+Search and research APIs built for AI agents. Access web and proprietary data sources through Search, extract content from URLs, generate grounded answers, and run multi-step research with DeepResearch - all through a single SDK.
 
-Get **$10 free credits** for the Valyu API when you sign up at [Valyu](https://platform.valyu.ai)!
-
-_No credit card required._
-
-## How does it work?
-
-We do all the heavy lifting for you - one unified API for all data:
-
-- **Academic & Research Content** - Access millions of scholarly papers and textbooks
-- **Real-time Web Search** - Get the latest information from across the internet
-- **Structured Financial Data** - Stock prices, market data, and financial metrics
-- **Intelligent Reranking** - Results across all sources are automatically sorted by relevance
-- **Transparent Pricing** - Pay only for what you use with clear CPM pricing
+[Documentation](https://docs.valyu.ai) | [API Reference](https://docs.valyu.ai/api-reference) | [Platform](https://platform.valyu.ai)
 
 ## Installation
-
-Install the Valyu SDK using npm:
 
 ```bash
 npm install valyu-js
@@ -28,701 +15,213 @@ npm install valyu-js
 
 ## Quick Start
 
-Here's what it looks like, make your first query in just 4 lines of code:
+```typescript
+import { Valyu } from "valyu-js";
 
-```javascript
-const { Valyu } = require("valyu-js");
+const valyu = new Valyu(process.env.VALYU_API_KEY);
 
-const valyu = new Valyu("your-api-key-here");
-
-const response = await valyu.search(
-  "Implementation details of agentic search-enhanced large reasoning models",
-  {
-    maxNumResults: 5, // Limit to top 5 results
-    maxPrice: 10, // Maximum price per thousand queries (CPM)
-  }
-);
-
-console.log(response);
-
-// Feed the results to your AI agent as you would with other search APIs
-```
-
-## API Reference
-
-### DeepResearch Method
-
-The `deepresearch` namespace provides access to Valyu's AI-powered research agent that conducts comprehensive, multi-step research with citations and cost tracking.
-
-```javascript
-// Create a research task
-const task = await valyu.deepresearch.create({
-  query: "What are the latest developments in quantum computing?",
-  model: "fast", // "fast" (Haiku) or "heavy" (thorough, Sonnet)
-  outputFormats: ["markdown", "pdf"], // Output formats
+const response = await valyu.search("latest advances in transformer architectures", {
+  maxNumResults: 5,
+  searchType: "all",
 });
 
-// Wait for completion with progress updates
-const result = await valyu.deepresearch.wait(task.deepresearch_id, {
-  onProgress: (status) => {
-    if (status.progress) {
-      console.log(
-        `Step ${status.progress.current_step}/${status.progress.total_steps}`
-      );
-    }
+for (const result of response.results) {
+  console.log(result.title, result.url);
+}
+```
+
+Get **$10 free credits** when you sign up at [platform.valyu.ai](https://platform.valyu.ai). No credit card required.
+
+## APIs
+
+### Search
+
+Search across web and proprietary data sources with a single query.
+
+```typescript
+const response = await valyu.search("CRISPR gene therapy clinical trials 2026", {
+  searchType: "proprietary",                    // "all", "web", or "proprietary"
+  maxNumResults: 10,                            // 1-20 results
+  includedSources: ["valyu/valyu-pubmed"],      // filter to specific sources
+  startDate: "2026-01-01",                      // date filtering
+  endDate: "2026-12-31",
+});
+```
+
+<details>
+<summary>All search parameters</summary>
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `query` | `string` | required | Search query |
+| `searchType` | `string` | `"all"` | `"all"`, `"web"`, or `"proprietary"` |
+| `maxNumResults` | `number` | `10` | Results to return (1-20) |
+| `maxPrice` | `number` | `30` | Max price per thousand queries (CPM) |
+| `relevanceThreshold` | `number` | `0.5` | Min relevance score (0-1) |
+| `includedSources` | `string[]` | `[]` | Sources to search |
+| `excludeSources` | `string[]` | `[]` | Sources to exclude |
+| `startDate` | `string` | - | Start date (YYYY-MM-DD) |
+| `endDate` | `string` | - | End date (YYYY-MM-DD) |
+| `countryCode` | `string` | - | Country filter (e.g. `"US"`, `"GB"`) |
+| `responseLength` | `string \| number` | - | `"short"`, `"medium"`, `"large"`, `"max"`, or character count |
+| `category` | `string` | - | Category filter |
+
+</details>
+
+### Contents
+
+Extract clean, structured content from URLs. Supports sync (1-10 URLs) and async (up to 50 URLs) modes.
+
+```typescript
+// Basic extraction
+const response = await valyu.contents(["https://arxiv.org/abs/2301.00001"]);
+
+// With AI summarization
+const response = await valyu.contents(["https://example.com/article"], {
+  summary: true,
+  responseLength: "medium",
+});
+
+// Structured data extraction with JSON schema
+const response = await valyu.contents(["https://en.wikipedia.org/wiki/OpenAI"], {
+  summary: {
+    type: "object",
+    properties: {
+      company_name: { type: "string" },
+      founded_year: { type: "integer" },
+    },
   },
 });
-
-console.log(result.output); // Markdown report
-console.log(result.pdf_url); // PDF download URL
 ```
 
-#### DeepResearch Methods
+### Answer
 
-| Method                           | Description                               |
-| -------------------------------- | ----------------------------------------- |
-| `create(options)`                | Create a new research task                |
-| `status(taskId)`                 | Get current status of a task              |
-| `wait(taskId, options?)`         | Wait for task completion with polling     |
-| `stream(taskId, callbacks)`      | Stream real-time updates                  |
-| `list(options)`                  | List all your research tasks              |
-| `update(taskId, instruction)`    | Add follow-up instruction to running task |
-| `cancel(taskId)`                 | Cancel a running task                     |
-| `delete(taskId)`                 | Delete a task                             |
-| `togglePublic(taskId, isPublic)` | Make task publicly accessible             |
+AI-generated answers grounded by Valyu's search. Supports streaming.
 
-#### DeepResearch Create Options
-
-| Parameter         | Type                      | Default        | Description                                   |
-| ----------------- | ------------------------- | -------------- | --------------------------------------------- |
-| `input`           | `string`                  | _required_     | Research query or task description            |
-| `model`           | `"fast" \| "heavy"`       | `"fast"`       | Research model - fast or heavy (thorough)     |
-| `outputFormats`   | `("markdown" \| "pdf")[]` | `["markdown"]` | Output formats for the report                 |
-| `strategy`        | `string`                  | -              | Natural language research strategy            |
-| `search`          | `object`                  | -              | Search configuration (type, sources)          |
-| `urls`            | `string[]`                | -              | URLs to extract and analyze                   |
-| `files`           | `FileAttachment[]`        | -              | PDF/image files to analyze                    |
-| `mcpServers`      | `MCPServerConfig[]`       | -              | MCP tool server configurations                |
-| `codeExecution`   | `boolean`                 | `true`         | Enable/disable code execution                 |
-| `previousReports` | `string[]`                | -              | Previous report IDs for context (max 3)       |
-| `webhookUrl`      | `string`                  | -              | HTTPS webhook URL for completion notification |
-| `metadata`        | `Record<string, any>`     | -              | Custom metadata key-value pairs               |
-
-#### DeepResearch Examples
-
-**Basic Research:**
-
-```javascript
-const task = await valyu.deepresearch.create({
-  query: "Summarize recent AI safety research",
-  model: "fast",
+```typescript
+const response = await valyu.answer("What are the side effects of metformin?", {
+  searchType: "proprietary",
+  includedSources: ["valyu/valyu-pubmed"],
 });
 
-const result = await valyu.deepresearch.wait(task.deepresearch_id);
-console.log(result.output);
+console.log(response.contents);        // AI-generated answer
+console.log(response.search_results);  // Source citations
 ```
 
-**With Custom Sources:**
+### DeepResearch
 
-```javascript
+Multi-step research agent that produces comprehensive reports with citations.
+
+```typescript
+// Start a research task
 const task = await valyu.deepresearch.create({
-  query: "Latest transformer architecture improvements",
-  search: {
-    searchType: "proprietary",
-    includedSources: ["valyu/valyu-arxiv"],
-  },
+  query: "Compare CRISPR and base editing approaches for sickle cell disease",
   model: "heavy",
   outputFormats: ["markdown", "pdf"],
 });
-```
 
-**Streaming Updates:**
-
-```javascript
-await valyu.deepresearch.stream(task.deepresearch_id, {
-  onProgress: (current, total) => {
-    console.log(`Progress: ${current}/${total}`);
-  },
-  onMessage: (message) => {
-    console.log("Agent:", message);
-  },
-  onComplete: (result) => {
-    console.log("Complete! Cost:", result.usage.total_cost);
+// Wait for completion with progress
+const result = await valyu.deepresearch.wait(task.deepresearch_id, {
+  onProgress: (status) => {
+    console.log(`Step ${status.progress.current_step}/${status.progress.total_steps}`);
   },
 });
+
+console.log(result.output);   // Markdown report
+console.log(result.pdf_url);  // PDF download link
 ```
 
-**With File Analysis:**
+<details>
+<summary>All DeepResearch methods</summary>
 
-```javascript
-const task = await valyu.deepresearch.create({
-  query: "Analyze these research papers and provide key insights",
-  files: [
-    {
-      data: "data:application/pdf;base64,...",
-      filename: "paper.pdf",
-      mediaType: "application/pdf",
-    },
-  ],
-  urls: ["https://arxiv.org/abs/2103.14030"],
-});
-```
+| Method | Description |
+|---|---|
+| `create(options)` | Start a new research task |
+| `status(taskId)` | Get task status |
+| `wait(taskId, options?)` | Poll until completion |
+| `stream(taskId, callbacks)` | Stream real-time updates |
+| `list(options)` | List research tasks |
+| `update(taskId, instruction)` | Add follow-up instruction |
+| `cancel(taskId)` | Cancel a running task |
+| `delete(taskId)` | Delete a task |
+| `togglePublic(taskId, isPublic)` | Toggle public access |
 
-### Batch API
+</details>
 
-The `batch` namespace allows you to process multiple DeepResearch tasks efficiently. Perfect for running large-scale research operations.
+### Batch
 
-```javascript
-// Create a batch
+Run multiple DeepResearch tasks in parallel.
+
+```typescript
 const batch = await valyu.batch.create({
-  name: "Q4 Research Batch",
-  mode: "fast", // "fast", "standard", or "heavy"
+  name: "Q1 Analysis",
+  mode: "fast",
   outputFormats: ["markdown"],
 });
 
-// Add tasks to the batch
 await valyu.batch.addTasks(batch.batch_id, {
   tasks: [
-    { query: "What are the latest AI developments?" },
-    { query: "Analyze climate change trends" },
-    { query: "Review quantum computing progress" },
+    { query: "Analyze recent SPAC performance" },
+    { query: "Review semiconductor supply chain trends" },
   ],
 });
 
-// Wait for completion
 const result = await valyu.batch.waitForCompletion(batch.batch_id, {
-  pollInterval: 10000, // Check every 10 seconds
-  onProgress: (batch) => {
-    console.log(`Progress: ${batch.counts.completed}/${batch.counts.total}`);
-  },
-});
-
-console.log("Total cost:", result.cost);
-```
-
-#### Batch Methods
-
-| Method                                 | Description                            |
-| -------------------------------------- | -------------------------------------- |
-| `create(options?)`                     | Create a new batch                     |
-| `status(batchId)`                      | Get batch status and task counts       |
-| `addTasks(batchId, options)`           | Add tasks to a batch                   |
-| `listTasks(batchId)`                   | List all tasks in a batch              |
-| `list()`                               | List all batches                       |
-| `cancel(batchId)`                      | Cancel a batch and all pending tasks   |
-| `waitForCompletion(batchId, options?)` | Wait for batch completion with polling |
-
-#### Batch Create Options
-
-| Parameter       | Type                              | Default        | Description                        |
-| --------------- | --------------------------------- | -------------- | ---------------------------------- |
-| `name`          | `string`                          | -              | Optional batch name                |
-| `mode`          | `"fast" \| "standard" \| "heavy"` | `"standard"`   | DeepResearch mode for all tasks    |
-| `outputFormats` | `("markdown" \| "pdf")[]`         | `["markdown"]` | Output formats                     |
-| `search`        | `object`                          | -              | Search configuration for all tasks |
-| `webhookUrl`    | `string`                          | -              | HTTPS URL for completion webhook   |
-| `metadata`      | `object`                          | -              | Custom metadata key-value pairs    |
-
-#### Batch Status Response
-
-```javascript
-{
-  success: true,
-  batch: {
-    batch_id: "batch_xxx",
-    status: "processing",  // "open", "processing", "completed", "cancelled"
-    mode: "standard",  // "fast", "standard", or "heavy"
-    name: "My Batch",
-    counts: {
-      total: 10,
-      queued: 3,
-      running: 2,
-      completed: 4,
-      failed: 1,
-      cancelled: 0
-    },
-    cost: 0.20,  // Total cost (replaces usage object)
-    created_at: "2025-01-10T12:00:00Z",  // ISO 8601 date-time string
-    completed_at: "2025-01-10T12:30:00Z"  // ISO 8601 date-time string (when completed)
-  }
-}
-```
-
-### Search Method
-
-The `search()` method is the core of the Valyu SDK. It accepts a query string as the first parameter, followed by optional configuration parameters.
-
-```javascript
-valyu.search(
-  query, // Your search query
-  {
-    searchType: "all", // "all", "web", or "proprietary"
-    maxNumResults: 10, // Maximum results to return (1-20)
-    isToolCall: true, // Whether this is an AI tool call
-    relevanceThreshold: 0.5, // Minimum relevance score (0-1)
-    maxPrice: 30, // Maximum price per thousand queries (CPM)
-    includedSources: [], // Specific sources to search
-    excludeSources: [], // Sources/domains to exclude
-    category: null, // Category filter
-    startDate: null, // Start date (YYYY-MM-DD)
-    endDate: null, // End date (YYYY-MM-DD)
-    countryCode: null, // Country code filter
-    responseLength: null, // Response length control
-  }
-);
-```
-
-### Parameters
-
-| Parameter            | Type               | Default    | Description                                                            |
-| -------------------- | ------------------ | ---------- | ---------------------------------------------------------------------- |
-| `query`              | `string`           | _required_ | The search query string                                                |
-| `searchType`         | `string`           | `"all"`    | Search scope: `"all"`, `"web"`, or `"proprietary"`                     |
-| `maxNumResults`      | `number`           | `10`       | Maximum number of results to return (1-20)                             |
-| `isToolCall`         | `boolean`          | `true`     | Whether this is an AI tool call (affects processing)                   |
-| `relevanceThreshold` | `number`           | `0.5`      | Minimum relevance score for results (0.0-1.0)                          |
-| `maxPrice`           | `number`           | `30`       | Maximum price per thousand queries in CPM                              |
-| `includedSources`    | `string[]`         | `[]`       | Specific data sources or URLs to search                                |
-| `excludeSources`     | `string[]`         | `[]`       | Data sources or URLs to exclude from search                            |
-| `category`           | `string`           | `null`     | Category filter for results                                            |
-| `startDate`          | `string`           | `null`     | Start date filter in YYYY-MM-DD format                                 |
-| `endDate`            | `string`           | `null`     | End date filter in YYYY-MM-DD format                                   |
-| `countryCode`        | `string`           | `null`     | Country code filter (e.g., "US", "GB", "JP", "ALL")                    |
-| `responseLength`     | `string \| number` | `null`     | Response length: "short", "medium", "large", "max", or character count |
-
-### Response Format
-
-The search method returns a `SearchResponse` object with the following structure:
-
-```javascript
-{
-    success: boolean,                           // Whether the search was successful
-    error: string | null,                       // Error message if any
-    tx_id: string,                             // Transaction ID for feedback
-    query: string,                             // The original query
-    results: SearchResult[],                   // List of search results
-    results_by_source: {                       // Count of results by source type
-        web: number,
-        proprietary: number
-    },
-    total_deduction_dollars: number,           // Cost in dollars
-    total_characters: number                   // Total characters returned
-}
-```
-
-Each `SearchResult` contains:
-
-```javascript
-{
-    title: string,                             // Result title
-    url: string,                              // Source URL
-    content: string,                          // Full content
-    description?: string,                     // Brief description
-    source: string,                           // Source identifier
-    price: number,                            // Cost for this result
-    length: number,                           // Content length in characters
-    relevance_score?: number,                 // Relevance score (0-1), not available in fast_mode or url_only
-    data_type?: string,                       // "structured" or "unstructured"
-    source_type?: string,                     // Source type identifier
-    publication_date?: string,                // Publication date (YYYY-MM-DD)
-    id?: string,                              // Unique result identifier
-    image_url?: Record<string, string>        // Associated images
-}
-```
-
-### Contents Method
-
-The `contents()` method extracts clean, structured content from web pages with optional AI-powered data extraction and summarization. It accepts an array of URLs as the first parameter, followed by optional configuration parameters.
-
-- **Sync mode** (≤10 URLs): Returns results immediately
-- **Async mode** (>10 URLs or `async: true`): Returns a job object; use `getContentsJob()` or `waitForJob()` to get results
-
-```javascript
-// Sync (≤10 URLs)
-const response = await valyu.contents(urls, { summary: true });
-
-// Async (11-50 URLs) - returns job, then poll or wait
-const job = await valyu.contents(urls, { async: true });
-const final = await valyu.waitForJob(job.jobId, { pollInterval: 5000 });
-```
-
-### Parameters
-
-| Parameter         | Type                          | Default    | Description                                                                                                                                  |
-| ----------------- | ----------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `urls`            | `string[]`                    | _required_ | Array of URLs to process (max 10 sync, max 50 with `async: true`)                                                                             |
-| `summary`         | `boolean \| string \| object` | `false`    | AI summary configuration: `false` (raw content), `true` (auto summary), string (custom instructions), or JSON schema (structured extraction) |
-| `extractEffort`   | `string`                      | `"normal"` | Extraction thoroughness: `"normal"`, `"high"`, or `"auto"`                                                                                     |
-| `responseLength`  | `string \| number`            | `"short"`  | Content length per URL: `"short"` (25k chars), `"medium"` (50k), `"large"` (100k), `"max"` (no limit), or custom number                      |
-| `maxPriceDollars` | `number`                      | `null`     | Maximum cost limit in USD                                                                                                                    |
-| `screenshot`      | `boolean`                     | `false`    | Capture page screenshots                                                                                                                      |
-| `async`           | `boolean`                     | `false`    | Force async processing (required for >10 URLs)                                                                                               |
-| `webhookUrl`      | `string`                      | -          | HTTPS URL for completion notification (async only). Save `webhookSecret` for signature verification.                                          |
-
-### Contents Response Format (Sync)
-
-When sync, returns `ContentsResponse`:
-
-```javascript
-{
-    success: boolean,
-    tx_id: string,
-    urls_requested: number,
-    urls_processed: number,
-    urls_failed: number,
-    results: ContentResult[],
-    total_cost_dollars: number,
-    total_characters: number
-}
-```
-
-### Contents Async Response
-
-When async, returns `ContentsAsyncJobResponse` with `jobId`. Use `getContentsJob(jobId)` or `waitForJob(jobId)` to get results.
-
-```javascript
-// Poll for status
-const status = await valyu.getContentsJob(jobId);
-
-// Or wait until complete (like DeepResearch wait)
-const final = await valyu.waitForJob(jobId, {
-  pollInterval: 5000,
-  maxWaitTime: 7200000,
-  onProgress: (s) => console.log(`${s.urlsProcessed}/${s.urlsTotal}`)
+  onProgress: (b) => console.log(`${b.counts.completed}/${b.counts.total}`),
 });
 ```
 
-### ContentResult (with status)
+### Data Sources
 
-Each result has a `status` field. Check before accessing success-only fields:
+List available data sources programmatically.
 
-```javascript
-for (const r of response.results) {
-  if (r.status === 'success') {
-    console.log(r.title, r.content);
-  } else {
-    console.log(`Failed: ${r.url} - ${r.error}`);
-  }
-}
-```
-
-### Webhook Signature Verification
-
-When using `webhookUrl`, verify the `X-Webhook-Signature` header with the `webhookSecret` from job creation:
-
-```javascript
-const { verifyContentsWebhookSignature } = require('valyu-js');
-
-// In your webhook handler - use raw request body
-const isValid = verifyContentsWebhookSignature(
-  rawBody,           // Raw request body string
-  signatureHeader,   // X-Webhook-Signature
-  timestampHeader,   // X-Webhook-Timestamp
-  webhookSecret
-);
-```
-
-## Examples
-
-### Basic Search
-
-```javascript
-const { Valyu } = require("valyu-js");
-
-const valyu = new Valyu("your-api-key");
-
-// Simple search across all sources
-const response = await valyu.search("What is machine learning?");
-console.log(`Found ${response.results.length} results`);
-```
-
-### Academic Research
-
-```javascript
-// Search academic papers on arXiv
-const response = await valyu.search("transformer architecture improvements", {
-  searchType: "proprietary",
-  includedSources: ["valyu/valyu-arxiv"],
-  relevanceThreshold: 0.6,
-  maxNumResults: 10,
-});
-```
-
-### Web Search with Date Filtering
-
-```javascript
-// Search recent web content
-const response = await valyu.search("AI safety developments", {
-  searchType: "web",
-  startDate: "2024-01-01",
-  endDate: "2024-12-31",
-  maxNumResults: 5,
-});
-```
-
-### Hybrid Search
-
-```javascript
-// Search both web and proprietary sources
-const response = await valyu.search("quantum computing breakthroughs", {
-  searchType: "all",
-  category: "technology",
-  relevanceThreshold: 0.6,
-  maxPrice: 50,
-});
-```
-
-### Processing Results
-
-```javascript
-const response = await valyu.search("climate change solutions");
-
-if (response.success) {
-  console.log(`Search cost: $${response.total_deduction_dollars.toFixed(4)}`);
-  console.log(
-    `Sources: Web=${response.results_by_source.web}, Proprietary=${response.results_by_source.proprietary}`
-  );
-
-  response.results.forEach((result, i) => {
-    console.log(`\n${i + 1}. ${result.title}`);
-    console.log(`   Source: ${result.source}`);
-    if (result.relevance_score !== undefined) {
-      console.log(`   Relevance: ${result.relevance_score.toFixed(2)}`);
-    }
-    console.log(`   Content: ${result.content.substring(0, 200)}...`);
-  });
-} else {
-  console.log(`Search failed: ${response.error}`);
-}
-```
-
-### Content Extraction Examples
-
-#### Basic Content Extraction
-
-```javascript
-// Extract raw content from URLs
-const response = await valyu.contents([
-  "https://techcrunch.com/2025/08/28/anthropic-users-face-a-new-choice-opt-out-or-share-your-data-for-ai-training/",
-]);
-
-if (response.success) {
-  response.results.forEach((result) => {
-    console.log(`Title: ${result.title}`);
-    console.log(`Content: ${result.content.substring(0, 500)}...`);
-  });
-}
-```
-
-#### Content with AI Summary
-
-```javascript
-// Extract content with automatic summarization
-const response = await valyu.contents(["https://docs.python.org/3/tutorial/"], {
-  summary: true,
-  responseLength: "max",
-});
-
-response.results.forEach((result) => {
-  console.log(`Summary: ${result.summary}`);
-});
-```
-
-#### Structured Data Extraction
-
-```javascript
-// Extract structured data using JSON schema
-const companySchema = {
-  type: "object",
-  properties: {
-    company_name: { type: "string" },
-    founded_year: { type: "integer" },
-    key_products: {
-      type: "array",
-      items: { type: "string" },
-      maxItems: 3,
-    },
-  },
-};
-
-const response = await valyu.contents(
-  ["https://en.wikipedia.org/wiki/OpenAI"],
-  {
-    summary: companySchema,
-    responseLength: "max",
-  }
-);
-
-if (response.success) {
-  response.results.forEach((result) => {
-    if (result.summary) {
-      console.log(
-        `Structured data: ${JSON.stringify(result.summary, null, 2)}`
-      );
-    }
-  });
-}
-```
-
-#### Multiple URLs
-
-```javascript
-// Process multiple URLs with a cost limit
-const response = await valyu.contents(
-  [
-    "https://www.valyu.ai/",
-    "https://docs.valyu.ai/overview",
-    "https://www.valyu.ai/blogs/why-ai-agents-and-llms-struggle-with-search-and-data-access",
-  ],
-  {
-    summary:
-      "Provide key takeaways in bullet points, and write in very emphasised singaporean english",
-  }
-);
-
-console.log(
-  `Processed ${response.urls_processed}/${response.urls_requested} URLs`
-);
-console.log(`Cost: $${response.total_cost_dollars.toFixed(4)}`);
+```typescript
+const sources = await valyu.datasources.list();
+const categories = await valyu.datasources.categories();
 ```
 
 ## Authentication
 
-Set your API key in one of these ways:
+```bash
+export VALYU_API_KEY="your-api-key"
+```
 
-1. **Environment variable** (recommended):
+Or pass directly:
 
-   ```bash
-   export VALYU_API_KEY="your-api-key-here"
-   ```
+```typescript
+const valyu = new Valyu("your-api-key");
+```
 
-2. **Direct initialization**:
-   ```javascript
-   const valyu = new Valyu("your-api-key-here");
-   ```
+## TypeScript
+
+Full type definitions are included. All request and response types are exported:
+
+```typescript
+import { Valyu, SearchOptions, SearchResponse, SearchResult } from "valyu-js";
+```
 
 ## Error Handling
 
-The SDK handles errors gracefully and returns structured error responses:
-
-```javascript
-const response = await valyu.search("test query");
+```typescript
+const response = await valyu.search("test");
 
 if (!response.success) {
-  console.log(`Error: ${response.error}`);
-  console.log(`Transaction ID: ${response.tx_id}`);
-} else {
-  // Process successful results
-  response.results.forEach((result) => {
-    console.log(result.title);
-  });
+  console.error(response.error);
+  console.error(`tx_id: ${response.tx_id}`);
 }
 ```
 
-## TypeScript Support
+## Integrations
 
-The SDK includes full TypeScript support with type definitions for all parameters:
+Valyu works with [Vercel AI SDK](https://www.npmjs.com/package/@valyu/ai-sdk), [LangChain](https://docs.valyu.ai), [MCP](https://docs.valyu.ai), and more. See [docs.valyu.ai](https://docs.valyu.ai) for integration guides.
 
-```typescript
-import {
-  Valyu,
-  SearchOptions,
-  SearchResponse,
-  ContentsOptions,
-  ContentsResponse,
-  CountryCode,
-  ResponseLength,
-} from "valyu";
+## Links
 
-const valyu = new Valyu("your-api-key");
-
-// Search API with types
-const searchOptions: SearchOptions = {
-  searchType: "proprietary",
-  maxNumResults: 10,
-  relevanceThreshold: 0.6,
-  excludeSources: ["reddit.com", "twitter.com"],
-  countryCode: "US" as CountryCode,
-  responseLength: "medium" as ResponseLength,
-};
-
-const searchResponse: SearchResponse = await valyu.search(
-  "machine learning",
-  searchOptions
-);
-
-// Contents API with types
-const contentsOptions: ContentsOptions = {
-  summary: true,
-  extractEffort: "high",
-  responseLength: "medium",
-  maxPriceDollars: 0.1,
-};
-
-const contentsResponse: ContentsResponse = await valyu.contents(
-  ["https://example.com"],
-  contentsOptions
-);
-```
-
-## Backward Compatibility
-
-The legacy `context()` method is still supported but deprecated:
-
-```javascript
-// Legacy method (deprecated)
-const response = await valyu.context("neural networks basics", {
-  searchType: "all",
-  maxNumResults: 5,
-  queryRewrite: true,
-  similarityThreshold: 0.5,
-  dataSources: ["valyu/valyu-arxiv"],
-});
-```
-
-**Migration from v1 to v2:**
-
-- `context()` → `search()`
-- `similarityThreshold` → `relevanceThreshold`
-- `dataSources` → `includedSources`
-- `queryRewrite` → `isToolCall`
-- Default `relevanceThreshold` changed from `0.4` to `0.5`
-- Default `maxPrice` changed from `1` to `30`
-
-## Getting Started
-
-1. Sign up for a free account at [Valyu](https://platform.valyu.ai)
-2. Get your API key from the dashboard
-3. Install the SDK: `npm install valyu-js`
-4. Start building with the examples above
-
-## Testing
-
-Run the integration tests:
-
-```bash
-npm run test:integration
-```
-
-Run the Search API examples:
-
-```bash
-node examples/search-examples.js
-```
-
-Run the Contents API examples:
-
-```bash
-node examples/contents-examples.js
-```
-
-## Support
-
-- **Documentation**: [docs.valyu.ai](https://docs.valyu.ai)
-- **API Reference**: Full parameter documentation above
-- **Examples**: Check the `examples/` directory in this repository
-- **Issues**: Report bugs on GitHub
+- [Documentation](https://docs.valyu.ai)
+- [Platform & API Keys](https://platform.valyu.ai)
+- [Discord](https://discord.gg/valyu)
+- [GitHub Issues](https://github.com/valyuAI/valyu-js/issues)
 
 ## License
 
-This project is licensed under the MIT License.
+MIT
