@@ -57,6 +57,7 @@ export interface SearchResult {
   publication_date?: string;
   id?: string;
   image_url?: Record<string, string>;
+  abstract?: string;
 }
 
 export interface SearchOptions {
