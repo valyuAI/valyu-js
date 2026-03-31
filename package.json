@@ -1,6 +1,6 @@
 {
   "name": "valyu-js",
-  "version": "2.7.5",
+  "version": "2.7.6",
   "description": "Deepsearch API for AI.",
   "files": [
     "dist"
@@ -43,7 +43,7 @@
   },
   "homepage": "https://valyu.ai",
   "dependencies": {
-    "axios": "^1.4.0"
+    "axios": "1.7.9"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
