@@ -45,6 +45,8 @@ import {
   DatasourcesCategoriesResponse,
 } from "./types";
 
+const SDK_VERSION = "2.7.7";
+
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
   return {
@@ -185,6 +187,9 @@ export class Valyu {
     this.headers = {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
+      "User-Agent": `valyu-js/${SDK_VERSION}`,
+      "X-Valyu-SDK": "valyu-js",
+      "X-Valyu-SDK-Version": SDK_VERSION,
     };
 
     // Initialize DeepResearch namespace
@@ -1369,8 +1374,12 @@ export class Valyu {
         params.append("token", options.token);
       }
 
-      // Build headers - use API key if no token provided
-      const headers: Record<string, string> = {};
+      // Build headers - use API key if no token provided, always include SDK metadata
+      const headers: Record<string, string> = {
+        "User-Agent": `valyu-js/${SDK_VERSION}`,
+        "X-Valyu-SDK": "valyu-js",
+        "X-Valyu-SDK-Version": SDK_VERSION,
+      };
       if (!options.token) {
         headers["x-api-key"] = this.headers["x-api-key"];
       }
