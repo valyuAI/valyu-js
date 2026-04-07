@@ -45,7 +45,7 @@ import {
   DatasourcesCategoriesResponse,
 } from "./types";
 
-const SDK_VERSION = "2.7.7";
+const SDK_VERSION = "2.7.9";
 
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
