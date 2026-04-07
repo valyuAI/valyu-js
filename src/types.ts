@@ -53,6 +53,7 @@ export interface SearchResult {
   data_type?: DataType;
   date?: string;
   length: number;
+  price: number;
   relevance_score?: number;
   publication_date?: string;
   id?: string;
@@ -242,12 +243,27 @@ export interface ExtractionMetadata {
   extract_effort: string;
 }
 
+export interface AnswerSearchResult {
+  title: string;
+  url: string;
+  content: string | object | any[];
+  description?: string;
+  source: string;
+  source_type?: string;
+  data_type?: DataType;
+  date?: string;
+  length: number;
+  relevance_score?: number;
+  image_url?: Record<string, string>;
+  abstract?: string;
+}
+
 export interface AnswerSuccessResponse {
   success: true;
   tx_id: string;
   original_query: string;
   contents: string | Record<string, any>;
-  search_results: SearchResult[];
+  search_results: AnswerSearchResult[];
   search_metadata: SearchMetadata;
   ai_usage: AIUsage;
   cost: Cost;
@@ -273,7 +289,7 @@ export interface AnswerStreamChunk {
   type: AnswerStreamChunkType;
 
   // For type="search_results"
-  search_results?: SearchResult[];
+  search_results?: AnswerSearchResult[];
 
   // For type="content"
   content?: string;
