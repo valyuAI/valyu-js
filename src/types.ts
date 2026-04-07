@@ -53,6 +53,7 @@ export interface SearchResult {
   data_type?: DataType;
   date?: string;
   length: number;
+  price?: number;
   relevance_score?: number;
   publication_date?: string;
   id?: string;
