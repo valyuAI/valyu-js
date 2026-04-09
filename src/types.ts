@@ -77,6 +77,7 @@ export interface SearchOptions {
   responseLength?: ResponseLength;
   fastMode?: boolean;
   urlOnly?: boolean;
+  instructions?: string;
 }
 
 export interface SearchResponse {
