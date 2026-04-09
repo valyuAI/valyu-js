@@ -2220,6 +2220,7 @@ export type {
   DeepResearchUsage,
   DeepResearchCostBreakdown,
   DeepResearchTools,
+  ToolConfig,
   DeepResearchCreateResponse,
   DeepResearchStatusResponse,
   DeepResearchTaskListItem,

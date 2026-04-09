@@ -390,9 +390,26 @@ export interface DeepResearchSearchConfig {
   countryCode?: CountryCode; // Country code for location-filtered searches
 }
 
+/**
+ * Per-tool configuration with optional call limit.
+ *
+ * System defaults for max_calls:
+ * - browser_use: 5
+ * - screenshots: 15
+ * - code_execution: 10
+ *
+ * max_calls can only be lowered, not raised above the system default.
+ * Setting max_calls to 0 effectively disables the tool.
+ */
+export interface ToolConfig {
+  enabled?: boolean;
+  max_calls?: number;
+}
+
 export interface DeepResearchTools {
-  code_execution?: boolean;
-  screenshots?: boolean;
+  code_execution?: boolean | ToolConfig;
+  screenshots?: boolean | ToolConfig;
+  browser_use?: boolean | ToolConfig;
 }
 
 export interface DeepResearchCreateOptions {
