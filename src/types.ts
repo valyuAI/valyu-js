@@ -59,6 +59,12 @@ export interface SearchResult {
   id?: string;
   image_url?: Record<string, string>;
   abstract?: string;
+  doi?: string;
+  citation?: string;
+  citation_count?: number;
+  authors?: string[];
+  references?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface SearchOptions {

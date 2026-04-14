@@ -45,7 +45,7 @@ import {
   DatasourcesCategoriesResponse,
 } from "./types";
 
-const SDK_VERSION = "2.7.9";
+const SDK_VERSION = "2.7.11";
 
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
@@ -514,7 +514,7 @@ export class Valyu {
       }
 
       if (options.excludeSources !== undefined) {
-        payload.exclude_sources = options.excludeSources;
+        payload.excluded_sources = options.excludeSources;
       }
 
       if (options.sourceBiases !== undefined) {
@@ -553,7 +553,7 @@ export class Valyu {
         payload.instructions = options.instructions;
       }
 
-      const response = await axios.post(`${this.baseUrl}/deepsearch`, payload, {
+      const response = await axios.post(`${this.baseUrl}/search`, payload, {
         headers: this.headers,
       });
 
