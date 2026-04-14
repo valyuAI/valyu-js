@@ -553,7 +553,7 @@ export class Valyu {
         payload.instructions = options.instructions;
       }
 
-      const response = await axios.post(`${this.baseUrl}/deepsearch`, payload, {
+      const response = await axios.post(`${this.baseUrl}/search`, payload, {
         headers: this.headers,
       });
 
