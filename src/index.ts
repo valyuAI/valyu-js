@@ -514,7 +514,7 @@ export class Valyu {
       }
 
       if (options.excludeSources !== undefined) {
-        payload.exclude_sources = options.excludeSources;
+        payload.excluded_sources = options.excludeSources;
       }
 
       if (options.sourceBiases !== undefined) {
