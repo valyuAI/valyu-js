@@ -373,7 +373,6 @@ export interface DeliverableResult {
   title: string;
   description?: string;
   url: string;
-  s3_key: string;
   row_count?: number;
   column_count?: number;
   error?: string;
