@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import axios from "axios";
+import http from "http";
+import https from "https";
+import axios, { AxiosInstance } from "axios";
 import {
   SearchResponse,
   SearchType,
@@ -45,7 +47,7 @@ import {
   DatasourcesCategoriesResponse,
 } from "./types";
 
-const SDK_VERSION = "2.7.11";
+const SDK_VERSION = "2.7.12";
 
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
@@ -111,6 +113,7 @@ export function verifyContentsWebhookSignature(
 export class Valyu {
   private baseUrl: string;
   private headers: Record<string, string>;
+  private client: AxiosInstance;
 
   // DeepResearch namespace
   public deepresearch: {
@@ -191,6 +194,13 @@ export class Valyu {
       "X-Valyu-SDK": "valyu-js",
       "X-Valyu-SDK-Version": SDK_VERSION,
     };
+
+    this.client = axios.create({
+      baseURL: this.baseUrl,
+      headers: this.headers,
+      httpAgent: new http.Agent({ keepAlive: true }),
+      httpsAgent: new https.Agent({ keepAlive: true }),
+    });
 
     // Initialize DeepResearch namespace
     this.deepresearch = {
@@ -553,7 +563,7 @@ export class Valyu {
         payload.instructions = options.instructions;
       }
 
-      const response = await axios.post(`${this.baseUrl}/search`, payload, {
+      const response = await this.client.post(`${this.baseUrl}/search`, payload, {
         headers: this.headers,
       });
 
@@ -745,7 +755,7 @@ export class Valyu {
         payload.webhook_url = options.webhookUrl;
       }
 
-      const response = await axios.post(`${this.baseUrl}/contents`, payload, {
+      const response = await this.client.post(`${this.baseUrl}/contents`, payload, {
         headers: this.headers,
       });
 
@@ -789,7 +799,7 @@ export class Valyu {
    */
   async getContentsJob(jobId: string): Promise<ContentsJobResponse> {
     try {
-      const response = await axios.get(
+      const response = await this.client.get(
         `${this.baseUrl}/contents/jobs/${jobId}`,
         { headers: this.headers }
       );
@@ -991,7 +1001,7 @@ export class Valyu {
           payload.hitl.outline_review = options.hitl.outlineReview;
       }
 
-      const response = await axios.post(
+      const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks`,
         payload,
         { headers: this.headers }
@@ -1013,7 +1023,7 @@ export class Valyu {
     taskId: string
   ): Promise<DeepResearchStatusResponse> {
     try {
-      const response = await axios.get(
+      const response = await this.client.get(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/status`,
         { headers: this.headers }
       );
@@ -1161,7 +1171,7 @@ export class Valyu {
   ): Promise<DeepResearchListResponse> {
     try {
       const limit = options?.limit || 10;
-      const response = await axios.get(
+      const response = await this.client.get(
         `${this.baseUrl}/deepresearch/list?limit=${limit}`,
         { headers: this.headers }
       );
@@ -1190,7 +1200,7 @@ export class Valyu {
         };
       }
 
-      const response = await axios.post(
+      const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/update`,
         { instruction },
         { headers: this.headers }
@@ -1217,7 +1227,7 @@ export class Valyu {
     response: Record<string, any>
   ): Promise<DeepResearchRespondResponse> {
     try {
-      const resp = await axios.post(
+      const resp = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/respond`,
         {
           interaction_id: interactionId,
@@ -1304,7 +1314,7 @@ export class Valyu {
     taskId: string
   ): Promise<DeepResearchCancelResponse> {
     try {
-      const response = await axios.post(
+      const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/cancel`,
         {},
         { headers: this.headers }
@@ -1326,7 +1336,7 @@ export class Valyu {
     taskId: string
   ): Promise<DeepResearchDeleteResponse> {
     try {
-      const response = await axios.delete(
+      const response = await this.client.delete(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/delete`,
         { headers: this.headers }
       );
@@ -1348,7 +1358,7 @@ export class Valyu {
     isPublic: boolean
   ): Promise<DeepResearchTogglePublicResponse> {
     try {
-      const response = await axios.post(
+      const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/public`,
         { public: isPublic },
         { headers: this.headers }
@@ -1394,7 +1404,7 @@ export class Valyu {
         params.toString() ? `?${params.toString()}` : ""
       }`;
 
-      const response = await axios.get(url, {
+      const response = await this.client.get(url, {
         headers,
         responseType: "arraybuffer", // For binary data
       });
@@ -1468,7 +1478,7 @@ export class Valyu {
       if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
       if (options.metadata) payload.metadata = options.metadata;
 
-      const response = await axios.post(
+      const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches`,
         payload,
         { headers: this.headers }
@@ -1490,7 +1500,7 @@ export class Valyu {
    */
   private async _batchStatus(batchId: string): Promise<BatchStatusResponse> {
     try {
-      const response = await axios.get(
+      const response = await this.client.get(
         `${this.baseUrl}/deepresearch/batches/${batchId}`,
         { headers: this.headers }
       );
@@ -1571,7 +1581,7 @@ export class Valyu {
         return taskPayload;
       });
 
-      const response = await axios.post(
+      const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
         { tasks: tasksPayload },
         { headers: this.headers }
@@ -1618,7 +1628,7 @@ export class Valyu {
       const url = `${this.baseUrl}/deepresearch/batches/${batchId}/tasks${
         params.toString() ? `?${params.toString()}` : ""
       }`;
-      const response = await axios.get(url, { headers: this.headers });
+      const response = await this.client.get(url, { headers: this.headers });
 
       return { success: true, ...response.data };
     } catch (e: any) {
@@ -1636,7 +1646,7 @@ export class Valyu {
    */
   private async _batchCancel(batchId: string): Promise<CancelBatchResponse> {
     try {
-      const response = await axios.post(
+      const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches/${batchId}/cancel`,
         {},
         { headers: this.headers }
@@ -1670,7 +1680,7 @@ export class Valyu {
       const url = `${this.baseUrl}/deepresearch/batches${
         params.toString() ? `?${params.toString()}` : ""
       }`;
-      const response = await axios.get(url, {
+      const response = await this.client.get(url, {
         headers: this.headers,
       });
 
@@ -2145,7 +2155,7 @@ export class Valyu {
       const url = `${this.baseUrl}/datasources${
         params.toString() ? `?${params.toString()}` : ""
       }`;
-      const response = await axios.get(url, { headers: this.headers });
+      const response = await this.client.get(url, { headers: this.headers });
 
       return { success: true, datasources: response.data.datasources };
     } catch (e: any) {
@@ -2162,7 +2172,7 @@ export class Valyu {
    */
   private async _datasourcesCategories(): Promise<DatasourcesCategoriesResponse> {
     try {
-      const response = await axios.get(`${this.baseUrl}/datasources/categories`, {
+      const response = await this.client.get(`${this.baseUrl}/datasources/categories`, {
         headers: this.headers,
       });
 
