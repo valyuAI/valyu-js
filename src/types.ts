@@ -667,8 +667,6 @@ export interface BatchCounts {
 export interface DeepResearchBatch {
   batch_id: string;
   organisation_id: string;
-  api_key_id: string;
-  credit_id: string;
   status: BatchStatus;
   mode: DeepResearchMode; // Renamed from 'model' in responses
   name?: string;
