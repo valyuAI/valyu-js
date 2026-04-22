@@ -337,7 +337,23 @@ export type DeepResearchOutputFormat =
   | Record<string, any>;
 export type DeepResearchOutputType = "markdown" | "json" | "toon";
 export type ImageType = "chart" | "ai_generated" | "screenshot";
-export type ChartType = "line" | "bar" | "area";
+export type ChartType =
+  | "line"
+  | "bar"
+  | "area"
+  | "pie"
+  | "doughnut"
+  | "radar"
+  | "scatter"
+  | "horizontalBar"
+  | "heatmap"
+  | "boxplot"
+  | "stackedBar"
+  | "stackedArea"
+  | "histogram"
+  | "waterfall"
+  | "timeline"
+  | "bubble";
 
 export interface FileAttachment {
   data: string;
@@ -469,11 +485,15 @@ export interface Progress {
 export interface ChartDataPoint {
   x: string | number;
   y: number;
+  y2?: number;
+  z?: number;
+  values?: number[];
 }
 
 export interface ChartDataSeries {
   name: string;
   data: ChartDataPoint[];
+  line_style?: "solid" | "dashed" | "dotted";
 }
 
 export interface ImageMetadata {
