@@ -400,6 +400,8 @@ export interface DeepResearchSearchConfig {
 export interface DeepResearchTools {
   code_execution?: boolean;
   screenshots?: boolean;
+  /** Enable chart/graph generation embedded in the final report (free) */
+  charts?: boolean;
 }
 
 export interface DeepResearchCreateOptions {
