@@ -395,7 +395,6 @@ export interface DeliverableResult {
   title: string;
   description?: string;
   url: string;
-  s3_key: string;
   row_count?: number;
   column_count?: number;
   error?: string;
@@ -577,8 +576,8 @@ export interface DeepResearchStatusResponse {
   sources?: DeepResearchSource[];
   cost?: number; // Total cost in dollars (preferred)
   usage?: DeepResearchUsage; // Detailed cost breakdown (backward compatible)
-  cost_breakdown?: DeepResearchCostBreakdown;  // Itemized cost breakdown
-  tools?: DeepResearchTools;  // Resolved tools configuration
+  cost_breakdown?: DeepResearchCostBreakdown; // Itemized cost breakdown
+  tools?: DeepResearchTools; // Resolved tools configuration
   batch_id?: string; // Batch ID if task belongs to a batch
   batch_task_id?: string; // Batch task ID if task belongs to a batch
   hitl_config?: Record<string, boolean>; // HITL configuration (mirrors request hitl param)
@@ -653,7 +652,13 @@ export interface WaitOptions {
   pollInterval?: number;
   maxWaitTime?: number;
   onProgress?: (status: DeepResearchStatusResponse) => void;
-  onInteraction?: (interaction: Interaction) => Promise<Record<string, any> | null | undefined> | Record<string, any> | null | undefined;
+  onInteraction?: (
+    interaction: Interaction,
+  ) =>
+    | Promise<Record<string, any> | null | undefined>
+    | Record<string, any>
+    | null
+    | undefined;
 }
 
 export interface StreamCallback {
