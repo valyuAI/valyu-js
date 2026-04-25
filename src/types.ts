@@ -526,6 +526,7 @@ export interface DeepResearchSource {
   category?: string;
   source_id?: number;
   word_count?: number;
+  fragment?: string;
 }
 
 export interface DeepResearchUsage {
