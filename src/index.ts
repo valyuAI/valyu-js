@@ -49,8 +49,16 @@ import {
 
 const SDK_VERSION = "2.7.12";
 
+/** Strip internal server-side identifiers from batch data to prevent IDOR. */
+function normalizeBatch(batch: Record<string, any>): Record<string, any> {
+  const { organisation_id, api_key_id, credit_id, ...safe } = batch;
+  return safe;
+}
+
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
-function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
+function normalizeContentsJobResponse(
+  api: Record<string, any>,
+): ContentsJobResponse {
   return {
     success: api.success ?? true,
     jobId: api.job_id ?? api.jobId,
@@ -71,7 +79,7 @@ function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResp
 
 /** Normalize API async job creation response (202) to SDK format. */
 function normalizeContentsAsyncJobResponse(
-  api: Record<string, any>
+  api: Record<string, any>,
 ): ContentsAsyncJobResponse {
   return {
     success: api.success ?? true,
@@ -96,7 +104,7 @@ export function verifyContentsWebhookSignature(
   payload: string,
   signature: string,
   timestamp: string,
-  secret: string
+  secret: string,
 ): boolean {
   const expected = createHmac("sha256", secret)
     .update(`${timestamp}.${payload}`)
@@ -105,7 +113,7 @@ export function verifyContentsWebhookSignature(
   if (signature.length !== expectedSignature.length) return false;
   return timingSafeEqual(
     Buffer.from(signature, "utf8"),
-    Buffer.from(expectedSignature, "utf8")
+    Buffer.from(expectedSignature, "utf8"),
   );
 }
 
@@ -118,39 +126,55 @@ export class Valyu {
   // DeepResearch namespace
   public deepresearch: {
     create: (
-      options: DeepResearchCreateOptions
+      options: DeepResearchCreateOptions,
     ) => Promise<DeepResearchCreateResponse>;
     status: (taskId: string) => Promise<DeepResearchStatusResponse>;
     wait: (
       taskId: string,
-      options?: WaitOptions
+      options?: WaitOptions,
     ) => Promise<DeepResearchStatusResponse>;
     stream: (taskId: string, callback: StreamCallback) => Promise<void>;
     list: (options: ListOptions) => Promise<DeepResearchListResponse>;
     update: (
       taskId: string,
-      instruction: string
+      instruction: string,
     ) => Promise<DeepResearchUpdateResponse>;
     cancel: (taskId: string) => Promise<DeepResearchCancelResponse>;
     delete: (taskId: string) => Promise<DeepResearchDeleteResponse>;
     togglePublic: (
       taskId: string,
-      isPublic: boolean
+      isPublic: boolean,
     ) => Promise<DeepResearchTogglePublicResponse>;
     getAssets: (
       taskId: string,
       assetId: string,
-      options?: DeepResearchGetAssetsOptions
+      options?: DeepResearchGetAssetsOptions,
     ) => Promise<DeepResearchGetAssetsResponse>;
     respond: (
       taskId: string,
       interactionId: string,
-      response: Record<string, any>
+      response: Record<string, any>,
     ) => Promise<DeepResearchRespondResponse>;
-    respondPlanningQuestions: (taskId: string, interactionId: string, answers: { question: string; answer: string }[]) => Promise<DeepResearchRespondResponse>;
-    approvePlan: (taskId: string, interactionId: string, modifications?: string) => Promise<DeepResearchRespondResponse>;
-    respondSourceReview: (taskId: string, interactionId: string, options?: { includedDomains?: string[]; excludedDomains?: string[] }) => Promise<DeepResearchRespondResponse>;
-    approveOutline: (taskId: string, interactionId: string, modifications?: string) => Promise<DeepResearchRespondResponse>;
+    respondPlanningQuestions: (
+      taskId: string,
+      interactionId: string,
+      answers: { question: string; answer: string }[],
+    ) => Promise<DeepResearchRespondResponse>;
+    approvePlan: (
+      taskId: string,
+      interactionId: string,
+      modifications?: string,
+    ) => Promise<DeepResearchRespondResponse>;
+    respondSourceReview: (
+      taskId: string,
+      interactionId: string,
+      options?: { includedDomains?: string[]; excludedDomains?: string[] },
+    ) => Promise<DeepResearchRespondResponse>;
+    approveOutline: (
+      taskId: string,
+      interactionId: string,
+      modifications?: string,
+    ) => Promise<DeepResearchRespondResponse>;
   };
 
   // Batch API namespace
@@ -159,23 +183,25 @@ export class Valyu {
     status: (batchId: string) => Promise<BatchStatusResponse>;
     addTasks: (
       batchId: string,
-      options: AddBatchTasksOptions
+      options: AddBatchTasksOptions,
     ) => Promise<AddBatchTasksResponse>;
     listTasks: (
       batchId: string,
-      options?: ListBatchTasksOptions
+      options?: ListBatchTasksOptions,
     ) => Promise<ListBatchTasksResponse>;
     cancel: (batchId: string) => Promise<CancelBatchResponse>;
     list: (options?: ListBatchesOptions) => Promise<ListBatchesResponse>;
     waitForCompletion: (
       batchId: string,
-      options?: BatchWaitOptions
+      options?: BatchWaitOptions,
     ) => Promise<DeepResearchBatch>;
   };
 
   // Datasources API namespace
   public datasources: {
-    list: (options?: DatasourcesListOptions) => Promise<DatasourcesListResponse>;
+    list: (
+      options?: DatasourcesListOptions,
+    ) => Promise<DatasourcesListResponse>;
     categories: () => Promise<DatasourcesCategoriesResponse>;
   };
 
@@ -215,7 +241,8 @@ export class Valyu {
       togglePublic: this._deepresearchTogglePublic.bind(this),
       getAssets: this._deepresearchGetAssets.bind(this),
       respond: this._deepresearchRespond.bind(this),
-      respondPlanningQuestions: this._deepresearchRespondPlanningQuestions.bind(this),
+      respondPlanningQuestions:
+        this._deepresearchRespondPlanningQuestions.bind(this),
       approvePlan: this._deepresearchApprovePlan.bind(this),
       respondSourceReview: this._deepresearchRespondSourceReview.bind(this),
       approveOutline: this._deepresearchApproveOutline.bind(this),
@@ -359,7 +386,7 @@ export class Valyu {
    */
   async search(
     query: string,
-    options: SearchOptions = {}
+    options: SearchOptions = {},
   ): Promise<SearchResponse> {
     try {
       // Default values
@@ -445,25 +472,25 @@ export class Valyu {
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
-              total_deduction_dollars: 0.0,
+            total_deduction_dollars: 0.0,
             total_characters: 0,
           };
         }
 
         const includedSourcesValidation = this.validateSources(
-          options.includedSources
+          options.includedSources,
         );
         if (!includedSourcesValidation.valid) {
           return {
             success: false,
             error: `Invalid includedSources format. Invalid sources: ${includedSourcesValidation.invalidSources.join(
-              ", "
+              ", ",
             )}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
             tx_id: null,
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
-              total_deduction_dollars: 0.0,
+            total_deduction_dollars: 0.0,
             total_characters: 0,
           };
         }
@@ -479,25 +506,25 @@ export class Valyu {
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
-              total_deduction_dollars: 0.0,
+            total_deduction_dollars: 0.0,
             total_characters: 0,
           };
         }
 
         const excludeSourcesValidation = this.validateSources(
-          options.excludeSources
+          options.excludeSources,
         );
         if (!excludeSourcesValidation.valid) {
           return {
             success: false,
             error: `Invalid excludeSources format. Invalid sources: ${excludeSourcesValidation.invalidSources.join(
-              ", "
+              ", ",
             )}. Sources must be valid URLs, domains (with optional paths), or dataset identifiers in 'provider/dataset' format.`,
             tx_id: null,
             query,
             results: [],
             results_by_source: { web: 0, proprietary: 0 },
-              total_deduction_dollars: 0.0,
+            total_deduction_dollars: 0.0,
             total_characters: 0,
           };
         }
@@ -563,9 +590,13 @@ export class Valyu {
         payload.instructions = options.instructions;
       }
 
-      const response = await this.client.post(`${this.baseUrl}/search`, payload, {
-        headers: this.headers,
-      });
+      const response = await this.client.post(
+        `${this.baseUrl}/search`,
+        payload,
+        {
+          headers: this.headers,
+        },
+      );
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {
@@ -610,7 +641,7 @@ export class Valyu {
    */
   async contents(
     urls: string[],
-    options: ContentsOptions = {}
+    options: ContentsOptions = {},
   ): Promise<ContentsResponse | ContentsAsyncJobResponse> {
     try {
       // Validate URLs array
@@ -755,9 +786,13 @@ export class Valyu {
         payload.webhook_url = options.webhookUrl;
       }
 
-      const response = await this.client.post(`${this.baseUrl}/contents`, payload, {
-        headers: this.headers,
-      });
+      const response = await this.client.post(
+        `${this.baseUrl}/contents`,
+        payload,
+        {
+          headers: this.headers,
+        },
+      );
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {
@@ -801,7 +836,7 @@ export class Valyu {
     try {
       const response = await this.client.get(
         `${this.baseUrl}/contents/jobs/${jobId}`,
-        { headers: this.headers }
+        { headers: this.headers },
       );
       return normalizeContentsJobResponse(response.data);
     } catch (e: any) {
@@ -835,7 +870,7 @@ export class Valyu {
    */
   async waitForJob(
     jobId: string,
-    options: ContentsJobWaitOptions = {}
+    options: ContentsJobWaitOptions = {},
   ): Promise<ContentsJobResponse> {
     const pollInterval = options.pollInterval ?? 5000;
     const maxWaitTime = options.maxWaitTime ?? 7200000;
@@ -879,7 +914,7 @@ export class Valyu {
    * @param options.search.category - Category filter for search results
    */
   private async _deepresearchCreate(
-    options: DeepResearchCreateOptions
+    options: DeepResearchCreateOptions,
   ): Promise<DeepResearchCreateResponse> {
     try {
       // Use query field (input is supported for backward compatibility)
@@ -942,8 +977,7 @@ export class Valyu {
       if (options.strategy) payload.strategy = options.strategy;
       if (options.researchStrategy)
         payload.research_strategy = options.researchStrategy;
-      if (options.reportFormat)
-        payload.report_format = options.reportFormat;
+      if (options.reportFormat) payload.report_format = options.reportFormat;
       if (options.search) {
         payload.search = {};
         if (options.search.searchType) {
@@ -1004,7 +1038,7 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks`,
         payload,
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...response.data };
@@ -1020,12 +1054,12 @@ export class Valyu {
    * DeepResearch: Get task status
    */
   private async _deepresearchStatus(
-    taskId: string
+    taskId: string,
   ): Promise<DeepResearchStatusResponse> {
     try {
       const response = await this.client.get(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/status`,
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...response.data };
@@ -1042,7 +1076,7 @@ export class Valyu {
    */
   private async _deepresearchWait(
     taskId: string,
-    options: WaitOptions = {}
+    options: WaitOptions = {},
   ): Promise<DeepResearchStatusResponse> {
     const pollInterval = options.pollInterval || 5000;
     const maxWaitTime = options.maxWaitTime || 7200000;
@@ -1071,7 +1105,7 @@ export class Valyu {
             await this._deepresearchRespond(
               taskId,
               status.interaction.interaction_id,
-              response
+              response,
             );
             continue;
           }
@@ -1102,7 +1136,7 @@ export class Valyu {
    */
   private async _deepresearchStream(
     taskId: string,
-    callback: StreamCallback
+    callback: StreamCallback,
   ): Promise<void> {
     let isComplete = false;
     let lastMessageCount = 0;
@@ -1122,7 +1156,7 @@ export class Valyu {
         if (status.progress && callback.onProgress) {
           callback.onProgress(
             status.progress.current_step,
-            status.progress.total_steps
+            status.progress.total_steps,
           );
         }
 
@@ -1145,7 +1179,7 @@ export class Valyu {
         ) {
           if (callback.onError) {
             callback.onError(
-              new Error(status.error || `Task ${status.status}`)
+              new Error(status.error || `Task ${status.status}`),
             );
           }
           isComplete = true;
@@ -1167,13 +1201,13 @@ export class Valyu {
    * DeepResearch: List all tasks
    */
   private async _deepresearchList(
-    options?: ListOptions
+    options?: ListOptions,
   ): Promise<DeepResearchListResponse> {
     try {
       const limit = options?.limit || 10;
       const response = await this.client.get(
         `${this.baseUrl}/deepresearch/list?limit=${limit}`,
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, data: response.data };
@@ -1190,7 +1224,7 @@ export class Valyu {
    */
   private async _deepresearchUpdate(
     taskId: string,
-    instruction: string
+    instruction: string,
   ): Promise<DeepResearchUpdateResponse> {
     try {
       if (!instruction?.trim()) {
@@ -1203,7 +1237,7 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/update`,
         { instruction },
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...response.data };
@@ -1224,7 +1258,7 @@ export class Valyu {
   private async _deepresearchRespond(
     taskId: string,
     interactionId: string,
-    response: Record<string, any>
+    response: Record<string, any>,
   ): Promise<DeepResearchRespondResponse> {
     try {
       const resp = await this.client.post(
@@ -1233,7 +1267,7 @@ export class Valyu {
           interaction_id: interactionId,
           response,
         },
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...resp.data };
@@ -1251,7 +1285,7 @@ export class Valyu {
   private async _deepresearchRespondPlanningQuestions(
     taskId: string,
     interactionId: string,
-    answers: { question: string; answer: string }[]
+    answers: { question: string; answer: string }[],
   ): Promise<DeepResearchRespondResponse> {
     return this._deepresearchRespond(taskId, interactionId, {
       answers,
@@ -1264,7 +1298,7 @@ export class Valyu {
   private async _deepresearchApprovePlan(
     taskId: string,
     interactionId: string,
-    modifications?: string
+    modifications?: string,
   ): Promise<DeepResearchRespondResponse> {
     const response: Record<string, any> = { approved: true };
     if (modifications) {
@@ -1283,7 +1317,7 @@ export class Valyu {
     options: {
       includedDomains?: string[];
       excludedDomains?: string[];
-    } = {}
+    } = {},
   ): Promise<DeepResearchRespondResponse> {
     return this._deepresearchRespond(taskId, interactionId, {
       included_domains: options.includedDomains || [],
@@ -1297,7 +1331,7 @@ export class Valyu {
   private async _deepresearchApproveOutline(
     taskId: string,
     interactionId: string,
-    modifications?: string
+    modifications?: string,
   ): Promise<DeepResearchRespondResponse> {
     const response: Record<string, any> = { approved: true };
     if (modifications) {
@@ -1311,13 +1345,13 @@ export class Valyu {
    * DeepResearch: Cancel task
    */
   private async _deepresearchCancel(
-    taskId: string
+    taskId: string,
   ): Promise<DeepResearchCancelResponse> {
     try {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/cancel`,
         {},
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...response.data };
@@ -1333,12 +1367,12 @@ export class Valyu {
    * DeepResearch: Delete task
    */
   private async _deepresearchDelete(
-    taskId: string
+    taskId: string,
   ): Promise<DeepResearchDeleteResponse> {
     try {
       const response = await this.client.delete(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/delete`,
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...response.data };
@@ -1355,13 +1389,13 @@ export class Valyu {
    */
   private async _deepresearchTogglePublic(
     taskId: string,
-    isPublic: boolean
+    isPublic: boolean,
   ): Promise<DeepResearchTogglePublicResponse> {
     try {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/public`,
         { public: isPublic },
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...response.data };
@@ -1379,7 +1413,7 @@ export class Valyu {
   private async _deepresearchGetAssets(
     taskId: string,
     assetId: string,
-    options: DeepResearchGetAssetsOptions = {}
+    options: DeepResearchGetAssetsOptions = {},
   ): Promise<DeepResearchGetAssetsResponse> {
     try {
       // Build query params
@@ -1441,7 +1475,7 @@ export class Valyu {
    * @returns Promise resolving to batch creation response with batch_id and webhook_secret
    */
   private async _batchCreate(
-    options: CreateBatchOptions = {}
+    options: CreateBatchOptions = {},
   ): Promise<CreateBatchResponse> {
     try {
       const payload: Record<string, any> = {};
@@ -1481,10 +1515,10 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches`,
         payload,
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
-      return { success: true, ...response.data };
+      return { success: true, ...normalizeBatch(response.data) };
     } catch (e: any) {
       return {
         success: false,
@@ -1502,10 +1536,10 @@ export class Valyu {
     try {
       const response = await this.client.get(
         `${this.baseUrl}/deepresearch/batches/${batchId}`,
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
-      return { success: true, batch: response.data };
+      return { success: true, batch: normalizeBatch(response.data) };
     } catch (e: any) {
       return {
         success: false,
@@ -1523,7 +1557,7 @@ export class Valyu {
    */
   private async _batchAddTasks(
     batchId: string,
-    options: AddBatchTasksOptions
+    options: AddBatchTasksOptions,
   ): Promise<AddBatchTasksResponse> {
     try {
       if (!options.tasks || !Array.isArray(options.tasks)) {
@@ -1573,8 +1607,7 @@ export class Valyu {
         if (task.strategy) taskPayload.strategy = task.strategy;
         if (task.researchStrategy)
           taskPayload.research_strategy = task.researchStrategy;
-        if (task.reportFormat)
-          taskPayload.report_format = task.reportFormat;
+        if (task.reportFormat) taskPayload.report_format = task.reportFormat;
         if (task.urls) taskPayload.urls = task.urls;
         if (task.metadata) taskPayload.metadata = task.metadata;
 
@@ -1584,7 +1617,7 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
         { tasks: tasksPayload },
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...response.data };
@@ -1607,7 +1640,7 @@ export class Valyu {
    */
   private async _batchListTasks(
     batchId: string,
-    options: ListBatchTasksOptions = {}
+    options: ListBatchTasksOptions = {},
   ): Promise<ListBatchTasksResponse> {
     try {
       // Build query params
@@ -1649,7 +1682,7 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches/${batchId}/cancel`,
         {},
-        { headers: this.headers }
+        { headers: this.headers },
       );
 
       return { success: true, ...response.data };
@@ -1668,7 +1701,7 @@ export class Valyu {
    * @returns Promise resolving to list of all batches
    */
   private async _batchList(
-    options: ListBatchesOptions = {}
+    options: ListBatchesOptions = {},
   ): Promise<ListBatchesResponse> {
     try {
       // Build query params
@@ -1684,7 +1717,10 @@ export class Valyu {
         headers: this.headers,
       });
 
-      return { success: true, batches: response.data };
+      const batches = Array.isArray(response.data)
+        ? response.data.map(normalizeBatch)
+        : response.data;
+      return { success: true, batches };
     } catch (e: any) {
       return {
         success: false,
@@ -1704,7 +1740,7 @@ export class Valyu {
    */
   private async _batchWaitForCompletion(
     batchId: string,
-    options: BatchWaitOptions = {}
+    options: BatchWaitOptions = {},
   ): Promise<DeepResearchBatch> {
     const pollInterval = options.pollInterval || 10000; // 10 seconds default
     const maxWaitTime = options.maxWaitTime || 7200000; // 2 hours default
@@ -1762,7 +1798,7 @@ export class Valyu {
    */
   async answer(
     query: string,
-    options: AnswerOptions = {}
+    options: AnswerOptions = {},
   ): Promise<
     AnswerResponse | AsyncGenerator<AnswerStreamChunk, void, unknown>
   > {
@@ -1789,7 +1825,7 @@ export class Valyu {
    */
   private validateAnswerParams(
     query: string,
-    options: AnswerOptions
+    options: AnswerOptions,
   ): string | null {
     // Validate query
     if (!query || typeof query !== "string" || query.trim().length === 0) {
@@ -1855,7 +1891,7 @@ export class Valyu {
       const validation = this.validateSources(options.includedSources);
       if (!validation.valid) {
         return `Invalid includedSources format. Invalid sources: ${validation.invalidSources.join(
-          ", "
+          ", ",
         )}.`;
       }
     }
@@ -1866,7 +1902,7 @@ export class Valyu {
       const validation = this.validateSources(options.excludedSources);
       if (!validation.valid) {
         return `Invalid excludedSources format. Invalid sources: ${validation.invalidSources.join(
-          ", "
+          ", ",
         )}.`;
       }
     }
@@ -1879,7 +1915,7 @@ export class Valyu {
    */
   private buildAnswerPayload(
     query: string,
-    options: AnswerOptions
+    options: AnswerOptions,
   ): Record<string, any> {
     const defaultSearchType: SearchType = "all";
     const providedSearchTypeString = options.searchType?.toLowerCase();
@@ -1922,7 +1958,7 @@ export class Valyu {
    * Fetch answer (non-streaming mode)
    */
   private async fetchAnswer(
-    payload: Record<string, any>
+    payload: Record<string, any>,
   ): Promise<AnswerResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/answer`, {
@@ -2036,7 +2072,7 @@ export class Valyu {
    * Stream answer using SSE
    */
   private async *streamAnswer(
-    payload: Record<string, any>
+    payload: Record<string, any>,
   ): AsyncGenerator<AnswerStreamChunk, void, unknown> {
     try {
       const response = await fetch(`${this.baseUrl}/answer`, {
@@ -2131,7 +2167,7 @@ export class Valyu {
    * Create an error generator for streaming errors
    */
   private async *createErrorGenerator(
-    error: string
+    error: string,
   ): AsyncGenerator<AnswerStreamChunk, void, unknown> {
     yield { type: "error", error };
   }
@@ -2143,7 +2179,7 @@ export class Valyu {
    * @returns Promise resolving to list of datasources with their metadata
    */
   private async _datasourcesList(
-    options: DatasourcesListOptions = {}
+    options: DatasourcesListOptions = {},
   ): Promise<DatasourcesListResponse> {
     try {
       // Build query params
@@ -2172,9 +2208,12 @@ export class Valyu {
    */
   private async _datasourcesCategories(): Promise<DatasourcesCategoriesResponse> {
     try {
-      const response = await this.client.get(`${this.baseUrl}/datasources/categories`, {
-        headers: this.headers,
-      });
+      const response = await this.client.get(
+        `${this.baseUrl}/datasources/categories`,
+        {
+          headers: this.headers,
+        },
+      );
 
       return { success: true, categories: response.data.categories };
     } catch (e: any) {

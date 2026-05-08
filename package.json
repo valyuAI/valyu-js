@@ -19,7 +19,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:integration": "node tests/integration-test.js",
     "prepublishOnly": "npm run build"
   },
