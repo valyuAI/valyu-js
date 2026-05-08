@@ -63,7 +63,7 @@ async function batchExample() {
     if (!addResult.success) {
       console.log(`⚠ Warning: ${addResult.error}`);
       console.log(
-        "Note: Tasks may still be added despite error (backend issue)\n"
+        "Note: Tasks may still be added despite error (backend issue)\n",
       );
     } else {
       console.log(`✓ Added ${addResult.added} tasks\n`);
@@ -100,7 +100,7 @@ async function batchExample() {
       tasksList.tasks.forEach((task, i) => {
         if (task.query) {
           console.log(
-            `  ${i + 1}. ${task.status}: ${task.query.substring(0, 50)}...`
+            `  ${i + 1}. ${task.status}: ${task.query.substring(0, 50)}...`,
           );
         }
       });
@@ -115,7 +115,7 @@ async function batchExample() {
         maxWaitTime: 600000, // Wait up to 10 minutes
         onProgress: (batch) => {
           console.log(
-            `  Progress: ${batch.counts.completed}/${batch.counts.total} completed`
+            `  Progress: ${batch.counts.completed}/${batch.counts.total} completed`,
           );
         },
       });

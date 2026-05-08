@@ -1,6 +1,6 @@
-require('dotenv').config();
+require("dotenv").config();
 
-const { Valyu } = require('../dist/index.js');
+const { Valyu } = require("../dist/index.js");
 
 async function runContentsExamples() {
   console.log("=== Valyu Contents API Examples ===\n");
@@ -17,18 +17,22 @@ async function runContentsExamples() {
   console.log("Example 1: Basic Content Extraction");
   console.log("====================================");
   try {
-    const response = await valyu.contents(
-      ["https://en.wikipedia.org/wiki/JavaScript"]
-    );
-    
+    const response = await valyu.contents([
+      "https://en.wikipedia.org/wiki/JavaScript",
+    ]);
+
     console.log(`Success: ${response.success}`);
-    console.log(`URLs processed: ${response.urls_processed}/${response.urls_requested}`);
+    console.log(
+      `URLs processed: ${response.urls_processed}/${response.urls_requested}`,
+    );
     const r0 = response.results?.[0];
     if (r0) {
       if (r0.status === "success") {
         console.log(`Title: ${r0.title}`);
         console.log(`Content length: ${r0.length} characters`);
-        console.log(`First 200 chars: ${String(r0.content).substring(0, 200)}...`);
+        console.log(
+          `First 200 chars: ${String(r0.content).substring(0, 200)}...`,
+        );
       } else {
         console.log(`Failed: ${r0.url} - ${r0.error}`);
       }
@@ -47,10 +51,10 @@ async function runContentsExamples() {
       ["https://en.wikipedia.org/wiki/Artificial_intelligence"],
       {
         summary: true,
-        responseLength: "short"
-      }
+        responseLength: "short",
+      },
     );
-    
+
     console.log(`Success: ${response.success}`);
     const r0 = response.results?.[0];
     if (r0?.status === "success") {
@@ -73,12 +77,13 @@ async function runContentsExamples() {
     const response = await valyu.contents(
       ["https://en.wikipedia.org/wiki/Machine_learning"],
       {
-        summary: "Summarize this article in exactly 3 bullet points focusing on key concepts",
+        summary:
+          "Summarize this article in exactly 3 bullet points focusing on key concepts",
         responseLength: "medium",
-        extractEffort: "high"
-      }
+        extractEffort: "high",
+      },
     );
-    
+
     console.log(`Success: ${response.success}`);
     if (response.results && response.results[0]) {
       console.log(`Title: ${response.results[0].title}`);
@@ -101,26 +106,30 @@ async function runContentsExamples() {
       [
         "https://www.python.org",
         "https://nodejs.org",
-        "https://www.rust-lang.org"
+        "https://www.rust-lang.org",
       ],
       {
-        responseLength: "short"
-      }
+        responseLength: "short",
+      },
     );
-    
+
     console.log(`Success: ${response.success}`);
-    console.log(`URLs processed: ${response.urls_processed}/${response.urls_requested}`);
+    console.log(
+      `URLs processed: ${response.urls_processed}/${response.urls_requested}`,
+    );
     console.log(`Total cost: $${response.total_cost_dollars || 0}`);
     console.log(`Total characters: ${response.total_characters}`);
-    
+
     if (response.results) {
       response.results.forEach((result, index) => {
-        if (result.status === 'success') {
+        if (result.status === "success") {
           console.log(`\n${index + 1}. ${result.title}`);
           console.log(`   URL: ${result.url}`);
           console.log(`   Length: ${result.length} characters`);
         } else {
-          console.log(`\n${index + 1}. Failed: ${result.url} - ${result.error}`);
+          console.log(
+            `\n${index + 1}. Failed: ${result.url} - ${result.error}`,
+          );
         }
       });
     }
@@ -160,10 +169,14 @@ async function runContentsExamples() {
       const final = await valyu.waitForJob(job.jobId, {
         pollInterval: 5000,
         onProgress: (s) =>
-          console.log(`  Progress: ${s.urlsProcessed}/${s.urlsTotal} (${s.status})`),
+          console.log(
+            `  Progress: ${s.urlsProcessed}/${s.urlsTotal} (${s.status})`,
+          ),
       });
       console.log(`Completed: ${final.status}`);
-      console.log(`Processed: ${final.urlsProcessed}, Failed: ${final.urlsFailed}`);
+      console.log(
+        `Processed: ${final.urlsProcessed}, Failed: ${final.urlsFailed}`,
+      );
       if (final.results) {
         final.results.slice(0, 3).forEach((r, i) => {
           if (r.status === "success") {
@@ -186,38 +199,35 @@ async function runContentsExamples() {
   console.log("Example 6: Structured Data Extraction");
   console.log("======================================");
   try {
-    const response = await valyu.contents(
-      ["https://www.openai.com"],
-      {
-        summary: {
-          type: "object",
-          properties: {
-            company_name: { 
-              type: "string",
-              description: "The name of the company"
-            },
-            industry: { 
-              type: "string",
-              enum: ["tech", "finance", "healthcare", "retail", "other"],
-              description: "Primary industry sector"
-            },
-            key_products: {
-              type: "array",
-              items: { type: "string" },
-              maxItems: 3,
-              description: "Main products or services"
-            },
-            founded_year: {
-              type: "number",
-              description: "Year the company was founded"
-            }
+    const response = await valyu.contents(["https://www.openai.com"], {
+      summary: {
+        type: "object",
+        properties: {
+          company_name: {
+            type: "string",
+            description: "The name of the company",
           },
-          required: ["company_name", "industry"]
+          industry: {
+            type: "string",
+            enum: ["tech", "finance", "healthcare", "retail", "other"],
+            description: "Primary industry sector",
+          },
+          key_products: {
+            type: "array",
+            items: { type: "string" },
+            maxItems: 3,
+            description: "Main products or services",
+          },
+          founded_year: {
+            type: "number",
+            description: "Year the company was founded",
+          },
         },
-        extractEffort: "high"
-      }
-    );
-    
+        required: ["company_name", "industry"],
+      },
+      extractEffort: "high",
+    });
+
     console.log(`Success: ${response.success}`);
     if (response.results && response.results[0]) {
       console.log(`URL: ${response.results[0].url}`);
@@ -236,18 +246,20 @@ async function runContentsExamples() {
   console.log("Example 7: Response Length Control");
   console.log("===================================");
   const testUrl = ["https://en.wikipedia.org/wiki/Quantum_computing"];
-  
+
   const lengths = ["short", "medium", 500]; // short, medium, and custom character count
-  
+
   for (const length of lengths) {
     try {
       console.log(`\nTesting with responseLength: ${length}`);
       const response = await valyu.contents(testUrl, {
-        responseLength: length
+        responseLength: length,
       });
-      
+
       if (response.results && response.results[0]) {
-        console.log(`  Content length: ${response.results[0].length} characters`);
+        console.log(
+          `  Content length: ${response.results[0].length} characters`,
+        );
       }
     } catch (error) {
       console.error(`  Error: ${error.message}`);
@@ -260,19 +272,18 @@ async function runContentsExamples() {
   console.log("Example 8: High Extraction Effort");
   console.log("==================================");
   try {
-    const response = await valyu.contents(
-      ["https://arxiv.org"],
-      {
-        extractEffort: "high",
-        responseLength: "large",
-        summary: "List the main research categories available on this site"
-      }
-    );
-    
+    const response = await valyu.contents(["https://arxiv.org"], {
+      extractEffort: "high",
+      responseLength: "large",
+      summary: "List the main research categories available on this site",
+    });
+
     console.log(`Success: ${response.success}`);
     if (response.results && response.results[0]) {
       console.log(`Title: ${response.results[0].title}`);
-      console.log(`Content extracted: ${response.results[0].length} characters`);
+      console.log(
+        `Content extracted: ${response.results[0].length} characters`,
+      );
       if (response.results[0].summary) {
         console.log("Summary of research categories:");
         console.log(response.results[0].summary);
@@ -292,19 +303,21 @@ async function runContentsExamples() {
       [
         "https://www.nature.com",
         "https://www.science.org",
-        "https://www.cell.com"
+        "https://www.cell.com",
       ],
       {
         summary: true,
         responseLength: "medium",
-        maxPriceDollars: 0.01 // Limit to 1 cent
-      }
+        maxPriceDollars: 0.01, // Limit to 1 cent
+      },
     );
-    
+
     console.log(`Success: ${response.success}`);
-    console.log(`URLs processed: ${response.urls_processed}/${response.urls_requested}`);
+    console.log(
+      `URLs processed: ${response.urls_processed}/${response.urls_requested}`,
+    );
     console.log(`Total cost: $${response.total_cost_dollars || 0}`);
-    
+
     if (response.error) {
       console.log(`Note: ${response.error}`);
     }

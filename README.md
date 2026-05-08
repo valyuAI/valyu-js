@@ -20,10 +20,13 @@ import { Valyu } from "valyu-js";
 
 const valyu = new Valyu(process.env.VALYU_API_KEY);
 
-const response = await valyu.search("latest advances in transformer architectures", {
-  maxNumResults: 5,
-  searchType: "all",
-});
+const response = await valyu.search(
+  "latest advances in transformer architectures",
+  {
+    maxNumResults: 5,
+    searchType: "all",
+  },
+);
 
 for (const result of response.results) {
   console.log(result.title, result.url);
@@ -39,32 +42,35 @@ Get **$10 free credits** when you sign up at [platform.valyu.ai](https://platfor
 Search across web and proprietary data sources with a single query.
 
 ```typescript
-const response = await valyu.search("CRISPR gene therapy clinical trials 2026", {
-  searchType: "proprietary",                    // "all", "web", or "proprietary"
-  maxNumResults: 10,                            // 1-20 results
-  includedSources: ["valyu/valyu-pubmed"],      // filter to specific sources
-  startDate: "2026-01-01",                      // date filtering
-  endDate: "2026-12-31",
-});
+const response = await valyu.search(
+  "CRISPR gene therapy clinical trials 2026",
+  {
+    searchType: "proprietary", // "all", "web", or "proprietary"
+    maxNumResults: 10, // 1-20 results
+    includedSources: ["valyu/valyu-pubmed"], // filter to specific sources
+    startDate: "2026-01-01", // date filtering
+    endDate: "2026-12-31",
+  },
+);
 ```
 
 <details>
 <summary>All search parameters</summary>
 
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `query` | `string` | required | Search query |
-| `searchType` | `string` | `"all"` | `"all"`, `"web"`, or `"proprietary"` |
-| `maxNumResults` | `number` | `10` | Results to return (1-20) |
-| `maxPrice` | `number` | `30` | Max price per thousand queries (CPM) |
-| `relevanceThreshold` | `number` | `0.5` | Min relevance score (0-1) |
-| `includedSources` | `string[]` | `[]` | Sources to search |
-| `excludeSources` | `string[]` | `[]` | Sources to exclude |
-| `startDate` | `string` | - | Start date (YYYY-MM-DD) |
-| `endDate` | `string` | - | End date (YYYY-MM-DD) |
-| `countryCode` | `string` | - | Country filter (e.g. `"US"`, `"GB"`) |
-| `responseLength` | `string \| number` | - | `"short"`, `"medium"`, `"large"`, `"max"`, or character count |
-| `category` | `string` | - | Category filter |
+| Parameter            | Type               | Default  | Description                                                   |
+| -------------------- | ------------------ | -------- | ------------------------------------------------------------- |
+| `query`              | `string`           | required | Search query                                                  |
+| `searchType`         | `string`           | `"all"`  | `"all"`, `"web"`, or `"proprietary"`                          |
+| `maxNumResults`      | `number`           | `10`     | Results to return (1-20)                                      |
+| `maxPrice`           | `number`           | `30`     | Max price per thousand queries (CPM)                          |
+| `relevanceThreshold` | `number`           | `0.5`    | Min relevance score (0-1)                                     |
+| `includedSources`    | `string[]`         | `[]`     | Sources to search                                             |
+| `excludeSources`     | `string[]`         | `[]`     | Sources to exclude                                            |
+| `startDate`          | `string`           | -        | Start date (YYYY-MM-DD)                                       |
+| `endDate`            | `string`           | -        | End date (YYYY-MM-DD)                                         |
+| `countryCode`        | `string`           | -        | Country filter (e.g. `"US"`, `"GB"`)                          |
+| `responseLength`     | `string \| number` | -        | `"short"`, `"medium"`, `"large"`, `"max"`, or character count |
+| `category`           | `string`           | -        | Category filter                                               |
 
 </details>
 
@@ -83,15 +89,18 @@ const response = await valyu.contents(["https://example.com/article"], {
 });
 
 // Structured data extraction with JSON schema
-const response = await valyu.contents(["https://en.wikipedia.org/wiki/OpenAI"], {
-  summary: {
-    type: "object",
-    properties: {
-      company_name: { type: "string" },
-      founded_year: { type: "integer" },
+const response = await valyu.contents(
+  ["https://en.wikipedia.org/wiki/OpenAI"],
+  {
+    summary: {
+      type: "object",
+      properties: {
+        company_name: { type: "string" },
+        founded_year: { type: "integer" },
+      },
     },
   },
-});
+);
 ```
 
 ### Answer
@@ -104,8 +113,8 @@ const response = await valyu.answer("What are the side effects of metformin?", {
   includedSources: ["valyu/valyu-pubmed"],
 });
 
-console.log(response.contents);        // AI-generated answer
-console.log(response.search_results);  // Source citations
+console.log(response.contents); // AI-generated answer
+console.log(response.search_results); // Source citations
 ```
 
 ### DeepResearch
@@ -123,28 +132,30 @@ const task = await valyu.deepresearch.create({
 // Wait for completion with progress
 const result = await valyu.deepresearch.wait(task.deepresearch_id, {
   onProgress: (status) => {
-    console.log(`Step ${status.progress.current_step}/${status.progress.total_steps}`);
+    console.log(
+      `Step ${status.progress.current_step}/${status.progress.total_steps}`,
+    );
   },
 });
 
-console.log(result.output);   // Markdown report
-console.log(result.pdf_url);  // PDF download link
+console.log(result.output); // Markdown report
+console.log(result.pdf_url); // PDF download link
 ```
 
 <details>
 <summary>All DeepResearch methods</summary>
 
-| Method | Description |
-|---|---|
-| `create(options)` | Start a new research task |
-| `status(taskId)` | Get task status |
-| `wait(taskId, options?)` | Poll until completion |
-| `stream(taskId, callbacks)` | Stream real-time updates |
-| `list(options)` | List research tasks |
-| `update(taskId, instruction)` | Add follow-up instruction |
-| `cancel(taskId)` | Cancel a running task |
-| `delete(taskId)` | Delete a task |
-| `togglePublic(taskId, isPublic)` | Toggle public access |
+| Method                           | Description               |
+| -------------------------------- | ------------------------- |
+| `create(options)`                | Start a new research task |
+| `status(taskId)`                 | Get task status           |
+| `wait(taskId, options?)`         | Poll until completion     |
+| `stream(taskId, callbacks)`      | Stream real-time updates  |
+| `list(options)`                  | List research tasks       |
+| `update(taskId, instruction)`    | Add follow-up instruction |
+| `cancel(taskId)`                 | Cancel a running task     |
+| `delete(taskId)`                 | Delete a task             |
+| `togglePublic(taskId, isPublic)` | Toggle public access      |
 
 </details>
 

@@ -1,5 +1,5 @@
-require('dotenv').config();
-const { Valyu } = require('../dist/index.js');
+require("dotenv").config();
+const { Valyu } = require("../dist/index.js");
 
 async function runExamples() {
   console.log("Valyu JavaScript SDK Examples");
@@ -34,7 +34,7 @@ async function runExamples() {
         includedSources: ["valyu/valyu-arxiv"],
         category: "agentic RAG",
         startDate: "2024-12-01",
-      }
+      },
     );
     console.log(response);
   } catch (error) {
@@ -53,7 +53,7 @@ async function runExamples() {
         relevanceThreshold: 0.5,
         startDate: "2025-06-01",
         endDate: "2025-07-25",
-      }
+      },
     );
     console.log(response);
   } catch (error) {
@@ -63,15 +63,12 @@ async function runExamples() {
   // Web search with country filtering
   console.log("🌐 Web Search with Country Filter:");
   try {
-    const response = await valyu.search(
-      "what is the weather where i am?",
-      {
-        searchType: "web",
-        maxNumResults: 2,
-        countryCode: "UK",
-        responseLength: "short",
-      }
-    );
+    const response = await valyu.search("what is the weather where i am?", {
+      searchType: "web",
+      maxNumResults: 2,
+      countryCode: "UK",
+      responseLength: "short",
+    });
     console.log(response);
   } catch (error) {
     console.error("Web search with country filter failed:", error.message);
@@ -82,15 +79,12 @@ async function runExamples() {
   // News search
   console.log("📰 News Search:");
   try {
-    const response = await valyu.search(
-      "latest AI developments",
-      {
-        searchType: "news",
-        maxNumResults: 10,
-        relevanceThreshold: 0.5,
-        startDate: "2025-01-01",
-      }
-    );
+    const response = await valyu.search("latest AI developments", {
+      searchType: "news",
+      maxNumResults: 10,
+      relevanceThreshold: 0.5,
+      startDate: "2025-01-01",
+    });
     console.log(response);
   } catch (error) {
     console.error("News search failed:", error.message);
@@ -111,7 +105,7 @@ async function runExamples() {
         excludeSources: ["paperswithcode.com", "wikipedia.org"],
         responseLength: "large",
         isToolCall: true,
-      }
+      },
     );
     console.log(response);
   } catch (error) {
@@ -123,18 +117,15 @@ async function runExamples() {
   // Search with custom response length (character count)
   console.log("📏 Custom Response Length Search:");
   try {
-    const response = await valyu.search(
-      "State of video generation AI models",
-      {
-        maxNumResults: 10,
-        category: "vLLMs",
-        responseLength: 1000,  // Limit to 1000 characters per result
-      }
-    );
+    const response = await valyu.search("State of video generation AI models", {
+      maxNumResults: 10,
+      category: "vLLMs",
+      responseLength: 1000, // Limit to 1000 characters per result
+    });
     console.log(response);
   } catch (error) {
     console.error("Custom response length search failed:", error.message);
   }
 }
 
-runExamples().catch(console.error); 
+runExamples().catch(console.error);

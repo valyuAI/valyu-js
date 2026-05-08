@@ -45,7 +45,7 @@ async function main() {
       onProgress: (status) => {
         if (status.progress) {
           console.log(
-            `   Progress: Step ${status.progress.current_step}/${status.progress.total_steps}`
+            `   Progress: Step ${status.progress.current_step}/${status.progress.total_steps}`,
           );
         }
         console.log(`   Status: ${status.status}`);

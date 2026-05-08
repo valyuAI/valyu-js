@@ -1,4 +1,4 @@
-require('dotenv').config();
+require("dotenv").config();
 const { Valyu } = require("../dist/index.js");
 
 // Initialize the Valyu client
@@ -69,7 +69,7 @@ async function demonstrateFastMode() {
       console.log("AI Answer (Fast Mode):");
       console.log(answerResult.contents);
       console.log(
-        `\nNumber of results: ${answerResult.search_metadata.number_of_results}`
+        `\nNumber of results: ${answerResult.search_metadata.number_of_results}`,
       );
       console.log(`Total cost: $${answerResult.cost.total_deduction_dollars}`);
     } else {
@@ -85,7 +85,7 @@ console.log("Fast Mode Feature Demonstration");
 console.log("===============================\n");
 console.log("Fast mode provides quicker responses with shorter content,");
 console.log(
-  "ideal for general-purpose queries where speed is preferred over detail.\n"
+  "ideal for general-purpose queries where speed is preferred over detail.\n",
 );
 
 demonstrateFastMode().catch(console.error);
