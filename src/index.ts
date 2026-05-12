@@ -47,7 +47,7 @@ import {
   DatasourcesCategoriesResponse,
 } from "./types";
 
-const SDK_VERSION = "2.7.12";
+const SDK_VERSION = "2.7.16";
 
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
@@ -2233,6 +2233,7 @@ export type {
   DeepResearchSource,
   DeepResearchUsage,
   DeepResearchCostBreakdown,
+  ToolConfig,
   DeepResearchTools,
   DeepResearchCreateResponse,
   DeepResearchStatusResponse,
