@@ -428,8 +428,8 @@ export interface DeepResearchTools {
   code_execution?: boolean | ToolConfig;
   screenshots?: boolean | ToolConfig;
   browser_use?: boolean | ToolConfig;
-  /** Enable chart/graph generation embedded in the final report (free) */
-  charts?: boolean;
+  /** Enable chart/graph generation embedded in the final report (free, unlimited) */
+  charts?: boolean | ToolConfig;
 }
 
 export interface DeepResearchCreateOptions {
