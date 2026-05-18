@@ -49,6 +49,22 @@ import {
 
 const SDK_VERSION = "2.7.16";
 
+const INTERNAL_BATCH_FIELDS = ["organisation_id", "api_key_id", "credit_id"] as const;
+
+/**
+ * Strip internal server fields from batch API response data.
+ * These fields must never be forwarded to SDK callers - they enable job enumeration.
+ */
+function stripInternalBatchFields(data: Record<string, any>): Record<string, any> {
+  if (!data || typeof data !== "object") return data;
+  if (Array.isArray(data)) return data.map(stripInternalBatchFields);
+  const result = { ...data };
+  for (const field of INTERNAL_BATCH_FIELDS) {
+    delete result[field];
+  }
+  return result;
+}
+
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
   return {
@@ -1484,7 +1500,7 @@ export class Valyu {
         { headers: this.headers }
       );
 
-      return { success: true, ...response.data };
+      return { success: true, ...stripInternalBatchFields(response.data) };
     } catch (e: any) {
       return {
         success: false,
@@ -1505,7 +1521,7 @@ export class Valyu {
         { headers: this.headers }
       );
 
-      return { success: true, batch: response.data };
+      return { success: true, batch: stripInternalBatchFields(response.data) as any };
     } catch (e: any) {
       return {
         success: false,
@@ -1587,7 +1603,7 @@ export class Valyu {
         { headers: this.headers }
       );
 
-      return { success: true, ...response.data };
+      return { success: true, ...stripInternalBatchFields(response.data) };
     } catch (e: any) {
       return {
         success: false,
@@ -1630,7 +1646,7 @@ export class Valyu {
       }`;
       const response = await this.client.get(url, { headers: this.headers });
 
-      return { success: true, ...response.data };
+      return { success: true, ...stripInternalBatchFields(response.data) };
     } catch (e: any) {
       return {
         success: false,
@@ -1652,7 +1668,7 @@ export class Valyu {
         { headers: this.headers }
       );
 
-      return { success: true, ...response.data };
+      return { success: true, ...stripInternalBatchFields(response.data) };
     } catch (e: any) {
       return {
         success: false,
@@ -1684,7 +1700,7 @@ export class Valyu {
         headers: this.headers,
       });
 
-      return { success: true, batches: response.data };
+      return { success: true, batches: stripInternalBatchFields(response.data) as any };
     } catch (e: any) {
       return {
         success: false,
