@@ -1413,7 +1413,7 @@ export class Valyu {
         success: true,
         data: Buffer.from(response.data),
         contentType:
-          response.headers["content-type"] || "application/octet-stream",
+          String(response.headers["content-type"] || "application/octet-stream"),
       };
     } catch (e: any) {
       return {
