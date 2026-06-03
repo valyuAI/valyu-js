@@ -1,6 +1,6 @@
 {
   "name": "valyu-js",
-  "version": "2.7.16",
+  "version": "2.7.17",
   "description": "Deepsearch API for AI.",
   "files": [
     "dist"

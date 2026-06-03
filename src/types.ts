@@ -584,6 +584,8 @@ export interface DeepResearchStatusResponse {
   completed_at?: string; // ISO 8601 timestamp string
   output?: string | Record<string, any>;
   output_type?: DeepResearchOutputType;
+  title?: string; // Auto-generated report title
+  total_word_count?: number; // Total word count of the synthesised report
   pdf_url?: string;
   images?: ImageMetadata[];
   deliverables?: DeliverableResult[];
@@ -604,6 +606,7 @@ export interface DeepResearchTaskListItem {
   deepresearch_id: string;
   query: string; // Research query
   input?: string; // Deprecated: use query instead
+  title?: string; // Auto-generated report title
   status: DeepResearchStatus;
   created_at: number;
   public?: boolean;
