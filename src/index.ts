@@ -351,6 +351,7 @@ export class Valyu {
    * @param options.category - Category filter for search results
    * @param options.startDate - Start date filter (YYYY-MM-DD format)
    * @param options.endDate - End date filter (YYYY-MM-DD format)
+   * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
    * @param options.countryCode - Country code filter for search results
    * @param options.responseLength - Response content length: "short"/"medium"/"large"/"max" or integer character count
    * @param options.fastMode - Fast mode for quicker but shorter results (default: false)
@@ -543,6 +544,10 @@ export class Valyu {
         payload.end_date = options.endDate;
       }
 
+      if (options.historicalCache !== undefined) {
+        payload.historical_cache = options.historicalCache;
+      }
+
       if (options.countryCode !== undefined) {
         payload.country_code = options.countryCode;
       }
@@ -606,6 +611,9 @@ export class Valyu {
    * @param options.screenshot - Request page screenshots (default: false)
    * @param options.async - Force async processing (required for >10 URLs)
    * @param options.webhookUrl - HTTPS URL for completion notification (async only)
+   * @param options.startDate - Start date filter (YYYY-MM-DD format), inclusive
+   * @param options.endDate - End date filter (YYYY-MM-DD format), inclusive
+   * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
    * @returns Promise resolving to sync results or async job (when async: true or >10 URLs)
    */
   async contents(
@@ -755,6 +763,18 @@ export class Valyu {
         payload.webhook_url = options.webhookUrl;
       }
 
+      if (options.startDate !== undefined) {
+        payload.start_date = options.startDate;
+      }
+
+      if (options.endDate !== undefined) {
+        payload.end_date = options.endDate;
+      }
+
+      if (options.historicalCache !== undefined) {
+        payload.historical_cache = options.historicalCache;
+      }
+
       const response = await this.client.post(`${this.baseUrl}/contents`, payload, {
         headers: this.headers,
       });
@@ -876,6 +896,7 @@ export class Valyu {
    * @param options.search.excludedSources - Array of source types to exclude (e.g., ["web", "patent"])
    * @param options.search.startDate - Start date filter in ISO format (YYYY-MM-DD)
    * @param options.search.endDate - End date filter in ISO format (YYYY-MM-DD)
+   * @param options.search.historicalCache - When true and a date range is set, searches return the newest cached snapshot inside the range instead of the latest crawl. Locked for the whole research run — the agent cannot toggle it mid-research
    * @param options.search.category - Category filter for search results
    */
   private async _deepresearchCreate(
@@ -963,6 +984,9 @@ export class Valyu {
         }
         if (options.search.endDate) {
           payload.search.end_date = options.search.endDate;
+        }
+        if (options.search.historicalCache !== undefined) {
+          payload.search.historical_cache = options.search.historicalCache;
         }
         if (options.search.category) {
           payload.search.category = options.search.category;
@@ -1435,6 +1459,7 @@ export class Valyu {
    * @param options.search.excludedSources - Array of source types to exclude (e.g., ["web", "patent"])
    * @param options.search.startDate - Start date filter in ISO format (YYYY-MM-DD)
    * @param options.search.endDate - End date filter in ISO format (YYYY-MM-DD)
+   * @param options.search.historicalCache - When true and a date range is set, searches return the newest cached snapshot inside the range instead of the latest crawl
    * @param options.search.category - Category filter for search results
    * @param options.webhookUrl - Optional HTTPS URL for completion notification
    * @param options.metadata - Optional metadata key-value pairs
@@ -1470,6 +1495,9 @@ export class Valyu {
         }
         if (options.search.endDate) {
           payload.search.end_date = options.search.endDate;
+        }
+        if (options.search.historicalCache !== undefined) {
+          payload.search.historical_cache = options.search.historicalCache;
         }
         if (options.search.category) {
           payload.search.category = options.search.category;

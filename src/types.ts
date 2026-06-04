@@ -79,6 +79,7 @@ export interface SearchOptions {
   category?: string;
   startDate?: string;
   endDate?: string;
+  historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
   countryCode?: CountryCode;
   responseLength?: ResponseLength;
   fastMode?: boolean;
@@ -122,6 +123,9 @@ export interface ContentsOptions {
   screenshot?: boolean;
   async?: boolean;
   webhookUrl?: string;
+  startDate?: string; // ISO date format (YYYY-MM-DD), inclusive
+  endDate?: string; // ISO date format (YYYY-MM-DD), inclusive
+  historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
 }
 
 // ContentResult - discriminated union (success | failed)
@@ -409,6 +413,7 @@ export interface DeepResearchSearchConfig {
   sourceBiases?: Record<string, number>;
   startDate?: string; // ISO date format (YYYY-MM-DD)
   endDate?: string; // ISO date format (YYYY-MM-DD)
+  historicalCache?: boolean; // When true and a date range is set, searches return the newest cached snapshot inside the range; locked for the whole research run (the agent cannot toggle it)
   category?: string;
   countryCode?: CountryCode; // Country code for location-filtered searches
 }
