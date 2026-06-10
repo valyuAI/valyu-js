@@ -45,9 +45,18 @@ import {
   DatasourcesListOptions,
   DatasourcesListResponse,
   DatasourcesCategoriesResponse,
+  WorkflowsListOptions,
+  WorkflowsListResponse,
+  WorkflowResponse,
+  WorkflowVersionsResponse,
+  WorkflowPreviewOptions,
+  WorkflowPreviewResponse,
+  WorkflowCreateOptions,
+  WorkflowUpdateOptions,
+  WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.7.17";
+const SDK_VERSION = "2.8.0";
 
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
@@ -179,6 +188,23 @@ export class Valyu {
     categories: () => Promise<DatasourcesCategoriesResponse>;
   };
 
+  // Workflows API namespace
+  public workflows: {
+    list: (options?: WorkflowsListOptions) => Promise<WorkflowsListResponse>;
+    get: (slug: string, version?: number) => Promise<WorkflowResponse>;
+    versions: (slug: string) => Promise<WorkflowVersionsResponse>;
+    preview: (
+      slug: string,
+      options?: WorkflowPreviewOptions
+    ) => Promise<WorkflowPreviewResponse>;
+    create: (options: WorkflowCreateOptions) => Promise<WorkflowResponse>;
+    update: (
+      slug: string,
+      options: WorkflowUpdateOptions
+    ) => Promise<WorkflowResponse>;
+    delete: (slug: string) => Promise<WorkflowDeleteResponse>;
+  };
+
   constructor(apiKey?: string, baseUrl: string = "https://api.valyu.ai/v1") {
     if (!apiKey) {
       apiKey = process.env.VALYU_API_KEY;
@@ -236,6 +262,17 @@ export class Valyu {
     this.datasources = {
       list: this._datasourcesList.bind(this),
       categories: this._datasourcesCategories.bind(this),
+    };
+
+    // Initialize Workflows namespace
+    this.workflows = {
+      list: this._workflowsList.bind(this),
+      get: this._workflowsGet.bind(this),
+      versions: this._workflowsVersions.bind(this),
+      preview: this._workflowsPreview.bind(this),
+      create: this._workflowsCreate.bind(this),
+      update: this._workflowsUpdate.bind(this),
+      delete: this._workflowsDelete.bind(this),
     };
   }
 
@@ -905,6 +942,55 @@ export class Valyu {
     try {
       // Use query field (input is supported for backward compatibility)
       const queryValue = options.query ?? options.input;
+
+      // Workflow runs: the template supplies the freeform fields
+      if (options.workflowId) {
+        if (
+          queryValue ||
+          options.strategy ||
+          options.researchStrategy ||
+          options.reportFormat
+        ) {
+          return {
+            success: false,
+            error:
+              "workflowId is mutually exclusive with query/input/researchStrategy/reportFormat - the workflow template supplies those fields",
+          };
+        }
+        const payload: Record<string, any> = {
+          workflow_id: options.workflowId,
+        };
+        if (options.workflowParams !== undefined) {
+          payload.workflow_params = options.workflowParams;
+        }
+        if (options.workflowVersion !== undefined) {
+          payload.workflow_version = options.workflowVersion;
+        }
+        // Only send mode/output_formats when explicitly set so the
+        // workflow's recommended defaults apply otherwise
+        const explicitMode = options.mode ?? options.model;
+        if (explicitMode) payload.mode = explicitMode;
+        if (options.outputFormats) payload.output_formats = options.outputFormats;
+        if (options.tools) payload.tools = options.tools;
+        if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
+        if (options.alertEmail) {
+          payload.alert_email =
+            typeof options.alertEmail === "string"
+              ? options.alertEmail
+              : {
+                  email: options.alertEmail.email,
+                  custom_url: options.alertEmail.custom_url,
+                };
+        }
+        if (options.metadata) payload.metadata = options.metadata;
+
+        const response = await this.client.post(
+          `${this.baseUrl}/deepresearch/tasks`,
+          payload,
+          { headers: this.headers }
+        );
+        return { success: true, ...response.data };
+      }
 
       // Validation
       if (!queryValue?.trim()) {
@@ -2212,6 +2298,200 @@ export class Valyu {
       };
     }
   }
+
+  /** Extract the most descriptive error message from a Workflows API error. */
+  private workflowError(e: any): string {
+    return e.response?.data?.message || e.response?.data?.error || e.message;
+  }
+
+  /**
+   * Workflows: List workflows available to your org
+   * @param options - Filters: vertical, scope ("valyu" | "org" | "all"), q, tags, limit, expand
+   */
+  private async _workflowsList(
+    options: WorkflowsListOptions = {}
+  ): Promise<WorkflowsListResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (options.vertical) params.append("vertical", options.vertical);
+      if (options.scope) params.append("scope", options.scope);
+      if (options.q) params.append("q", options.q);
+      if (options.tags?.length) params.append("tags", options.tags.join(","));
+      if (options.limit !== undefined) {
+        params.append("limit", String(options.limit));
+      }
+      if (options.expand) params.append("expand", "true");
+
+      const url = `${this.baseUrl}/workflows${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      const response = await this.client.get(url, { headers: this.headers });
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return { success: false, error: this.workflowError(e) };
+    }
+  }
+
+  /**
+   * Workflows: Get a workflow's full detail, including its template
+   * @param slug - Workflow slug
+   * @param version - Specific version to fetch (defaults to the current version)
+   */
+  private async _workflowsGet(
+    slug: string,
+    version?: number
+  ): Promise<WorkflowResponse> {
+    try {
+      const url = `${this.baseUrl}/workflows/${encodeURIComponent(slug)}${
+        version !== undefined ? `?version=${version}` : ""
+      }`;
+      const response = await this.client.get(url, { headers: this.headers });
+
+      return { success: true, workflow: response.data };
+    } catch (e: any) {
+      return { success: false, error: this.workflowError(e) };
+    }
+  }
+
+  /**
+   * Workflows: List a workflow's version history
+   * @param slug - Workflow slug
+   */
+  private async _workflowsVersions(
+    slug: string
+  ): Promise<WorkflowVersionsResponse> {
+    try {
+      const response = await this.client.get(
+        `${this.baseUrl}/workflows/${encodeURIComponent(slug)}/versions`,
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return { success: false, error: this.workflowError(e) };
+    }
+  }
+
+  /**
+   * Workflows: Resolve a workflow's template with params without creating a task
+   * @param slug - Workflow slug
+   * @param options - workflowParams (variable values) and optional workflowVersion
+   */
+  private async _workflowsPreview(
+    slug: string,
+    options: WorkflowPreviewOptions = {}
+  ): Promise<WorkflowPreviewResponse> {
+    try {
+      const payload: Record<string, any> = {};
+      if (options.workflowParams !== undefined) {
+        payload.workflow_params = options.workflowParams;
+      }
+      if (options.workflowVersion !== undefined) {
+        payload.workflow_version = options.workflowVersion;
+      }
+
+      const response = await this.client.post(
+        `${this.baseUrl}/workflows/${encodeURIComponent(slug)}/preview`,
+        payload,
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return { success: false, error: this.workflowError(e) };
+    }
+  }
+
+  /**
+   * Workflows: Create a new workflow for your org
+   * @param options - slug, title, version (template body), and optional metadata
+   */
+  private async _workflowsCreate(
+    options: WorkflowCreateOptions
+  ): Promise<WorkflowResponse> {
+    try {
+      const payload: Record<string, any> = {
+        slug: options.slug,
+        title: options.title,
+        version: options.version,
+      };
+      if (options.subtitle !== undefined) payload.subtitle = options.subtitle;
+      if (options.description !== undefined) {
+        payload.description = options.description;
+      }
+      if (options.vertical !== undefined) payload.vertical = options.vertical;
+      if (options.tags !== undefined) payload.tags = options.tags;
+      if (options.icon !== undefined) payload.icon = options.icon;
+
+      const response = await this.client.post(
+        `${this.baseUrl}/workflows`,
+        payload,
+        { headers: this.headers }
+      );
+
+      return { success: true, workflow: response.data };
+    } catch (e: any) {
+      return { success: false, error: this.workflowError(e) };
+    }
+  }
+
+  /**
+   * Workflows: Update a workflow's metadata and/or publish a new template version.
+   * Only workflows owned by your org can be updated; versions are append-only
+   * (a version body requires a changelog).
+   * @param slug - Workflow slug
+   * @param options - Metadata fields and/or a new version body
+   */
+  private async _workflowsUpdate(
+    slug: string,
+    options: WorkflowUpdateOptions
+  ): Promise<WorkflowResponse> {
+    try {
+      const payload: Record<string, any> = {};
+      if (options.title !== undefined) payload.title = options.title;
+      if (options.subtitle !== undefined) payload.subtitle = options.subtitle;
+      if (options.description !== undefined) {
+        payload.description = options.description;
+      }
+      if (options.vertical !== undefined) payload.vertical = options.vertical;
+      if (options.tags !== undefined) payload.tags = options.tags;
+      if (options.icon !== undefined) payload.icon = options.icon;
+      if (options.version !== undefined) payload.version = options.version;
+      if (options.setCurrent !== undefined) {
+        payload.set_current = options.setCurrent;
+      }
+
+      const response = await this.client.patch(
+        `${this.baseUrl}/workflows/${encodeURIComponent(slug)}`,
+        payload,
+        { headers: this.headers }
+      );
+
+      return { success: true, workflow: response.data };
+    } catch (e: any) {
+      return { success: false, error: this.workflowError(e) };
+    }
+  }
+
+  /**
+   * Workflows: Delete a workflow owned by your org (soft delete)
+   * @param slug - Workflow slug
+   */
+  private async _workflowsDelete(
+    slug: string
+  ): Promise<WorkflowDeleteResponse> {
+    try {
+      const response = await this.client.delete(
+        `${this.baseUrl}/workflows/${encodeURIComponent(slug)}`,
+        { headers: this.headers }
+      );
+
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return { success: false, error: this.workflowError(e) };
+    }
+  }
 }
 
 export type {
@@ -2308,4 +2588,24 @@ export type {
   DatasourcesListOptions,
   DatasourcesListResponse,
   DatasourcesCategoriesResponse,
+  WorkflowMode,
+  WorkflowVariableType,
+  WorkflowVariableValidation,
+  WorkflowVariable,
+  WorkflowDeliverable,
+  WorkflowTools,
+  Workflow,
+  WorkflowVersionSummary,
+  WorkflowRunInfo,
+  ResolvedWorkflowTemplate,
+  WorkflowVersionInput,
+  WorkflowsListOptions,
+  WorkflowCreateOptions,
+  WorkflowUpdateOptions,
+  WorkflowPreviewOptions,
+  WorkflowsListResponse,
+  WorkflowResponse,
+  WorkflowVersionsResponse,
+  WorkflowPreviewResponse,
+  WorkflowDeleteResponse,
 } from "./types";

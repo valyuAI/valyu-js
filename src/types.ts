@@ -460,6 +460,9 @@ export interface DeepResearchCreateOptions {
   brandCollectionId?: string;
   metadata?: Record<string, string | number | boolean>;
   hitl?: HitlConfig; // Human-in-the-loop configuration (not available for batch)
+  workflowId?: string; // Workflow slug to run — the template supplies query/strategy/format. Mutually exclusive with query/input/researchStrategy/reportFormat
+  workflowParams?: Record<string, any>; // Values for the workflow's variables
+  workflowVersion?: number; // Specific workflow version to run (defaults to current)
 }
 
 // Human-in-the-Loop (HITL) Types
@@ -572,6 +575,7 @@ export interface DeepResearchCreateResponse {
   public?: boolean;
   webhook_secret?: string;
   message?: string;
+  workflow?: WorkflowRunInfo; // Present when the task was created from a workflow
   error?: string;
 }
 
@@ -933,5 +937,183 @@ export interface DatasourcesListResponse {
 export interface DatasourcesCategoriesResponse {
   success: boolean;
   categories?: DatasourceCategory[];
+  error?: string;
+}
+
+// Workflows API Types
+// Workflows are templated DeepResearch starting points with typed {variable}
+// placeholders and version history. Run one by passing workflowId to
+// deepresearch.create().
+
+export type WorkflowMode = "fast" | "standard" | "heavy" | "max";
+
+export type WorkflowVariableType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "date"
+  | "enum";
+
+export interface WorkflowVariableValidation {
+  min_length?: number;
+  max_length?: number;
+  pattern?: string;
+  enum?: string[];
+}
+
+export interface WorkflowVariable {
+  key: string;
+  label?: string;
+  type?: WorkflowVariableType;
+  required?: boolean;
+  placeholder?: string;
+  help?: string;
+  examples?: string[];
+  validation?: WorkflowVariableValidation;
+}
+
+export interface WorkflowDeliverable {
+  type: string;
+  description?: string;
+}
+
+export interface WorkflowTools {
+  code_execution?: boolean;
+  screenshots?: boolean;
+  browser_use?: boolean;
+  charts?: boolean;
+}
+
+export interface Workflow {
+  slug: string;
+  version?: number;
+  vertical?: string | null;
+  tags?: string[];
+  title?: string;
+  subtitle?: string | null;
+  description?: string | null;
+  popular?: boolean;
+  recommended_mode?: WorkflowMode;
+  estimated_time?: string | null;
+  is_valyu?: boolean;
+  owner_org_id?: string | null;
+  variables?: WorkflowVariable[];
+  deliverables?: WorkflowDeliverable[];
+  created_at?: string;
+  updated_at?: string;
+  // Template fields — present on detail responses and list with expand=true
+  prompt?: string;
+  strategy?: string;
+  report_format?: string;
+  tools?: WorkflowTools;
+  changelog?: string | null;
+}
+
+export interface WorkflowVersionSummary {
+  version: number;
+  recommended_mode?: WorkflowMode;
+  estimated_time?: string | null;
+  changelog?: string | null;
+  created_at?: string;
+  is_current?: boolean;
+}
+
+export interface WorkflowRunInfo {
+  slug?: string;
+  version?: number;
+}
+
+export interface ResolvedWorkflowTemplate {
+  input?: string;
+  research_strategy?: string;
+  report_format?: string;
+  deliverables?: WorkflowDeliverable[];
+  mode?: WorkflowMode;
+  tools?: WorkflowTools;
+}
+
+/** Template body for creating a workflow or publishing a new version. */
+export interface WorkflowVersionInput {
+  prompt: string;
+  strategy: string;
+  report_format: string;
+  variables?: WorkflowVariable[];
+  deliverables?: WorkflowDeliverable[];
+  tools?: WorkflowTools;
+  recommended_mode?: WorkflowMode;
+  estimated_time?: string;
+  changelog?: string;
+}
+
+export interface WorkflowsListOptions {
+  vertical?: string;
+  scope?: "valyu" | "org" | "all";
+  q?: string;
+  tags?: string[];
+  limit?: number;
+  expand?: boolean;
+}
+
+export interface WorkflowCreateOptions {
+  slug: string;
+  title: string;
+  version: WorkflowVersionInput;
+  subtitle?: string;
+  description?: string;
+  vertical?: string;
+  tags?: string[];
+  icon?: string;
+}
+
+export interface WorkflowUpdateOptions {
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  vertical?: string;
+  tags?: string[];
+  icon?: string;
+  version?: WorkflowVersionInput;
+  setCurrent?: boolean;
+}
+
+export interface WorkflowPreviewOptions {
+  workflowParams?: Record<string, any>;
+  workflowVersion?: number;
+}
+
+export interface WorkflowsListResponse {
+  success: boolean;
+  workflows?: Workflow[];
+  total?: number;
+  next_cursor?: string | null;
+  verticals?: string[];
+  error?: string;
+}
+
+export interface WorkflowResponse {
+  success: boolean;
+  workflow?: Workflow;
+  error?: string;
+}
+
+export interface WorkflowVersionsResponse {
+  success: boolean;
+  slug?: string;
+  versions?: WorkflowVersionSummary[];
+  error?: string;
+}
+
+export interface WorkflowPreviewResponse {
+  success: boolean;
+  workflow?: WorkflowRunInfo;
+  resolved?: ResolvedWorkflowTemplate;
+  estimated_credits?: number | null;
+  error?: string;
+}
+
+export interface WorkflowDeleteResponse {
+  success: boolean;
+  slug?: string;
+  deleted_at?: string;
   error?: string;
 }

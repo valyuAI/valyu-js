@@ -171,6 +171,57 @@ const result = await valyu.batch.waitForCompletion(batch.batch_id, {
 });
 ```
 
+### Workflows
+
+Templated DeepResearch starting points - curated by Valyu or created by your org - with typed `{variable}` placeholders and version history.
+
+```typescript
+// Browse curated workflows
+const catalog = await valyu.workflows.list({ scope: "valyu", vertical: "investment-banking" });
+for (const wf of catalog.workflows ?? []) {
+  console.log(`${wf.slug} - ${wf.title}`);
+}
+
+// Run one as a DeepResearch task
+const task = await valyu.deepresearch.create({
+  workflowId: "ib-company-profile",
+  workflowParams: { company: "NVIDIA (NVDA)" },
+});
+
+const result = await valyu.deepresearch.wait(task.deepresearch_id);
+console.log(result.output);
+```
+
+Create your own:
+
+```typescript
+await valyu.workflows.create({
+  slug: "weekly-competitor-scan",
+  title: "Weekly Competitor Scan",
+  version: {
+    prompt: "Summarize the week's most important developments at {company}.",
+    strategy: "Prioritize primary sources: filings, press releases, earnings calls.",
+    report_format: "Bullet-point briefing, grouped by theme.",
+    variables: [{ key: "company", label: "Company", required: true }],
+  },
+});
+```
+
+<details>
+<summary>All Workflows methods</summary>
+
+| Method | Description |
+|---|---|
+| `list(options?)` | List available workflows (filter by vertical, scope, tags, free text) |
+| `get(slug, version?)` | Get a workflow's full template |
+| `versions(slug)` | List a workflow's version history |
+| `preview(slug, options?)` | Resolve the template without creating a task |
+| `create(options)` | Create an org workflow |
+| `update(slug, options)` | Update metadata and/or publish a new version |
+| `delete(slug)` | Delete an org workflow |
+
+</details>
+
 ### Data Sources
 
 List available data sources programmatically.
