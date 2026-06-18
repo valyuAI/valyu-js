@@ -56,7 +56,14 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.8.0";
+const SDK_VERSION = "2.9.0";
+
+/**
+ * HTTP status codes that indicate a transient gateway/server/rate-limit
+ * condition rather than a definitive answer about the task. The status
+ * endpoint is idempotent and meant to be polled, so these are retried.
+ */
+const TRANSIENT_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
@@ -1130,21 +1137,74 @@ export class Valyu {
    * DeepResearch: Get task status
    */
   private async _deepresearchStatus(
-    taskId: string
+    taskId: string,
+    maxAttempts: number = 5
   ): Promise<DeepResearchStatusResponse> {
-    try {
-      const response = await this.client.get(
-        `${this.baseUrl}/deepresearch/tasks/${taskId}/status`,
-        { headers: this.headers }
-      );
+    // The status endpoint is idempotent and built to be polled, so transient
+    // failures are retried with exponential backoff + jitter instead of being
+    // reported as task failures. Treated as transient (and retried): network
+    // errors and timeouts, HTTP 429/5xx (e.g. an ALB 502 gateway page), and
+    // non-JSON or empty response bodies. Only a definitive error response (a
+    // 4xx other than 429 carrying a JSON error) is returned as a failure.
+    const url = `${this.baseUrl}/deepresearch/tasks/${taskId}/status`;
+    let lastError = "status endpoint unreachable";
 
-      return { success: true, ...response.data };
-    } catch (e: any) {
-      return {
-        success: false,
-        error: e.response?.data?.error || e.message,
-      };
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await this.client.get(url, {
+          headers: this.headers,
+          // Classify status codes ourselves rather than letting axios throw.
+          validateStatus: () => true,
+        });
+
+        if (TRANSIENT_STATUS_CODES.has(response.status)) {
+          // Gateway/rate-limit/server blip — the task is unaffected.
+          lastError = `HTTP ${response.status}`;
+        } else {
+          const contentType = String(
+            response.headers?.["content-type"] || ""
+          );
+          const body = response.data;
+          // An HTML 502 page or an empty body is a gateway artifact, not the
+          // task's real status. Guard before trusting it so we never conflate
+          // a bad body with a failed task.
+          const isJsonObject =
+            contentType.toLowerCase().includes("application/json") &&
+            typeof body === "object" &&
+            body !== null &&
+            !Array.isArray(body);
+
+          if (!isJsonObject) {
+            lastError = `non-JSON/empty status response (HTTP ${response.status}, content-type: ${contentType || "none"})`;
+          } else if (response.status >= 400) {
+            // Definitive error response (e.g. 4xx) — terminal, not transient.
+            return {
+              success: false,
+              error: (body as any).error || `HTTP Error: ${response.status}`,
+            };
+          } else {
+            const { success: _ignored, ...rest } = body as any;
+            return { success: true, ...rest };
+          }
+        }
+      } catch (e: any) {
+        // Network errors / timeouts — no HTTP response was received.
+        lastError = e?.message || String(e);
+      }
+
+      if (attempt < maxAttempts - 1) {
+        // Exponential backoff capped at 30s, with jitter to avoid synchronised
+        // retries hammering a recovering gateway.
+        const delayMs = Math.min(2 ** attempt, 30) * 1000 + Math.random() * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
+
+    return {
+      success: false,
+      unreachable: true,
+      error: `Status endpoint unreachable after ${maxAttempts} attempts: ${lastError}`,
+    };
   }
 
   /**
@@ -1162,6 +1222,18 @@ export class Valyu {
       const status = await this._deepresearchStatus(taskId);
 
       if (!status.success) {
+        // A transiently unreachable status endpoint is not a task failure —
+        // keep polling within maxWaitTime, since the task may well be running
+        // (or already completed) server-side.
+        if (status.unreachable) {
+          if (Date.now() - startTime > maxWaitTime) {
+            throw new Error(
+              `Status endpoint unreachable for ${maxWaitTime}ms: ${status.error}`
+            );
+          }
+          await new Promise((resolve) => setTimeout(resolve, pollInterval));
+          continue;
+        }
         throw new Error(status.error);
       }
 
