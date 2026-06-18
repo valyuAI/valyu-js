@@ -609,6 +609,10 @@ export interface DeepResearchStatusResponse {
   interaction?: Interaction; // Current HITL checkpoint (present when awaiting_input or paused)
   hitl_history?: InteractionHistoryEntry[]; // History of completed HITL checkpoints
   error?: string;
+  // True when success=false because the status endpoint could not be reached
+  // after retries (transient gateway/network failure). Retryable and distinct
+  // from a failed task — the report may still be available.
+  unreachable?: boolean;
 }
 
 export interface DeepResearchTaskListItem {
