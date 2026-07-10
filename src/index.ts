@@ -56,7 +56,7 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.9.0";
+const SDK_VERSION = "2.9.1";
 
 /**
  * HTTP status codes that indicate a transient gateway/server/rate-limit
@@ -1594,8 +1594,9 @@ export class Valyu {
       return {
         success: true,
         data: Buffer.from(response.data),
-        contentType:
-          response.headers["content-type"] || "application/octet-stream",
+        contentType: String(
+          response.headers["content-type"] || "application/octet-stream"
+        ),
       };
     } catch (e: any) {
       return {
