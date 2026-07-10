@@ -44,7 +44,10 @@ jobs:
           node-version: '22'
 
       - name: Upgrade npm for OIDC support
-        run: npm install -g npm@latest
+        # npm 12.0.0 breaks `npm publish --provenance` (its global install
+        # drops the sigstore module that libnpmpublish still requires), so
+        # stay on the 11.x line until 12 is fixed.
+        run: npm install -g npm@11
 
       - name: Install dependencies
         run: npm ci
