@@ -1594,8 +1594,9 @@ export class Valyu {
       return {
         success: true,
         data: Buffer.from(response.data),
-        contentType:
-          response.headers["content-type"] || "application/octet-stream",
+        contentType: String(
+          response.headers["content-type"] || "application/octet-stream"
+        ),
       };
     } catch (e: any) {
       return {
