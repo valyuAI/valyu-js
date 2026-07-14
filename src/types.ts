@@ -444,8 +444,8 @@ export interface DeepResearchCreateOptions {
   model?: DeepResearchMode; // Deprecated: use mode instead (backward compatible)
   outputFormats?: DeepResearchOutputFormat[];
   strategy?: string; // Deprecated: use researchStrategy instead
-  researchStrategy?: string; // Natural language strategy to guide the research phase
-  reportFormat?: string; // Natural language instructions for output format (highest priority)
+  researchStrategy?: string; // Natural language strategy to guide the research phase. Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
+  reportFormat?: string; // Natural language instructions for output format (highest priority). Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
   search?: DeepResearchSearchConfig;
   urls?: string[];
   files?: FileAttachment[];

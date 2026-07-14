@@ -56,7 +56,15 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.9.1";
+const SDK_VERSION = "2.9.2";
+
+/**
+ * Maximum combined character length of research_strategy (or its legacy
+ * alias strategy) and report_format accepted by the DeepResearch create
+ * endpoint. The server rejects anything strictly greater than this with a
+ * 400. Enforced client-side so the caller fails fast without a round trip.
+ */
+const MAX_STRATEGY_REPORT_FORMAT_COMBINED_LENGTH = 15000;
 
 /**
  * HTTP status codes that indicate a transient gateway/server/rate-limit
@@ -947,6 +955,20 @@ export class Valyu {
     options: DeepResearchCreateOptions
   ): Promise<DeepResearchCreateResponse> {
     try {
+      // Enforce the server's combined-length cap on research_strategy (or its
+      // legacy alias strategy) plus report_format before doing any work, so the
+      // client-side error matches the server's 400 body exactly and no request
+      // is made when the payload is guaranteed to be rejected.
+      const effectiveStrategy = options.researchStrategy ?? options.strategy;
+      const combined =
+        (effectiveStrategy?.length ?? 0) + (options.reportFormat?.length ?? 0);
+      if (combined > MAX_STRATEGY_REPORT_FORMAT_COMBINED_LENGTH) {
+        return {
+          success: false,
+          error: `research_strategy and report_format combined length (${combined}) exceeds 15,000 character limit`,
+        };
+      }
+
       // Use query field (input is supported for backward compatibility)
       const queryValue = options.query ?? options.input;
 
@@ -1011,15 +1033,6 @@ export class Valyu {
         return {
           success: false,
           error: `query exceeds 25,000 character limit (${queryValue.length} characters)`,
-        };
-      }
-
-      const strategyLen = (options.researchStrategy ?? "").length;
-      const formatLen = (options.reportFormat ?? "").length;
-      if (strategyLen + formatLen > 15000) {
-        return {
-          success: false,
-          error: `Combined length of researchStrategy (${strategyLen}) and reportFormat (${formatLen}) exceeds 15,000 character limit`,
         };
       }
 
