@@ -411,9 +411,9 @@ export interface DeepResearchSearchConfig {
   includedSources?: string[];
   excludedSources?: string[];
   sourceBiases?: Record<string, number>;
-  startDate?: string; // ISO date format (YYYY-MM-DD)
-  endDate?: string; // ISO date format (YYYY-MM-DD)
-  historicalCache?: boolean; // When true and a date range is set, searches return the newest cached snapshot inside the range; locked for the whole research run (the agent cannot toggle it)
+  startDate?: string; // Inclusive start bound. Bare date (YYYY-MM-DD) or full ISO-8601 datetime; a datetime with any time component requires historicalCache=true, else HTTP 400
+  endDate?: string; // Inclusive end bound. Bare date (YYYY-MM-DD) or full ISO-8601 datetime; a datetime with any time component requires historicalCache=true, else HTTP 400
+  historicalCache?: boolean; // When true and a date range is set, searches return the newest cached snapshot inside the range (leak-safe as-of backtest) instead of the latest crawl. Also required to pass any sub-day timestamp on startDate/endDate. No-op without a date range. User-set only; locked for the whole research run (the agent cannot toggle it)
   category?: string;
   countryCode?: CountryCode; // Country code for location-filtered searches
 }
@@ -444,8 +444,8 @@ export interface DeepResearchCreateOptions {
   model?: DeepResearchMode; // Deprecated: use mode instead (backward compatible)
   outputFormats?: DeepResearchOutputFormat[];
   strategy?: string; // Deprecated: use researchStrategy instead
-  researchStrategy?: string; // Natural language strategy to guide the research phase
-  reportFormat?: string; // Natural language instructions for output format (highest priority)
+  researchStrategy?: string; // Natural language strategy to guide the research phase. Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
+  reportFormat?: string; // Natural language instructions for output format (highest priority). Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
   search?: DeepResearchSearchConfig;
   urls?: string[];
   files?: FileAttachment[];
