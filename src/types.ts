@@ -411,9 +411,9 @@ export interface DeepResearchSearchConfig {
   includedSources?: string[];
   excludedSources?: string[];
   sourceBiases?: Record<string, number>;
-  startDate?: string; // ISO date format (YYYY-MM-DD)
-  endDate?: string; // ISO date format (YYYY-MM-DD)
-  historicalCache?: boolean; // When true and a date range is set, searches return the newest cached snapshot inside the range; locked for the whole research run (the agent cannot toggle it)
+  startDate?: string; // Inclusive start bound. Bare date (YYYY-MM-DD) or full ISO-8601 datetime; a datetime with any time component requires historicalCache=true, else HTTP 400
+  endDate?: string; // Inclusive end bound. Bare date (YYYY-MM-DD) or full ISO-8601 datetime; a datetime with any time component requires historicalCache=true, else HTTP 400
+  historicalCache?: boolean; // When true and a date range is set, searches return the newest cached snapshot inside the range (leak-safe as-of backtest) instead of the latest crawl. Also required to pass any sub-day timestamp on startDate/endDate. No-op without a date range. User-set only; locked for the whole research run (the agent cannot toggle it)
   category?: string;
   countryCode?: CountryCode; // Country code for location-filtered searches
 }
