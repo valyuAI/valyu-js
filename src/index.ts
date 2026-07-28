@@ -56,7 +56,7 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.9.2";
+const SDK_VERSION = "2.10.0";
 
 /**
  * Maximum combined character length of research_strategy (or its legacy
@@ -131,6 +131,103 @@ export function verifyContentsWebhookSignature(
     Buffer.from(signature, "utf8"),
     Buffer.from(expectedSignature, "utf8")
   );
+}
+
+/**
+ * Build a human-readable error string from an API error response.
+ *
+ * Validation failures carry an `errors` array naming each offending field, so
+ * fold those into the message. Without them a caller only sees a summary like
+ * "2 validation errors", which says nothing about which parameter was wrong or
+ * what the API expected instead.
+ */
+function apiErrorMessage(e: any): string {
+  const data = e?.response?.data;
+  const summary = data?.message || data?.error || e?.message;
+
+  const details: string[] = [];
+  for (const item of Array.isArray(data?.errors) ? data.errors : []) {
+    let detail =
+      item && typeof item === "object" ? item.message || item.code : item;
+    if (detail && item?.key && !String(detail).includes(item.key)) {
+      detail = `${item.key}: ${detail}`;
+    }
+    if (detail) details.push(String(detail));
+  }
+
+  if (!details.length) return String(summary);
+  return `${summary}: ${details.join("; ")}`;
+}
+
+/**
+ * Build the request fields that are valid for both freeform and workflow runs.
+ *
+ * Workflow templates supply the freeform fields (prompt, strategy, report
+ * format) but everything below is a per-run concern, so a workflow run accepts
+ * the same values a freeform run does. Request-body values win over the
+ * template server-side, except `tools`, which is merged with it.
+ */
+function buildSharedFields(
+  options: DeepResearchCreateOptions
+): Record<string, any> {
+  const fields: Record<string, any> = {};
+
+  if (options.tools) {
+    fields.tools = options.tools;
+  } else if (options.codeExecution !== undefined) {
+    // Backward compatibility: top-level code_execution (deprecated)
+    fields.code_execution = options.codeExecution;
+  }
+
+  if (options.search) {
+    const search: Record<string, any> = {};
+    if (options.search.searchType) search.search_type = options.search.searchType;
+    if (options.search.includedSources)
+      search.included_sources = options.search.includedSources;
+    if (options.search.excludedSources)
+      search.excluded_sources = options.search.excludedSources;
+    if (options.search.sourceBiases)
+      search.source_biases = options.search.sourceBiases;
+    if (options.search.startDate) search.start_date = options.search.startDate;
+    if (options.search.endDate) search.end_date = options.search.endDate;
+    if (options.search.historicalCache !== undefined)
+      search.historical_cache = options.search.historicalCache;
+    if (options.search.category) search.category = options.search.category;
+    fields.search = search;
+  }
+
+  if (options.urls) fields.urls = options.urls;
+  if (options.files) fields.files = options.files;
+  if (options.deliverables) fields.deliverables = options.deliverables;
+  if (options.mcpServers) fields.mcp_servers = options.mcpServers;
+  if (options.previousReports) fields.previous_reports = options.previousReports;
+  if (options.webhookUrl) fields.webhook_url = options.webhookUrl;
+  if (options.brandCollectionId)
+    fields.brand_collection_id = options.brandCollectionId;
+  if (options.alertEmail) {
+    fields.alert_email =
+      typeof options.alertEmail === "string"
+        ? options.alertEmail
+        : {
+            email: options.alertEmail.email,
+            custom_url: options.alertEmail.custom_url,
+          };
+  }
+  if (options.metadata) fields.metadata = options.metadata;
+  if (options.hitl) {
+    const hitl: Record<string, any> = {};
+    if (options.hitl.planningQuestions !== undefined)
+      hitl.planning_questions = options.hitl.planningQuestions;
+    if (options.hitl.planReview !== undefined)
+      hitl.plan_review = options.hitl.planReview;
+    if (options.hitl.sourceReview !== undefined)
+      hitl.source_review = options.hitl.sourceReview;
+    if (options.hitl.outlineReview !== undefined)
+      hitl.outline_review = options.hitl.outlineReview;
+    fields.hitl = hitl;
+  }
+
+  return fields;
 }
 
 // Valyu API client
@@ -986,6 +1083,18 @@ export class Valyu {
               "workflowId is mutually exclusive with query/input/researchStrategy/reportFormat - the workflow template supplies those fields",
           };
         }
+        if (options.files) {
+          for (let i = 0; i < options.files.length; i++) {
+            const ctx = options.files[i].context;
+            if (ctx && ctx.length > 10000) {
+              return {
+                success: false,
+                error: `files[${i}].context exceeds 10,000 character limit (${ctx.length} characters)`,
+              };
+            }
+          }
+        }
+
         const payload: Record<string, any> = {
           workflow_id: options.workflowId,
         };
@@ -1000,18 +1109,10 @@ export class Valyu {
         const explicitMode = options.mode ?? options.model;
         if (explicitMode) payload.mode = explicitMode;
         if (options.outputFormats) payload.output_formats = options.outputFormats;
-        if (options.tools) payload.tools = options.tools;
-        if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
-        if (options.alertEmail) {
-          payload.alert_email =
-            typeof options.alertEmail === "string"
-              ? options.alertEmail
-              : {
-                  email: options.alertEmail.email,
-                  custom_url: options.alertEmail.custom_url,
-                };
-        }
-        if (options.metadata) payload.metadata = options.metadata;
+
+        // Per-run options are as valid on a workflow run as on a freeform one —
+        // the template only supplies the freeform fields.
+        Object.assign(payload, buildSharedFields(options));
 
         const response = await this.client.post(
           `${this.baseUrl}/deepresearch/tasks`,
@@ -1057,79 +1158,14 @@ export class Valyu {
         output_formats: options.outputFormats || ["markdown"],
       };
 
-      // Handle tools configuration
-      if (options.tools) {
-        payload.tools = options.tools;
-      } else if (options.codeExecution !== undefined) {
-        // Backward compatibility: top-level code_execution (deprecated)
-        payload.code_execution = options.codeExecution;
-      }
-
-      // Add optional fields
+      // Freeform-only fields — a workflow template supplies these instead
       if (options.strategy) payload.strategy = options.strategy;
       if (options.researchStrategy)
         payload.research_strategy = options.researchStrategy;
       if (options.reportFormat)
         payload.report_format = options.reportFormat;
-      if (options.search) {
-        payload.search = {};
-        if (options.search.searchType) {
-          payload.search.search_type = options.search.searchType;
-        }
-        if (options.search.includedSources) {
-          payload.search.included_sources = options.search.includedSources;
-        }
-        if (options.search.excludedSources) {
-          payload.search.excluded_sources = options.search.excludedSources;
-        }
-        if (options.search.sourceBiases) {
-          payload.search.source_biases = options.search.sourceBiases;
-        }
-        if (options.search.startDate) {
-          payload.search.start_date = options.search.startDate;
-        }
-        if (options.search.endDate) {
-          payload.search.end_date = options.search.endDate;
-        }
-        if (options.search.historicalCache !== undefined) {
-          payload.search.historical_cache = options.search.historicalCache;
-        }
-        if (options.search.category) {
-          payload.search.category = options.search.category;
-        }
-      }
-      if (options.urls) payload.urls = options.urls;
-      if (options.files) payload.files = options.files;
-      if (options.deliverables) payload.deliverables = options.deliverables;
-      if (options.mcpServers) payload.mcp_servers = options.mcpServers;
-      if (options.previousReports) {
-        payload.previous_reports = options.previousReports;
-      }
-      if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
-      if (options.brandCollectionId)
-        payload.brand_collection_id = options.brandCollectionId;
-      if (options.alertEmail) {
-        if (typeof options.alertEmail === "string") {
-          payload.alert_email = options.alertEmail;
-        } else {
-          payload.alert_email = {
-            email: options.alertEmail.email,
-            custom_url: options.alertEmail.custom_url,
-          };
-        }
-      }
-      if (options.metadata) payload.metadata = options.metadata;
-      if (options.hitl) {
-        payload.hitl = {};
-        if (options.hitl.planningQuestions !== undefined)
-          payload.hitl.planning_questions = options.hitl.planningQuestions;
-        if (options.hitl.planReview !== undefined)
-          payload.hitl.plan_review = options.hitl.planReview;
-        if (options.hitl.sourceReview !== undefined)
-          payload.hitl.source_review = options.hitl.sourceReview;
-        if (options.hitl.outlineReview !== undefined)
-          payload.hitl.outline_review = options.hitl.outlineReview;
-      }
+
+      Object.assign(payload, buildSharedFields(options));
 
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks`,
@@ -1141,7 +1177,7 @@ export class Valyu {
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: apiErrorMessage(e),
       };
     }
   }
@@ -2387,7 +2423,7 @@ export class Valyu {
 
   /** Extract the most descriptive error message from a Workflows API error. */
   private workflowError(e: any): string {
-    return e.response?.data?.message || e.response?.data?.error || e.message;
+    return apiErrorMessage(e);
   }
 
   /**

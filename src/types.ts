@@ -460,8 +460,15 @@ export interface DeepResearchCreateOptions {
   brandCollectionId?: string;
   metadata?: Record<string, string | number | boolean>;
   hitl?: HitlConfig; // Human-in-the-loop configuration (not available for batch)
-  workflowId?: string; // Workflow slug to run — the template supplies query/strategy/format. Mutually exclusive with query/input/researchStrategy/reportFormat
-  workflowParams?: Record<string, any>; // Values for the workflow's variables
+  // Workflow slug to run — the template supplies query/strategy/format. Mutually
+  // exclusive with query/input/researchStrategy/reportFormat. Every other option
+  // here still applies to a workflow run and overrides the template's value,
+  // except tools, which is merged with it.
+  workflowId?: string;
+  // Values for the workflow's variables. Keys must match the workflow's declared
+  // variables — read them from workflows.get(slug).workflow.variables, since they
+  // differ per workflow.
+  workflowParams?: Record<string, any>;
   workflowVersion?: number; // Specific workflow version to run (defaults to current)
 }
 
