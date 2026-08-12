@@ -56,7 +56,7 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.10.0";
+const SDK_VERSION = "2.10.1";
 
 /**
  * Maximum combined character length of research_strategy (or its legacy
@@ -501,6 +501,7 @@ export class Valyu {
    * @param options.startDate - Start date filter (YYYY-MM-DD format)
    * @param options.endDate - End date filter (YYYY-MM-DD format)
    * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
+   * @param options.includeAbstracts - Search PubMed's complete abstract corpus and return document-level abstracts instead of full-text papers (default: false)
    * @param options.countryCode - Country code filter for search results
    * @param options.responseLength - Response content length: "short"/"medium"/"large"/"max" or integer character count
    * @param options.fastMode - Fast mode for quicker but shorter results (default: false)
@@ -695,6 +696,10 @@ export class Valyu {
 
       if (options.historicalCache !== undefined) {
         payload.historical_cache = options.historicalCache;
+      }
+
+      if (options.includeAbstracts !== undefined) {
+        payload.include_abstracts = options.includeAbstracts;
       }
 
       if (options.countryCode !== undefined) {

@@ -80,6 +80,7 @@ export interface SearchOptions {
   startDate?: string;
   endDate?: string;
   historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
+  includeAbstracts?: boolean; // Search PubMed's complete abstract corpus instead of full-text papers
   countryCode?: CountryCode;
   responseLength?: ResponseLength;
   fastMode?: boolean;

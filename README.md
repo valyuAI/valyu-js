@@ -43,6 +43,7 @@ const response = await valyu.search("CRISPR gene therapy clinical trials 2026", 
   searchType: "proprietary",                    // "all", "web", or "proprietary"
   maxNumResults: 10,                            // 1-20 results
   includedSources: ["valyu/valyu-pubmed"],      // filter to specific sources
+  includeAbstracts: true,                       // search the full PubMed abstract corpus
   startDate: "2026-01-01",                      // date filtering
   endDate: "2026-12-31",
 });
@@ -64,6 +65,7 @@ const response = await valyu.search("CRISPR gene therapy clinical trials 2026", 
 | `endDate` | `string` | - | End date (YYYY-MM-DD) |
 | `countryCode` | `string` | - | Country filter (e.g. `"US"`, `"GB"`) |
 | `responseLength` | `string \| number` | - | `"short"`, `"medium"`, `"large"`, `"max"`, or character count |
+| `includeAbstracts` | `boolean` | `false` | Search PubMed's complete abstract corpus instead of full-text papers |
 | `category` | `string` | - | Category filter |
 
 </details>
