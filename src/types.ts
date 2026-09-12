@@ -43,6 +43,9 @@ export type CountryCode =
 
 export type ResponseLength = "short" | "medium" | "large" | "max" | number;
 
+// Per-request point-in-time strictness for a historicalCache (backtest) request.
+export type HistoricalCacheStrict = "off" | "prefer" | "only";
+
 export interface SearchResult {
   title: string;
   url: string;
@@ -80,6 +83,7 @@ export interface SearchOptions {
   startDate?: string;
   endDate?: string;
   historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
+  historicalCacheStrict?: HistoricalCacheStrict; // Point-in-time strictness for a historicalCache search. "only" serves ONLY content provably captured at or before endDate, dropping a result rather than falling back to a live crawl (use for strict backtests); "prefer" (API default) falls back to a live crawl so the query is never empty; "off" disables the guarantee. No-op without historicalCache=true
   includeAbstracts?: boolean; // Search PubMed's complete abstract corpus instead of full-text papers
   countryCode?: CountryCode;
   responseLength?: ResponseLength;
@@ -127,6 +131,7 @@ export interface ContentsOptions {
   startDate?: string; // ISO date format (YYYY-MM-DD), inclusive
   endDate?: string; // ISO date format (YYYY-MM-DD), inclusive
   historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
+  historicalCacheStrict?: HistoricalCacheStrict; // Point-in-time strictness for a historicalCache search. "only" serves ONLY content provably captured at or before endDate, dropping a result rather than falling back to a live crawl (use for strict backtests); "prefer" (API default) falls back to a live crawl so the query is never empty; "off" disables the guarantee. No-op without historicalCache=true
 }
 
 // ContentResult - discriminated union (success | failed)
@@ -415,6 +420,7 @@ export interface DeepResearchSearchConfig {
   startDate?: string; // Inclusive start bound. Bare date (YYYY-MM-DD) or full ISO-8601 datetime; a datetime with any time component requires historicalCache=true, else HTTP 400
   endDate?: string; // Inclusive end bound. Bare date (YYYY-MM-DD) or full ISO-8601 datetime; a datetime with any time component requires historicalCache=true, else HTTP 400
   historicalCache?: boolean; // When true and a date range is set, searches return the newest cached snapshot inside the range (leak-safe as-of backtest) instead of the latest crawl. Also required to pass any sub-day timestamp on startDate/endDate. No-op without a date range. User-set only; locked for the whole research run (the agent cannot toggle it)
+  historicalCacheStrict?: HistoricalCacheStrict; // Point-in-time strictness for a historicalCache search. "only" serves ONLY content provably captured at or before endDate, dropping a result rather than falling back to a live crawl (use for strict backtests); "prefer" (API default) falls back to a live crawl so the query is never empty; "off" disables the guarantee. No-op without historicalCache=true
   category?: string;
   countryCode?: CountryCode; // Country code for location-filtered searches
 }

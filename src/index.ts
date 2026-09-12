@@ -192,6 +192,8 @@ function buildSharedFields(
     if (options.search.endDate) search.end_date = options.search.endDate;
     if (options.search.historicalCache !== undefined)
       search.historical_cache = options.search.historicalCache;
+    if (options.search.historicalCacheStrict !== undefined)
+      search.historical_cache_strict = options.search.historicalCacheStrict;
     if (options.search.category) search.category = options.search.category;
     fields.search = search;
   }
@@ -389,11 +391,24 @@ export class Valyu {
   }
 
   /**
-   * Validates date format (YYYY-MM-DD)
+   * Validates a date bound: a bare date (YYYY-MM-DD) or a full ISO-8601 datetime.
+   *
+   * The API accepts a sub-day timestamp on startDate/endDate whenever
+   * historicalCache is true — that is how an intraday point-in-time cutoff is
+   * expressed, and without it a backtest can only be pinned to a whole day. This
+   * validator used to accept YYYY-MM-DD only, so the SDK rejected those requests
+   * before they were ever sent, and no JS caller could run a sub-day backtest.
+   * (DeepResearchSearchConfig's own startDate/endDate docs already described the
+   * datetime form, so the SDK contradicted itself.)
+   *
+   * Bare dates stay valid and unchanged. Enforcement of "a time component
+   * requires historicalCache=true" stays server-side, where it already lives.
    */
   private validateDateFormat(date: string): boolean {
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(date)) {
+    const bareDate = /^\d{4}-\d{2}-\d{2}$/;
+    const isoDateTime =
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})?$/;
+    if (!bareDate.test(date) && !isoDateTime.test(date)) {
       return false;
     }
     const parsedDate = new Date(date);
@@ -548,7 +563,8 @@ export class Valyu {
       if (options.startDate && !this.validateDateFormat(options.startDate)) {
         return {
           success: false,
-          error: "Invalid startDate format. Must be YYYY-MM-DD",
+          error:
+            "Invalid startDate format. Must be YYYY-MM-DD or a full ISO-8601 datetime",
           tx_id: null,
           query,
           results: [],
@@ -561,7 +577,8 @@ export class Valyu {
       if (options.endDate && !this.validateDateFormat(options.endDate)) {
         return {
           success: false,
-          error: "Invalid endDate format. Must be YYYY-MM-DD",
+          error:
+            "Invalid endDate format. Must be YYYY-MM-DD or a full ISO-8601 datetime",
           tx_id: null,
           query,
           results: [],
@@ -696,6 +713,10 @@ export class Valyu {
 
       if (options.historicalCache !== undefined) {
         payload.historical_cache = options.historicalCache;
+      }
+
+      if (options.historicalCacheStrict !== undefined) {
+        payload.historical_cache_strict = options.historicalCacheStrict;
       }
 
       if (options.includeAbstracts !== undefined) {
@@ -927,6 +948,10 @@ export class Valyu {
 
       if (options.historicalCache !== undefined) {
         payload.historical_cache = options.historicalCache;
+      }
+
+      if (options.historicalCacheStrict !== undefined) {
+        payload.historical_cache_strict = options.historicalCacheStrict;
       }
 
       const response = await this.client.post(`${this.baseUrl}/contents`, payload, {
@@ -1712,6 +1737,9 @@ export class Valyu {
         if (options.search.historicalCache !== undefined) {
           payload.search.historical_cache = options.search.historicalCache;
         }
+        if (options.search.historicalCacheStrict !== undefined) {
+          payload.search.historical_cache_strict = options.search.historicalCacheStrict;
+        }
         if (options.search.category) {
           payload.search.category = options.search.category;
         }
@@ -2075,10 +2103,10 @@ export class Valyu {
 
     // Validate date formats
     if (options.startDate && !this.validateDateFormat(options.startDate)) {
-      return "Invalid startDate format. Must be YYYY-MM-DD";
+      return "Invalid startDate format. Must be YYYY-MM-DD or a full ISO-8601 datetime";
     }
     if (options.endDate && !this.validateDateFormat(options.endDate)) {
-      return "Invalid endDate format. Must be YYYY-MM-DD";
+      return "Invalid endDate format. Must be YYYY-MM-DD or a full ISO-8601 datetime";
     }
     if (options.startDate && options.endDate) {
       const startDate = new Date(options.startDate);
