@@ -56,7 +56,7 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.10.1";
+const SDK_VERSION = "2.10.3";
 
 /**
  * Maximum combined character length of research_strategy (or its legacy
@@ -72,6 +72,49 @@ const MAX_STRATEGY_REPORT_FORMAT_COMBINED_LENGTH = 15000;
  * endpoint is idempotent and meant to be polled, so these are retried.
  */
 const TRANSIENT_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+
+/**
+ * Polling cadence for deepresearch.wait() and stream() when the caller does
+ * not set one. A server Retry-After hint replaces the default, clamped to
+ * these bounds; an interval the caller passes explicitly always wins.
+ */
+const DEFAULT_POLL_INTERVAL_MS = 5000;
+const MIN_POLL_INTERVAL_MS = 1000;
+const MAX_POLL_INTERVAL_MS = 30000;
+
+/**
+ * Tasks whose last status response (and ETag) is kept for conditional
+ * polling. Least recently polled tasks are evicted first.
+ */
+const POLL_CACHE_SIZE = 128;
+
+/** Parse a Retry-After header (delta-seconds or HTTP-date) into milliseconds. */
+function parseRetryAfterMs(value: unknown): number | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const seconds = Number(value.trim());
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(value);
+  if (Number.isNaN(date)) return undefined;
+  return Math.max(0, date - Date.now());
+}
+
+/** Milliseconds to wait before the next poll. */
+function nextPollIntervalMs(
+  userIntervalMs: number | undefined,
+  retryAfterMs: number | undefined
+): number {
+  if (userIntervalMs !== undefined) return userIntervalMs;
+  if (retryAfterMs === undefined) return DEFAULT_POLL_INTERVAL_MS;
+  return Math.min(Math.max(retryAfterMs, MIN_POLL_INTERVAL_MS), MAX_POLL_INTERVAL_MS);
+}
+
+interface PollResult {
+  status: DeepResearchStatusResponse;
+  /** False only when the server answered 304 Not Modified. */
+  changed: boolean;
+  /** The server's Retry-After hint in milliseconds, if any. */
+  retryAfterMs?: number;
+}
 
 /** Normalize API job response (snake_case) to SDK format (camelCase). */
 function normalizeContentsJobResponse(api: Record<string, any>): ContentsJobResponse {
@@ -237,6 +280,11 @@ export class Valyu {
   private baseUrl: string;
   private headers: Record<string, string>;
   private client: AxiosInstance;
+  // taskId -> last ETag (if any) and status response, for conditional polling
+  private pollCache = new Map<
+    string,
+    { etag?: string; status: DeepResearchStatusResponse }
+  >();
 
   // DeepResearch namespace
   public deepresearch: {
@@ -1214,11 +1262,23 @@ export class Valyu {
 
   /**
    * DeepResearch: Get task status
+   *
+   * Polling is conditional: when the server sends an ETag, the next call for
+   * the same task sends it back as If-None-Match, and a 304 Not Modified
+   * returns the previous response without downloading it again. Servers that
+   * send no ETag are polled with plain requests.
    */
   private async _deepresearchStatus(
     taskId: string,
     maxAttempts: number = 5
   ): Promise<DeepResearchStatusResponse> {
+    return (await this._deepresearchPollStatus(taskId, maxAttempts)).status;
+  }
+
+  private async _deepresearchPollStatus(
+    taskId: string,
+    maxAttempts: number = 5
+  ): Promise<PollResult> {
     // The status endpoint is idempotent and built to be polled, so transient
     // failures are retried with exponential backoff + jitter instead of being
     // reported as task failures. Treated as transient (and retried): network
@@ -1229,14 +1289,29 @@ export class Valyu {
     let lastError = "status endpoint unreachable";
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let retryAfterMs: number | undefined;
+      const cached = this.pollCache.get(taskId);
       try {
         const response = await this.client.get(url, {
-          headers: this.headers,
+          headers: cached?.etag
+            ? { ...this.headers, "If-None-Match": cached.etag }
+            : this.headers,
           // Classify status codes ourselves rather than letting axios throw.
           validateStatus: () => true,
         });
+        retryAfterMs = parseRetryAfterMs(response.headers?.["retry-after"]);
 
-        if (TRANSIENT_STATUS_CODES.has(response.status)) {
+        if (response.status === 304) {
+          if (cached) {
+            // Not modified: the body is empty by definition, so reuse the
+            // last response rather than parse it.
+            this.pollCache.delete(taskId);
+            this.pollCache.set(taskId, cached);
+            return { status: { ...cached.status }, changed: false, retryAfterMs };
+          }
+          // A 304 we did not ask for has nothing to reuse.
+          lastError = "HTTP 304 without a cached response";
+        } else if (TRANSIENT_STATUS_CODES.has(response.status)) {
           // Gateway/rate-limit/server blip — the task is unaffected.
           lastError = `HTTP ${response.status}`;
         } else {
@@ -1258,12 +1333,22 @@ export class Valyu {
           } else if (response.status >= 400) {
             // Definitive error response (e.g. 4xx) — terminal, not transient.
             return {
-              success: false,
-              error: (body as any).error || `HTTP Error: ${response.status}`,
+              status: {
+                success: false,
+                error: (body as any).error || `HTTP Error: ${response.status}`,
+              },
+              changed: true,
+              retryAfterMs,
             };
           } else {
             const { success: _ignored, ...rest } = body as any;
-            return { success: true, ...rest };
+            const status: DeepResearchStatusResponse = { success: true, ...rest };
+            const etag = response.headers?.["etag"];
+            this.rememberPoll(taskId, {
+              etag: typeof etag === "string" ? etag : undefined,
+              status: { ...status },
+            });
+            return { status, changed: true, retryAfterMs };
           }
         }
       } catch (e: any) {
@@ -1273,17 +1358,42 @@ export class Valyu {
 
       if (attempt < maxAttempts - 1) {
         // Exponential backoff capped at 30s, with jitter to avoid synchronised
-        // retries hammering a recovering gateway.
-        const delayMs = Math.min(2 ** attempt, 30) * 1000 + Math.random() * 1000;
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        // retries hammering a recovering gateway. A server-sent Retry-After
+        // is honoured when it asks for longer.
+        let delayMs = Math.min(2 ** attempt, 30) * 1000 + Math.random() * 1000;
+        if (retryAfterMs !== undefined) {
+          delayMs = Math.max(delayMs, Math.min(retryAfterMs, MAX_POLL_INTERVAL_MS));
+        }
+        await this.sleep(delayMs);
       }
     }
 
     return {
-      success: false,
-      unreachable: true,
-      error: `Status endpoint unreachable after ${maxAttempts} attempts: ${lastError}`,
+      status: {
+        success: false,
+        unreachable: true,
+        error: `Status endpoint unreachable after ${maxAttempts} attempts: ${lastError}`,
+      },
+      changed: true,
     };
+  }
+
+  /** Keep a task's latest status and ETag, evicting the stalest task. */
+  private rememberPoll(
+    taskId: string,
+    entry: { etag?: string; status: DeepResearchStatusResponse }
+  ): void {
+    this.pollCache.delete(taskId);
+    this.pollCache.set(taskId, entry);
+    while (this.pollCache.size > POLL_CACHE_SIZE) {
+      const oldest = this.pollCache.keys().next().value;
+      if (oldest === undefined) break;
+      this.pollCache.delete(oldest);
+    }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -1293,12 +1403,13 @@ export class Valyu {
     taskId: string,
     options: WaitOptions = {}
   ): Promise<DeepResearchStatusResponse> {
-    const pollInterval = options.pollInterval || 5000;
+    const userInterval = options.pollInterval || undefined;
     const maxWaitTime = options.maxWaitTime || 7200000;
     const startTime = Date.now();
 
     while (true) {
-      const status = await this._deepresearchStatus(taskId);
+      const { status, changed, retryAfterMs } =
+        await this._deepresearchPollStatus(taskId);
 
       if (!status.success) {
         // A transiently unreachable status endpoint is not a task failure —
@@ -1310,14 +1421,14 @@ export class Valyu {
               `Status endpoint unreachable for ${maxWaitTime}ms: ${status.error}`
             );
           }
-          await new Promise((resolve) => setTimeout(resolve, pollInterval));
+          await this.sleep(nextPollIntervalMs(userInterval, undefined));
           continue;
         }
         throw new Error(status.error);
       }
 
       // Notify progress callback
-      if (options.onProgress) {
+      if (options.onProgress && changed) {
         options.onProgress(status);
       }
 
@@ -1354,12 +1465,16 @@ export class Valyu {
       }
 
       // Wait before next poll
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      await this.sleep(nextPollIntervalMs(userInterval, retryAfterMs));
     }
   }
 
   /**
    * DeepResearch: Stream real-time updates
+   *
+   * Progress callbacks are not repeated for a poll the server answers 304 Not
+   * Modified. The poll interval follows the server's Retry-After hint (clamped to 1-30 seconds),
+   * else 5 seconds.
    */
   private async _deepresearchStream(
     taskId: string,
@@ -1370,7 +1485,8 @@ export class Valyu {
 
     while (!isComplete) {
       try {
-        const status = await this._deepresearchStatus(taskId);
+        const { status, changed, retryAfterMs } =
+          await this._deepresearchPollStatus(taskId);
 
         if (!status.success) {
           if (callback.onError) {
@@ -1380,7 +1496,7 @@ export class Valyu {
         }
 
         // Progress updates
-        if (status.progress && callback.onProgress) {
+        if (changed && status.progress && callback.onProgress) {
           callback.onProgress(
             status.progress.current_step,
             status.progress.total_steps
@@ -1413,7 +1529,7 @@ export class Valyu {
         }
 
         if (!isComplete) {
-          await new Promise((resolve) => setTimeout(resolve, 5000));
+          await this.sleep(nextPollIntervalMs(undefined, retryAfterMs));
         }
       } catch (error: any) {
         if (callback.onError) {

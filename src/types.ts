@@ -693,8 +693,13 @@ export interface DeepResearchRespondResponse {
 }
 
 export interface WaitOptions {
+  /**
+   * Milliseconds between polls. When not set, the server's Retry-After hint
+   * is used (clamped to 1-30 seconds), else 5000.
+   */
   pollInterval?: number;
   maxWaitTime?: number;
+  /** Not called again for a poll the server answers 304 Not Modified. */
   onProgress?: (status: DeepResearchStatusResponse) => void;
   onInteraction?: (interaction: Interaction) => Promise<Record<string, any> | null | undefined> | Record<string, any> | null | undefined;
 }
