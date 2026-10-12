@@ -369,6 +369,7 @@ export interface FileAttachment {
   data: string;
   filename: string;
   mediaType: string;
+  /** Context about the file (max 50,000 characters; 100,000 combined across all files). */
   context?: string;
 }
 
