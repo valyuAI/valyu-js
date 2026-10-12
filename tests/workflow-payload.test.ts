@@ -120,12 +120,68 @@ describe("workflow run payload", () => {
     const result = await valyu.deepresearch.create({
       workflowId: "ib-company-profile",
       workflowParams: { company: "NVIDIA (NVDA)" },
-      files: [{ url: "https://example.com/a.pdf", context: "x".repeat(10001) }],
+      files: [{ url: "https://example.com/a.pdf", context: "x".repeat(50001) }],
     } as any);
 
     expect(post).not.toHaveBeenCalled();
     expect(result.success).toBe(false);
-    expect(result.error).toContain("files[0].context exceeds 10,000 character limit");
+    expect(result.error).toContain("files[0].context exceeds 50,000 character limit");
+  });
+
+  it("accepts a files[].context at the 50,000 character limit", async () => {
+    const { valyu, post } = makeClient();
+
+    await valyu.deepresearch.create({
+      workflowId: "ib-company-profile",
+      workflowParams: { company: "NVIDIA (NVDA)" },
+      files: [{ url: "https://example.com/a.pdf", context: "x".repeat(50000) }],
+    } as any);
+
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies the combined files[].context cap", async () => {
+    const { valyu, post } = makeClient();
+
+    const result = await valyu.deepresearch.create({
+      workflowId: "ib-company-profile",
+      workflowParams: { company: "NVIDIA (NVDA)" },
+      files: [0, 1, 2].map((i) => ({
+        url: `https://example.com/${i}.pdf`,
+        context: "x".repeat(40000),
+      })),
+    } as any);
+
+    expect(post).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.error).toContain(
+      "files[].context combined length exceeds 100,000 character limit"
+    );
+  });
+
+  it("applies the files[].context caps to freeform runs", async () => {
+    const { valyu, post } = makeClient();
+    const file = (i: number, n: number) => ({
+      data: "data:application/pdf;base64,AAAA",
+      filename: `${i}.pdf`,
+      mediaType: "application/pdf",
+      context: "x".repeat(n),
+    });
+
+    const tooLong = await valyu.deepresearch.create({
+      query: "Summarise the attached filings",
+      files: [file(0, 50001)],
+    });
+    const combined = await valyu.deepresearch.create({
+      query: "Summarise the attached filings",
+      files: [file(0, 40000), file(1, 40000), file(2, 40000)],
+    });
+
+    expect(post).not.toHaveBeenCalled();
+    expect(tooLong.error).toContain("files[0].context exceeds 50,000 character limit");
+    expect(combined.error).toContain(
+      "files[].context combined length exceeds 100,000 character limit"
+    );
   });
 
   it("stays mutually exclusive with the template-supplied fields", async () => {

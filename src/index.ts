@@ -56,7 +56,7 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.10.3";
+const SDK_VERSION = "2.10.4";
 
 /**
  * Maximum combined character length of research_strategy (or its legacy
@@ -200,6 +200,32 @@ function apiErrorMessage(e: any): string {
 
   if (!details.length) return String(summary);
   return `${summary}: ${details.join("; ")}`;
+}
+
+const MAX_FILE_CONTEXT_CHARS = 50000;
+const MAX_TOTAL_FILE_CONTEXT_CHARS = 100000;
+
+/**
+ * Check files[].context against the per-file and combined limits.
+ * Returns an error message, or undefined when the contexts are within limits.
+ */
+function validateFileContexts(
+  files: DeepResearchCreateOptions["files"]
+): string | undefined {
+  if (!files) return undefined;
+  let total = 0;
+  for (let i = 0; i < files.length; i++) {
+    const ctx = files[i]?.context;
+    if (!ctx) continue;
+    if (ctx.length > MAX_FILE_CONTEXT_CHARS) {
+      return `files[${i}].context exceeds 50,000 character limit (${ctx.length} characters)`;
+    }
+    total += ctx.length;
+  }
+  if (total > MAX_TOTAL_FILE_CONTEXT_CHARS) {
+    return `files[].context combined length exceeds 100,000 character limit (${total} characters)`;
+  }
+  return undefined;
 }
 
 /**
@@ -1161,16 +1187,9 @@ export class Valyu {
               "workflowId is mutually exclusive with query/input/researchStrategy/reportFormat - the workflow template supplies those fields",
           };
         }
-        if (options.files) {
-          for (let i = 0; i < options.files.length; i++) {
-            const ctx = options.files[i].context;
-            if (ctx && ctx.length > 10000) {
-              return {
-                success: false,
-                error: `files[${i}].context exceeds 10,000 character limit (${ctx.length} characters)`,
-              };
-            }
-          }
+        const filesError = validateFileContexts(options.files);
+        if (filesError) {
+          return { success: false, error: filesError };
         }
 
         const payload: Record<string, any> = {
@@ -1215,16 +1234,9 @@ export class Valyu {
         };
       }
 
-      if (options.files) {
-        for (let i = 0; i < options.files.length; i++) {
-          const ctx = options.files[i].context;
-          if (ctx && ctx.length > 10000) {
-            return {
-              success: false,
-              error: `files[${i}].context exceeds 10,000 character limit (${ctx.length} characters)`,
-            };
-          }
-        }
+      const filesError = validateFileContexts(options.files);
+      if (filesError) {
+        return { success: false, error: filesError };
       }
 
       // Build payload with snake_case
