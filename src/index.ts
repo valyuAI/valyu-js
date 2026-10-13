@@ -56,7 +56,7 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.10.4";
+const SDK_VERSION = "2.10.5";
 
 /**
  * Maximum combined character length of research_strategy (or its legacy
@@ -264,13 +264,24 @@ function buildSharedFields(
     if (options.search.historicalCacheStrict !== undefined)
       search.historical_cache_strict = options.search.historicalCacheStrict;
     if (options.search.category) search.category = options.search.category;
+    if (options.search.countryCode !== undefined)
+      search.country_code = options.search.countryCode;
     fields.search = search;
   }
 
   if (options.urls) fields.urls = options.urls;
   if (options.files) fields.files = options.files;
   if (options.deliverables) fields.deliverables = options.deliverables;
-  if (options.mcpServers) fields.mcp_servers = options.mcpServers;
+  if (options.mcpServers) {
+    fields.mcp_servers = options.mcpServers.map(
+      ({ toolPrefix, allowedTools, ...server }) => {
+        const mapped: Record<string, any> = { ...server };
+        if (toolPrefix !== undefined) mapped.tool_prefix = toolPrefix;
+        if (allowedTools !== undefined) mapped.allowed_tools = allowedTools;
+        return mapped;
+      }
+    );
+  }
   if (options.previousReports) fields.previous_reports = options.previousReports;
   if (options.webhookUrl) fields.webhook_url = options.webhookUrl;
   if (options.brandCollectionId)
@@ -1827,6 +1838,7 @@ export class Valyu {
    * @param options.search.endDate - End date filter in ISO format (YYYY-MM-DD)
    * @param options.search.historicalCache - When true and a date range is set, searches return the newest cached snapshot inside the range instead of the latest crawl
    * @param options.search.category - Category filter for search results
+   * @param options.search.countryCode - Country code filter for search results
    * @param options.webhookUrl - Optional HTTPS URL for completion notification
    * @param options.metadata - Optional metadata key-value pairs
    * @returns Promise resolving to batch creation response with batch_id and webhook_secret
@@ -1870,6 +1882,9 @@ export class Valyu {
         }
         if (options.search.category) {
           payload.search.category = options.search.category;
+        }
+        if (options.search.countryCode !== undefined) {
+          payload.search.country_code = options.search.countryCode;
         }
       }
       if (options.webhookUrl) payload.webhook_url = options.webhookUrl;

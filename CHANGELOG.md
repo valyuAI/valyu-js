@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.10.5
+
+- Fix: DeepResearch `create()` and `batch.create()` now send `search.countryCode` as `search.country_code`; it was previously dropped from the request.
+- Fix: DeepResearch `create()` now sends `mcpServers[].allowedTools` and `mcpServers[].toolPrefix` as `allowed_tools` and `tool_prefix`, so the API applies them; they were previously sent in camelCase and ignored.
+
 ## 2.10.4
 
 - DeepResearch: `files[].context` limit raised from 10,000 to 50,000 characters per file, with a new 100,000-character limit on the combined context across all files in a request.
