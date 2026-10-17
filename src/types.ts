@@ -294,6 +294,19 @@ export interface AnswerOptions {
   endDate?: string;
   fastMode?: boolean;
   streaming?: boolean; // Default: false - when true, returns AsyncGenerator
+  /**
+   * Which backend answers the query. Defaults to "default" (the standard answer path; nothing
+   * changes). "deepresearch_instant" is an OPT-IN, experimental path that instead runs a
+   * DeepResearch `instant` task and adapts it into this same response shape:
+   *   - Cost is the cost of a DeepResearch instant task, not the usual per-token/per-source charge.
+   *   - Streaming is synthetic: one search_results chunk, the full answer as a single content
+   *     chunk (no incremental text), then metadata and done.
+   *   - A cited source's content is a short snippet, not the full retrieved text.
+   *   - dataMaxPrice, fastMode=true and searchType="news" have no equivalent here and throw
+   *     rather than being silently ignored.
+   *   - Depends on DeepResearch instant being reachable from your account.
+   */
+  engine?: "default" | "deepresearch_instant";
 }
 
 export interface SearchMetadata {
@@ -422,14 +435,18 @@ export type DeepResearchStatus =
   | "paused"
   | "completed"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  // See DeepResearchMode: kept open so a future status value cannot break a caller's switch
+  // or wait()'s terminal-state check at the type level.
+  | (string & {});
 export type DeepResearchOutputFormat =
   | "markdown"
   | "pdf"
   | "toon"
+  | "structured_report"
   | Record<string, any>;
-export type DeepResearchOutputType = "markdown" | "json" | "toon";
-export type ImageType = "chart" | "ai_generated" | "screenshot";
+export type DeepResearchOutputType = "markdown" | "json" | "toon" | (string & {});
+export type ImageType = "chart" | "ai_generated" | "screenshot" | "attachment" | (string & {});
 export type ChartType =
   | "line"
   | "bar"
@@ -446,7 +463,11 @@ export type ChartType =
   | "histogram"
   | "waterfall"
   | "timeline"
-  | "bubble";
+  | "bubble"
+  // Additional chart kinds, sent as-is rather than mapped onto the 16 legacy types above.
+  | "stacked"
+  | "slope"
+  | (string & {});
 
 export interface FileAttachment {
   data: string;
@@ -488,7 +509,7 @@ export interface MCPServerConfig {
 }
 
 export type DeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf";
-export type DeliverableStatus = "completed" | "failed";
+export type DeliverableStatus = "completed" | "failed" | "pending" | (string & {});
 
 export interface Deliverable {
   type: DeliverableType;
@@ -503,16 +524,24 @@ export interface Deliverable {
 export interface DeliverableResult {
   id: string;
   request: string;
-  type: DeliverableType | "unknown";
+  type: DeliverableType | "unknown" | (string & {});
   status: DeliverableStatus;
   title: string;
   description?: string;
-  url: string;
-  s3_key: string;
+  /** Absent while status is "pending" (the deliverable is still being produced). */
+  url?: string;
+  /** Absent while status is "pending". */
+  s3_key?: string;
   row_count?: number;
   column_count?: number;
   error?: string;
-  created_at: number;
+  /** Absent while status is "pending". */
+  created_at?: number;
+  // Additional fields, beside the ones above.
+  filename?: string;
+  bytes?: number;
+  attempts?: number;
+  summary?: Record<string, any>;
 }
 
 export interface DeepResearchSearchConfig {
@@ -545,6 +574,15 @@ export interface DeepResearchTools {
   browser_use?: boolean | ToolConfig;
   /** Enable chart/graph generation embedded in the final report (free, unlimited) */
   charts?: boolean | ToolConfig;
+  // Newer tool names, resolved beside the legacy names above. read/analyse succeed
+  // urls/code_execution, browse succeeds browser_use, screenshot is the singular name for
+  // screenshots.
+  x_search?: boolean | ToolConfig;
+  read?: boolean | ToolConfig;
+  analyse?: boolean | ToolConfig;
+  browse?: boolean | ToolConfig;
+  screenshot?: boolean | ToolConfig;
+  ultrasearch?: boolean | ToolConfig;
 }
 
 export interface DeepResearchCreateOptions {
@@ -642,14 +680,26 @@ export interface ImageMetadata {
   title: string;
   description?: string;
   image_url: string;
-  created_at: number;
+  /** Absent on an image attachment entry. */
+  created_at?: number;
   chart_type?: ChartType;
+  /** The API's own chart kind, kept beside chart_type even when chart_type holds the value
+   * mapped onto one of the 16 legacy types (e.g. "stacked" -> "stackedBar"). */
+  chart_kind?: string;
   x_axis_label?: string;
   y_axis_label?: string;
   data_series?: ChartDataSeries[];
   // Screenshot-only fields
   source_url?: string;
   captured_at?: number;
+}
+
+/** One position in a source the report cited, in first-cited order (piece/page locate the
+ * passage in a long upload; excerpt is the verbatim cited text). Any field may be absent. */
+export interface SourceLocation {
+  piece?: string;
+  page?: number;
+  excerpt?: string;
 }
 
 export interface DeepResearchSource {
@@ -667,6 +717,13 @@ export interface DeepResearchSource {
   source_id?: number;
   word_count?: number;
   fragment?: string;
+  // Dates and tier: additional fields.
+  crawl_date?: string;
+  updated_date?: string;
+  tier?: number;
+  tier_label?: string;
+  /** The positions in this source the report actually cited (first-cited order). */
+  locations?: SourceLocation[];
 }
 
 export interface DeepResearchUsage {
@@ -677,11 +734,95 @@ export interface DeepResearchUsage {
   total_cost: number;
 }
 
+/** One line of an itemized bill (a tool charge or a dataset charge). */
+export interface CostDetailLine {
+  item?: string;
+  label?: string;
+  pricing?: string;
+  unit?: string;
+  units?: number;
+  free_units?: number;
+  billed_units?: number;
+  unit_price_usd?: number;
+  usd?: number;
+}
+
+/**
+ * The itemized bill: the base price, each tool and dataset charged, and the total. The API sends
+ * this under cost_detail, or directly as cost_breakdown instead of
+ * duplicating it under cost_detail — see effectiveCostDetail().
+ */
+export interface DeepResearchCostDetail {
+  task?: number;
+  base_usd?: number;
+  tools?: CostDetailLine[];
+  datasets?: CostDetailLine[];
+  total_usd?: number;
+}
+
 export interface DeepResearchCostBreakdown {
   task: number;
   screenshots?: number;
   code_execution?: number;
   deliverables?: number;
+  /** A summed number or a list of line items. */
+  datasets?: number | CostDetailLine[];
+  x_search?: number;
+  browse?: number;
+  other_tools?: number;
+  // Present when cost_breakdown holds the itemized bill.
+  base_usd?: number;
+  tools?: CostDetailLine[];
+  total_usd?: number;
+}
+
+/** One model in the `models` lineup of a historical_cache task: which model filled which
+ * role, and its training-data cutoff. */
+export interface ModelLineupEntry {
+  role?: string;
+  model?: string;
+  training_cutoff?: string;
+}
+
+/** One node of a structured_report's section tree. heading is null for the lead: the text
+ * between the report's title and its first heading. */
+export interface StructuredSection {
+  heading: string | null;
+  level: number;
+  markdown: string;
+  citations: number[];
+  children?: StructuredSection[];
+}
+
+export interface StructuredTable {
+  id: string;
+  caption: string | null;
+  columns: string[];
+  rows: any[][];
+  citations: number[];
+}
+
+export interface StructuredChart {
+  title: string;
+  image_url: string;
+  data_table_ref: string | null;
+}
+
+export interface StructuredSourceRef {
+  n: number;
+  title: string;
+  url: string | null;
+}
+
+/** output_formats: ["structured_report"]'s typed JSON tree. */
+export interface StructuredReport {
+  title: string | null;
+  summary: string | null;
+  sections: StructuredSection[];
+  tables: StructuredTable[];
+  charts: StructuredChart[];
+  sources: StructuredSourceRef[];
+  warnings: string[];
 }
 
 export interface DeepResearchCreateResponse {
@@ -691,14 +832,23 @@ export interface DeepResearchCreateResponse {
   mode?: DeepResearchMode; // Filled from research_mode when the API omits it (instant tasks)
   model?: DeepResearchMode; // Deprecated: kept for backward compatibility
   research_mode?: DeepResearchMode; // Mode as reported by the API; set for instant tasks
+  query?: string;
+  title?: string;
+  output_formats?: DeepResearchOutputFormat[];
+  research_output_formats?: DeepResearchOutputFormat[];
   created_at?: string;
   metadata?: Record<string, string | number | boolean>;
   public?: boolean;
   webhook_secret?: string;
   message?: string;
   workflow?: WorkflowRunInfo; // Present when the task was created from a workflow
+  /** The historical_cache model lineup (role, model, training cutoff). */
+  models?: ModelLineupEntry[];
   warnings?: ResponseWarning[];
+  ignored_fields?: string[];
   error?: string;
+  error_message?: string;
+  error_code?: string;
   /** Present when `error` was caused by a 429. */
   rateLimit?: RateLimitDetail;
 }
@@ -711,6 +861,7 @@ export interface DeepResearchStatusResponse {
   mode?: DeepResearchMode; // Filled from research_mode when the API omits it (instant tasks)
   research_mode?: DeepResearchMode; // Mode as reported by the API; set for instant tasks
   output_formats?: DeepResearchOutputFormat[];
+  research_output_formats?: DeepResearchOutputFormat[];
   created_at?: string; // ISO 8601 timestamp string
   public?: boolean;
   progress?: Progress;
@@ -718,28 +869,82 @@ export interface DeepResearchStatusResponse {
   completed_at?: string; // ISO 8601 timestamp string
   output?: string | Record<string, any>;
   output_type?: DeepResearchOutputType;
+  /** The markdown rendering beside a structured/json output (e.g. structured_report, which
+   * answers output_type: "json" with output the typed tree below). */
+  markdown?: string;
+  /** The typed JSON tree for output_formats: ["structured_report"]. */
+  structured_report?: StructuredReport;
   title?: string; // Auto-generated report title
   total_word_count?: number; // Total word count of the synthesised report
   pdf_url?: string;
   images?: ImageMetadata[];
   deliverables?: DeliverableResult[];
   sources?: DeepResearchSource[];
+  /** The historical_cache model lineup. */
+  models?: ModelLineupEntry[];
   cost?: number; // Total cost in dollars (preferred)
   usage?: DeepResearchUsage; // Detailed cost breakdown (backward compatible)
   cost_breakdown?: DeepResearchCostBreakdown;  // Itemized cost breakdown
+  /** The itemized bill, beside the numbers-only cost_breakdown. See effectiveCostDetail(). */
+  cost_detail?: DeepResearchCostDetail;
   tools?: DeepResearchTools;  // Resolved tools configuration
   batch_id?: string; // Batch ID if task belongs to a batch
   batch_task_id?: string; // Batch task ID if task belongs to a batch
+  /** The task's harness id (e.g. "default", "people", "forecasting"). */
+  harness?: string;
+  ignored_fields?: string[]; // Top-level request fields the server ignored
   hitl_config?: Record<string, boolean>; // HITL configuration (mirrors request hitl param)
   interaction?: Interaction; // Current HITL checkpoint (present when awaiting_input or paused)
   hitl_history?: InteractionHistoryEntry[]; // History of completed HITL checkpoints
   warnings?: ResponseWarning[];
   error?: string;
+  error_message?: string; // User-facing sentence for error_code
+  error_code?: string; // Machine-readable error code
   // True when success=false because the status endpoint could not be reached
   // after retries (transient gateway/network failure). Retryable and distinct
   // from a failed task — the report may still be available.
   unreachable?: boolean;
 }
+
+/** The mode the server actually resolved to: research_mode when mode/model had to be left out
+ * for an SDK that cannot type it (e.g. "instant"), else mode or model. */
+export function effectiveMode(r: {
+  research_mode?: DeepResearchMode;
+  mode?: DeepResearchMode;
+  model?: DeepResearchMode;
+}): DeepResearchMode | undefined {
+  return r.research_mode ?? r.mode ?? r.model;
+}
+
+/** The output formats the server actually resolved to, mirroring effectiveMode(). */
+export function effectiveOutputFormats(r: {
+  research_output_formats?: DeepResearchOutputFormat[];
+  output_formats?: DeepResearchOutputFormat[];
+}): DeepResearchOutputFormat[] | undefined {
+  return r.research_output_formats ?? r.output_formats;
+}
+
+/**
+ * The itemized bill, wherever it was sent: the separate cost_detail field, or
+ * cost_breakdown itself when that field already holds the itemized bill (base_usd/tools/
+ * total_usd set, with no separate cost_detail).
+ */
+export function effectiveCostDetail(r: {
+  cost_detail?: DeepResearchCostDetail;
+  cost_breakdown?: DeepResearchCostBreakdown;
+}): DeepResearchCostDetail | undefined {
+  if (r.cost_detail) return r.cost_detail;
+  const cb = r.cost_breakdown;
+  if (!cb || cb.base_usd === undefined) return undefined;
+  return {
+    task: cb.task,
+    base_usd: cb.base_usd,
+    tools: cb.tools,
+    datasets: Array.isArray(cb.datasets) ? cb.datasets : undefined,
+    total_usd: cb.total_usd,
+  };
+}
+
 
 export interface DeepResearchTaskListItem {
   deepresearch_id: string;
@@ -762,6 +967,8 @@ export interface DeepResearchUpdateResponse {
   message?: string;
   deepresearch_id?: string;
   error?: string;
+  error_message?: string;
+  error_code?: string;
 }
 
 export interface DeepResearchCancelResponse {
@@ -769,6 +976,8 @@ export interface DeepResearchCancelResponse {
   message?: string;
   deepresearch_id?: string;
   error?: string;
+  error_message?: string;
+  error_code?: string;
 }
 
 export interface DeepResearchDeleteResponse {
@@ -776,6 +985,8 @@ export interface DeepResearchDeleteResponse {
   message?: string;
   deepresearch_id?: string;
   error?: string;
+  error_message?: string;
+  error_code?: string;
 }
 
 export interface DeepResearchTogglePublicResponse {
@@ -802,6 +1013,8 @@ export interface DeepResearchRespondResponse {
   status?: string;
   deepresearch_id?: string;
   error?: string;
+  error_message?: string;
+  error_code?: string;
 }
 
 export interface WaitOptions {
@@ -846,7 +1059,8 @@ export type BatchStatus =
   | "processing"
   | "completed"
   | "completed_with_errors"
-  | "cancelled";
+  | "cancelled"
+  | (string & {});
 
 export interface BatchCounts {
   total: number;
@@ -861,13 +1075,18 @@ export interface BatchCounts {
 
 export interface DeepResearchBatch {
   batch_id: string;
-  organisation_id: string;
-  api_key_id: string;
-  credit_id: string;
+  // Not always sent.
+  organisation_id?: string;
+  api_key_id?: string;
+  credit_id?: string;
   status: BatchStatus;
   mode: DeepResearchMode; // Renamed from 'model' in responses
+  /** See DeepResearchStatusResponse's research_mode: a batch made in a mode this field cannot
+   * carry has the true value here. */
+  research_mode?: DeepResearchMode;
   name?: string;
   output_formats?: DeepResearchOutputFormat[];
+  research_output_formats?: DeepResearchOutputFormat[];
   search_params?: {
     search_type?: "all" | "web" | "proprietary";
     included_sources?: string[];
@@ -883,6 +1102,10 @@ export interface DeepResearchBatch {
   cost: number; // Replaces 'usage' object
   webhook_secret?: string; // Only returned on batch creation
   metadata?: Record<string, string | number | boolean>;
+  warnings?: (string | ResponseWarning)[];
+  // Additional fields.
+  results_ready?: boolean;
+  tasks?: BatchTaskCreated[];
   // Removed: updated_at, usage
 }
 

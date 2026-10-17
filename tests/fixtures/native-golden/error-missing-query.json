@@ -1,0 +1,9 @@
+{
+  "case": "error-missing-query",
+  "provisional": false,
+  "source": "response shape sample, values replaced by placeholders",
+  "http": 400,
+  "body": {
+    "error": "s"
+  }
+}

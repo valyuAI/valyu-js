@@ -2501,6 +2501,17 @@ export class Valyu {
       return { success: false, error: validationError };
     }
 
+    if (options.engine === "deepresearch_instant") {
+      const engineError = this.validateInstantAnswerParams(options);
+      if (engineError) {
+        throw new Error(engineError);
+      }
+      if (options.streaming) {
+        return this.streamAnswerViaDeepResearchInstant(query, options);
+      }
+      return this.fetchAnswerViaDeepResearchInstant(query, options);
+    }
+
     const payload = this.buildAnswerPayload(query, options);
 
     if (options.streaming) {
@@ -2508,6 +2519,164 @@ export class Valyu {
     } else {
       return this.fetchAnswer(payload);
     }
+  }
+
+  /** Params the default engine supports but DeepResearch instant has no equivalent for. */
+  private validateInstantAnswerParams(options: AnswerOptions): string | null {
+    if (options.dataMaxPrice !== undefined) {
+      return "dataMaxPrice has no equivalent on engine: 'deepresearch_instant'";
+    }
+    if (options.fastMode) {
+      return "fastMode has no equivalent on engine: 'deepresearch_instant' (instant is its own, separate mode)";
+    }
+    if (options.searchType === "news") {
+      return "searchType: 'news' is not supported on engine: 'deepresearch_instant'";
+    }
+    return null;
+  }
+
+  /** Map answer()'s search params onto DeepResearch's search config, best-effort. */
+  private deepResearchInstantSearchConfig(
+    options: AnswerOptions
+  ): Record<string, any> {
+    const search: Record<string, any> = {};
+    if (options.searchType !== undefined) search.searchType = options.searchType;
+    if (options.countryCode !== undefined) search.countryCode = options.countryCode;
+    if (options.includedSources !== undefined)
+      search.includedSources = options.includedSources;
+    if (options.excludedSources !== undefined)
+      search.excludedSources = options.excludedSources;
+    if (options.startDate !== undefined) search.startDate = options.startDate;
+    if (options.endDate !== undefined) search.endDate = options.endDate;
+    return search;
+  }
+
+  /** Create and wait on an `instant` DeepResearch task for answer(engine: "deepresearch_instant"). */
+  private async runDeepResearchInstant(
+    query: string,
+    options: AnswerOptions
+  ): Promise<DeepResearchStatusResponse> {
+    const search = this.deepResearchInstantSearchConfig(options);
+    const createOptions: DeepResearchCreateOptions = { query, mode: "instant" };
+    if (Object.keys(search).length > 0) createOptions.search = search;
+    if (options.structuredOutput !== undefined) {
+      // DeepResearch's outputFormats takes a JSON Schema object directly, same shape as the
+      // Answer API's structuredOutput.
+      createOptions.outputFormats = [options.structuredOutput];
+    }
+    const created = await this.deepresearch.create(createOptions);
+    if (!created.success || !created.deepresearch_id) {
+      throw new Error(
+        created.error || created.error_message || "Failed to create DeepResearch instant task"
+      );
+    }
+    return this.deepresearch.wait(created.deepresearch_id, { maxWaitTime: 300_000 });
+  }
+
+  /** A completed/failed `instant` task's status -> the Answer API's response shape. */
+  private adaptDeepResearchInstantToAnswer(
+    status: DeepResearchStatusResponse
+  ): AnswerResponse {
+    if (status.status !== "completed") {
+      const message =
+        status.error_message ||
+        status.error ||
+        `DeepResearch instant task ended as ${status.status}`;
+      return { success: false, error: message };
+    }
+
+    const searchResults = (status.sources || []).map((s) => {
+      const content = s.snippet || s.description || "";
+      return {
+        title: s.title,
+        url: s.url,
+        content,
+        description: s.description,
+        source: s.source || "",
+        length: content.length,
+      };
+    });
+
+    const contents: string | Record<string, any> =
+      status.output !== undefined && status.output !== null ? status.output : "";
+
+    return {
+      success: true,
+      tx_id: status.deepresearch_id || "",
+      original_query: status.query || "",
+      contents,
+      search_results: searchResults,
+      search_metadata: {
+        tx_ids: status.deepresearch_id ? [status.deepresearch_id] : [],
+        number_of_results: searchResults.length,
+        total_characters: searchResults.reduce(
+          (sum, r) => sum + String(r.content).length,
+          0
+        ),
+      },
+      // DeepResearch instant does not report token counts the way the
+      // default engine does; this is a best-effort zero rather than an invented number.
+      ai_usage: { input_tokens: 0, output_tokens: 0 },
+      cost: {
+        total_deduction_dollars: status.cost ?? 0,
+        search_deduction_dollars: 0,
+        ai_deduction_dollars: status.cost ?? 0,
+        contents_deduction_dollars: 0,
+      },
+    };
+  }
+
+  private async fetchAnswerViaDeepResearchInstant(
+    query: string,
+    options: AnswerOptions
+  ): Promise<AnswerResponse> {
+    try {
+      const status = await this.runDeepResearchInstant(query, options);
+      return this.adaptDeepResearchInstantToAnswer(status);
+    } catch (e: any) {
+      return { success: false, error: e?.message || String(e) };
+    }
+  }
+
+  /**
+   * Synthetic streaming: instant has no incremental output, so this runs the task to
+   * completion first, then yields search_results, one content chunk, metadata and done — the
+   * same frame order a streaming answer uses.
+   */
+  private async *streamAnswerViaDeepResearchInstant(
+    query: string,
+    options: AnswerOptions
+  ): AsyncGenerator<AnswerStreamChunk, void, unknown> {
+    let answer: AnswerResponse;
+    try {
+      const status = await this.runDeepResearchInstant(query, options);
+      answer = this.adaptDeepResearchInstantToAnswer(status);
+    } catch (e: any) {
+      yield { type: "error", error: e?.message || String(e) };
+      return;
+    }
+
+    if (!answer.success) {
+      yield { type: "error", error: answer.error };
+      return;
+    }
+
+    yield { type: "search_results", search_results: answer.search_results };
+    const contentText =
+      typeof answer.contents === "string"
+        ? answer.contents
+        : JSON.stringify(answer.contents);
+    yield { type: "content", content: contentText, finish_reason: "stop" };
+    yield {
+      type: "metadata",
+      tx_id: answer.tx_id,
+      original_query: answer.original_query,
+      contents: answer.contents,
+      search_metadata: answer.search_metadata,
+      ai_usage: answer.ai_usage,
+      cost: answer.cost,
+    };
+    yield { type: "done" };
   }
 
   /**
