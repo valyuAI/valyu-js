@@ -1117,6 +1117,9 @@ export interface CreateBatchOptions {
   search?: DeepResearchSearchConfig;
   webhookUrl?: string;
   metadata?: Record<string, string | number | boolean>;
+  /** Tasks to create the batch with. Optional: without it the server opens an empty batch, and
+   * you add tasks with batch.addTasks(). */
+  tasks?: BatchTaskInput[];
 }
 
 export interface BatchTaskInput {

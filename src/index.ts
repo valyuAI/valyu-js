@@ -2196,6 +2196,23 @@ export class Valyu {
       }
       if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
       if (options.metadata) payload.metadata = options.metadata;
+      // Optional: when given, the batch is created with these tasks. Without it the server
+      // opens an empty batch; add tasks with batch.addTasks().
+      if (options.tasks && options.tasks.length > 0) {
+        payload.tasks = options.tasks.map((task: any) => {
+          const t: Record<string, any> = { ...task };
+          if (task.researchStrategy !== undefined) {
+            t.research_strategy = task.researchStrategy;
+            delete t.researchStrategy;
+          }
+          if (task.reportFormat !== undefined) {
+            t.report_format = task.reportFormat;
+            delete t.reportFormat;
+          }
+          if (task.input !== undefined && task.query === undefined) t.query = task.input;
+          return t;
+        });
+      }
 
       const response = await this.withRateLimitRetry(() =>
         this.client.post(
