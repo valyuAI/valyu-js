@@ -2,6 +2,15 @@ export type SearchType = "web" | "proprietary" | "all" | "news";
 export type FeedbackSentiment = "very good" | "good" | "bad" | "very bad";
 export type DataType = "structured" | "unstructured";
 
+export interface ValyuOptions {
+  /**
+   * Timeout in milliseconds for DeepResearch, batch and workflow requests
+   * (default: 120000). A stalled connection fails instead of hanging, and
+   * status polls retry it. Set 0 to disable.
+   */
+  timeout?: number;
+}
+
 export type CountryCode =
   | "ALL"
   | "AR"
@@ -331,7 +340,23 @@ export interface AlertEmailConfig {
   custom_url?: string; // Must contain {id} placeholder, replaced with deepresearch task ID
 }
 
-export type DeepResearchMode = "fast" | "standard" | "lite" | "heavy" | "max"; // "lite" is deprecated, use "fast" instead
+/**
+ * DeepResearch mode, from quickest to most thorough: "instant", "fast",
+ * "standard", "heavy", "max".
+ *
+ * "instant" returns a short cited answer, typically in under 30 seconds. Human-in-the-loop
+ * checkpoints (`hitl`) do not run in instant mode, and a batch cannot use it.
+ */
+export type DeepResearchMode =
+  | "instant"
+  | "fast"
+  | "standard"
+  | "lite"
+  | "heavy"
+  | "max";
+
+/** Modes a batch accepts: every DeepResearch mode except "instant". */
+export type DeepResearchBatchMode = Exclude<DeepResearchMode, "instant">;
 export type DeepResearchStatus =
   | "queued"
   | "running"
@@ -467,7 +492,7 @@ export interface DeepResearchCreateOptions {
   alertEmail?: string | AlertEmailConfig; // Email or { email, custom_url } with {id} placeholder
   brandCollectionId?: string;
   metadata?: Record<string, string | number | boolean>;
-  hitl?: HitlConfig; // Human-in-the-loop configuration (not available for batch)
+  hitl?: HitlConfig; // Human-in-the-loop configuration (not available for batch or instant mode)
   // Workflow slug to run — the template supplies query/strategy/format. Mutually
   // exclusive with query/input/researchStrategy/reportFormat. Every other option
   // here still applies to a workflow run and overrides the template's value,
@@ -583,8 +608,9 @@ export interface DeepResearchCreateResponse {
   success: boolean;
   deepresearch_id?: string;
   status?: DeepResearchStatus;
-  mode?: DeepResearchMode; // API returns 'mode' (preferred)
+  mode?: DeepResearchMode; // Filled from research_mode when the API omits it (instant tasks)
   model?: DeepResearchMode; // Deprecated: kept for backward compatibility
+  research_mode?: DeepResearchMode; // Mode as reported by the API; set for instant tasks
   created_at?: string;
   metadata?: Record<string, string | number | boolean>;
   public?: boolean;
@@ -599,7 +625,8 @@ export interface DeepResearchStatusResponse {
   deepresearch_id?: string;
   status?: DeepResearchStatus;
   query?: string;
-  mode?: DeepResearchMode;
+  mode?: DeepResearchMode; // Filled from research_mode when the API omits it (instant tasks)
+  research_mode?: DeepResearchMode; // Mode as reported by the API; set for instant tasks
   output_formats?: DeepResearchOutputFormat[];
   created_at?: string; // ISO 8601 timestamp string
   public?: boolean;
@@ -702,7 +729,20 @@ export interface WaitOptions {
   maxWaitTime?: number;
   /** Not called again for a poll the server answers 304 Not Modified. */
   onProgress?: (status: DeepResearchStatusResponse) => void;
+  /**
+   * Called once per HITL checkpoint. Return a response to answer it, or
+   * null/undefined to leave it unanswered. A checkpoint is only offered again
+   * if sending the response failed.
+   */
   onInteraction?: (interaction: Interaction) => Promise<Record<string, any> | null | undefined> | Record<string, any> | null | undefined;
+}
+
+export interface StreamOptions {
+  /**
+   * Milliseconds to stream before giving up with "Maximum wait time
+   * exceeded" via onError (default: 7200000, as for wait()).
+   */
+  maxWaitTime?: number;
 }
 
 export interface StreamCallback {
@@ -764,8 +804,8 @@ export interface DeepResearchBatch {
 
 export interface CreateBatchOptions {
   name?: string;
-  mode?: DeepResearchMode;
-  model?: DeepResearchMode; // Backward compatible (not documented)
+  mode?: DeepResearchBatchMode; // "instant" is not available for batches
+  model?: DeepResearchBatchMode; // Backward compatible (not documented)
   outputFormats?: DeepResearchOutputFormat[];
   search?: DeepResearchSearchConfig;
   webhookUrl?: string;

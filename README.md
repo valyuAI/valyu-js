@@ -133,6 +133,34 @@ console.log(result.output);   // Markdown report
 console.log(result.pdf_url);  // PDF download link
 ```
 
+**Modes.** From quickest to most thorough: `instant`, `fast` (SDK default), `standard`, `heavy`, `max`. `instant` returns a short cited answer, typically in under 30 seconds:
+
+```typescript
+const task = await valyu.deepresearch.create({
+  query: "What is the capital of Australia and why was it chosen?",
+  mode: "instant",
+});
+const result = await valyu.deepresearch.wait(task.deepresearch_id);
+console.log(result.output);
+```
+
+Human-in-the-loop checkpoints (`hitl`) do not run in `instant` mode, and batches cannot use it. An instant task's `mode` reads `"instant"`; the API also reports it as `research_mode`.
+
+**Human-in-the-loop.** With `hitl` enabled, `wait()` passes each checkpoint to `onInteraction` once. Return a response to answer it, or `null` to leave it unanswered:
+
+```typescript
+const task = await valyu.deepresearch.create({
+  query: "Assess ASML's competitive position in EUV lithography",
+  mode: "fast",
+  hitl: { planReview: true },
+});
+
+const result = await valyu.deepresearch.wait(task.deepresearch_id, {
+  onInteraction: (interaction) =>
+    interaction.type === "plan_review" ? { approved: true } : null,
+});
+```
+
 <details>
 <summary>All DeepResearch methods</summary>
 
@@ -147,14 +175,17 @@ console.log(result.pdf_url);  // PDF download link
 | `cancel(taskId)` | Cancel a running task |
 | `delete(taskId)` | Delete a task |
 | `togglePublic(taskId, isPublic)` | Toggle public access |
+| `respond(taskId, interactionId, response)` | Answer a HITL checkpoint |
 
 </details>
 
-**Polling.** `status()`, `wait()` and `stream()` poll conditionally. When the server returns an `ETag`, the next poll for that task sends it as `If-None-Match`; a `304 Not Modified` reuses the previous response with no body transferred, and `onProgress` / stream progress callbacks are not repeated for a 304. When `pollInterval` is not set, `wait()` and `stream()` follow the server's `Retry-After` hint (clamped to 1-30 seconds, default 5 seconds); an explicit `pollInterval` always wins. Rate limits (429) and server errors (5xx) are retried with jittered exponential backoff. Servers that send no `ETag` are polled exactly as before.
+**Polling.** `status()`, `wait()` and `stream()` poll conditionally. When the server returns an `ETag`, the next poll for that task sends it as `If-None-Match`; a `304 Not Modified` reuses the previous response with no body transferred, and `onProgress` / stream progress callbacks are not repeated for a 304. When `pollInterval` is not set, `wait()` and `stream()` follow the server's `Retry-After` hint (clamped to 1-30 seconds, default 5 seconds); an explicit `pollInterval` always wins. Rate limits (429) and server errors (5xx) are retried with jittered exponential backoff. Servers that send no `ETag` are polled exactly as before. `wait()` and `stream()` give up after `maxWaitTime` (default 2 hours).
+
+**Timeouts.** DeepResearch, batch and workflow requests time out after 120 seconds, so a stalled connection fails instead of hanging; status polls retry it. Change it with `new Valyu(apiKey, baseUrl, { timeout: 60000 })`, or pass `0` to disable it.
 
 ### Batch
 
-Run multiple DeepResearch tasks in parallel.
+Run multiple DeepResearch tasks in parallel. Batches support every mode except `instant`.
 
 ```typescript
 const batch = await valyu.batch.create({
