@@ -13,7 +13,7 @@ async function main() {
     const task = await valyu.deepresearch.create({
       query:
         "What are the key differences between RAG and fine-tuning for LLMs?",
-      mode: "fast", // Preferred over "model". Or "instant" for a short cited answer in seconds, "standard", "heavy", "max"
+      mode: "fast", // Preferred over "model". Or "instant" for a short cited answer in under 30 seconds, "standard", "heavy", "max"
       outputFormats: ["markdown"],
       // Optional: Add search configuration
       // search: {

@@ -1201,7 +1201,7 @@ export class Valyu {
 
   /**
    * DeepResearch: Create a new research task
-   * @param options.mode - "instant", "fast" (default), "standard", "heavy" or "max". "instant" returns a short cited answer in seconds; HITL checkpoints do not run in instant mode
+   * @param options.mode - "instant", "fast" (default), "standard", "heavy" or "max". "instant" returns a short cited answer, typically in under 30 seconds; HITL checkpoints do not run in instant mode
    * @param options.search - Search configuration options
    * @param options.search.searchType - Type of search: "all", "web", or "proprietary" (default: "all")
    * @param options.search.includedSources - Array of source types to include (e.g., ["academic", "finance", "web"])

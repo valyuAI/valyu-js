@@ -133,7 +133,7 @@ console.log(result.output);   // Markdown report
 console.log(result.pdf_url);  // PDF download link
 ```
 
-**Modes.** From quickest to most thorough: `instant`, `fast` (SDK default), `standard`, `heavy`, `max`. `instant` returns a short cited answer in seconds:
+**Modes.** From quickest to most thorough: `instant`, `fast` (SDK default), `standard`, `heavy`, `max`. `instant` returns a short cited answer, typically in under 30 seconds:
 
 ```typescript
 const task = await valyu.deepresearch.create({

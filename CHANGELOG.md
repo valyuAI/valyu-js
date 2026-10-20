@@ -2,7 +2,7 @@
 
 ## 2.11.0
 
-- DeepResearch: new `instant` mode (`mode: "instant"`) returns a short cited answer in seconds. Human-in-the-loop checkpoints do not run in instant mode, and batches do not accept it (`batch.create()` types now exclude it). Create and status responses gain `research_mode`; for instant tasks, which the API reports through `research_mode` only, the SDK also sets `mode`.
+- DeepResearch: new `instant` mode (`mode: "instant"`) returns a short cited answer, typically in under 30 seconds. Human-in-the-loop checkpoints do not run in instant mode, and batches do not accept it (`batch.create()` types now exclude it). Create and status responses gain `research_mode`; for instant tasks, which the API reports through `research_mode` only, the SDK also sets `mode`.
 - Fix: `deepresearch.wait()` passed the same HITL checkpoint to `onInteraction` repeatedly, and re-sent the response, while the status still showed a checkpoint that had already been answered. Each checkpoint is now offered once (again only if sending the response failed), and the poll interval applies after responding.
 - DeepResearch, batch and workflow requests now time out after 120 seconds instead of waiting indefinitely on a stalled connection. Configure it with `new Valyu(apiKey, baseUrl, { timeout })`; `0` disables it.
 - `deepresearch.stream()` accepts `{ maxWaitTime }` as a third argument and stops via `onError` with "Maximum wait time exceeded" once it passes (default 2 hours, as for `wait()`). It previously had no limit.

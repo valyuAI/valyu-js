@@ -342,9 +342,9 @@ export interface AlertEmailConfig {
 
 /**
  * DeepResearch mode, from quickest to most thorough: "instant", "fast",
- * "standard", "heavy", "max". "lite" is deprecated, use "fast" instead.
+ * "standard", "heavy", "max".
  *
- * "instant" returns a short cited answer in seconds. Human-in-the-loop
+ * "instant" returns a short cited answer, typically in under 30 seconds. Human-in-the-loop
  * checkpoints (`hitl`) do not run in instant mode, and a batch cannot use it.
  */
 export type DeepResearchMode =
