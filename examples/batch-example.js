@@ -17,7 +17,7 @@ async function batchExample() {
     console.log("Step 1: Creating batch...");
     const batch = await client.batch.create({
       name: "Research Questions Batch",
-      mode: "fast", // Preferred over "model" - or 'standard', 'heavy'
+      mode: "fast", // Preferred over "model" - or 'standard', 'heavy', 'max' ('instant' is not available for batches)
       outputFormats: ["markdown"],
       // Optional: Add search configuration (applies to all tasks)
       // search: {

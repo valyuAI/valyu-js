@@ -3,6 +3,8 @@ import http from "http";
 import https from "https";
 import axios, { AxiosInstance } from "axios";
 import {
+  ValyuOptions,
+  DeepResearchMode,
   SearchResponse,
   SearchType,
   SearchOptions,
@@ -29,6 +31,7 @@ import {
   DeepResearchRespondResponse,
   WaitOptions,
   StreamCallback,
+  StreamOptions,
   ListOptions,
   CreateBatchOptions,
   CreateBatchResponse,
@@ -56,7 +59,7 @@ import {
   WorkflowDeleteResponse,
 } from "./types";
 
-const SDK_VERSION = "2.10.5";
+const SDK_VERSION = "2.11.0";
 
 /**
  * Maximum combined character length of research_strategy (or its legacy
@@ -88,6 +91,12 @@ const MAX_POLL_INTERVAL_MS = 30000;
  */
 const POLL_CACHE_SIZE = 128;
 
+/** Default timeout for DeepResearch, batch and workflow requests. */
+const DEFAULT_REQUEST_TIMEOUT_MS = 120000;
+
+/** Default maximum time for deepresearch.wait() and stream(). */
+const DEFAULT_MAX_WAIT_TIME_MS = 7200000;
+
 /** Parse a Retry-After header (delta-seconds or HTTP-date) into milliseconds. */
 function parseRetryAfterMs(value: unknown): number | undefined {
   if (typeof value !== "string" || !value.trim()) return undefined;
@@ -106,6 +115,27 @@ function nextPollIntervalMs(
   if (userIntervalMs !== undefined) return userIntervalMs;
   if (retryAfterMs === undefined) return DEFAULT_POLL_INTERVAL_MS;
   return Math.min(Math.max(retryAfterMs, MIN_POLL_INTERVAL_MS), MAX_POLL_INTERVAL_MS);
+}
+
+/** Error text from an error body: its `error`, else its `message`. */
+function bodyErrorText(data: any): string | undefined {
+  return data?.error || data?.message;
+}
+
+/** Error text from a failed request, else the transport error's message. */
+function errorText(e: any): string {
+  return bodyErrorText(e?.response?.data) || e?.message;
+}
+
+/**
+ * Instant tasks report their mode as `research_mode` only. Mirror it into
+ * `mode` so the mode reads the same way for every task.
+ */
+function withMode<T extends { mode?: DeepResearchMode; research_mode?: DeepResearchMode }>(
+  body: T
+): T {
+  if (body.mode !== undefined || body.research_mode === undefined) return body;
+  return { ...body, mode: body.research_mode };
 }
 
 interface PollResult {
@@ -317,6 +347,8 @@ export class Valyu {
   private baseUrl: string;
   private headers: Record<string, string>;
   private client: AxiosInstance;
+  // Timeout for DeepResearch, batch and workflow requests (0 = none)
+  private timeout: number;
   // taskId -> last ETag (if any) and status response, for conditional polling
   private pollCache = new Map<
     string,
@@ -333,7 +365,11 @@ export class Valyu {
       taskId: string,
       options?: WaitOptions
     ) => Promise<DeepResearchStatusResponse>;
-    stream: (taskId: string, callback: StreamCallback) => Promise<void>;
+    stream: (
+      taskId: string,
+      callback: StreamCallback,
+      options?: StreamOptions
+    ) => Promise<void>;
     list: (options: ListOptions) => Promise<DeepResearchListResponse>;
     update: (
       taskId: string,
@@ -404,7 +440,17 @@ export class Valyu {
     delete: (slug: string) => Promise<WorkflowDeleteResponse>;
   };
 
-  constructor(apiKey?: string, baseUrl: string = "https://api.valyu.ai/v1") {
+  /**
+   * @param apiKey - API key (default: the VALYU_API_KEY environment variable)
+   * @param baseUrl - API base URL
+   * @param options.timeout - Timeout in milliseconds for DeepResearch, batch
+   *   and workflow requests (default: 120000; 0 disables it)
+   */
+  constructor(
+    apiKey?: string,
+    baseUrl: string = "https://api.valyu.ai/v1",
+    options: ValyuOptions = {}
+  ) {
     if (!apiKey) {
       apiKey = process.env.VALYU_API_KEY;
       if (!apiKey) {
@@ -412,6 +458,7 @@ export class Valyu {
       }
     }
     this.baseUrl = baseUrl;
+    this.timeout = options.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
     this.headers = {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
@@ -849,7 +896,7 @@ export class Valyu {
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
         tx_id: null,
         query,
         results: [],
@@ -1065,7 +1112,7 @@ export class Valyu {
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
         urls_requested: urls.length,
         urls_processed: 0,
         urls_failed: urls.length,
@@ -1101,7 +1148,7 @@ export class Valyu {
         createdAt: 0,
         updatedAt: 0,
         error:
-          errData?.error ||
+          bodyErrorText(errData) ||
           (status === 403
             ? "Forbidden - you do not have access to this job"
             : status === 404
@@ -1154,6 +1201,7 @@ export class Valyu {
 
   /**
    * DeepResearch: Create a new research task
+   * @param options.mode - "instant", "fast" (default), "standard", "heavy" or "max". "instant" returns a short cited answer in seconds; HITL checkpoints do not run in instant mode
    * @param options.search - Search configuration options
    * @param options.search.searchType - Type of search: "all", "web", or "proprietary" (default: "all")
    * @param options.search.includedSources - Array of source types to include (e.g., ["academic", "finance", "web"])
@@ -1225,9 +1273,9 @@ export class Valyu {
         const response = await this.client.post(
           `${this.baseUrl}/deepresearch/tasks`,
           payload,
-          { headers: this.headers }
+          { headers: this.headers, timeout: this.timeout }
         );
-        return { success: true, ...response.data };
+        return withMode({ success: true, ...response.data });
       }
 
       // Validation
@@ -1271,10 +1319,10 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks`,
         payload,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
-      return { success: true, ...response.data };
+      return withMode({ success: true, ...response.data });
     } catch (e: any) {
       return {
         success: false,
@@ -1319,6 +1367,7 @@ export class Valyu {
           headers: cached?.etag
             ? { ...this.headers, "If-None-Match": cached.etag }
             : this.headers,
+          timeout: this.timeout,
           // Classify status codes ourselves rather than letting axios throw.
           validateStatus: () => true,
         });
@@ -1358,14 +1407,17 @@ export class Valyu {
             return {
               status: {
                 success: false,
-                error: (body as any).error || `HTTP Error: ${response.status}`,
+                error: bodyErrorText(body) || `HTTP Error: ${response.status}`,
               },
               changed: true,
               retryAfterMs,
             };
           } else {
             const { success: _ignored, ...rest } = body as any;
-            const status: DeepResearchStatusResponse = { success: true, ...rest };
+            const status: DeepResearchStatusResponse = withMode({
+              success: true,
+              ...rest,
+            });
             const etag = response.headers?.["etag"];
             this.rememberPoll(taskId, {
               etag: typeof etag === "string" ? etag : undefined,
@@ -1421,14 +1473,20 @@ export class Valyu {
 
   /**
    * DeepResearch: Wait for task completion with polling
+   *
+   * Each HITL checkpoint is passed to onInteraction once. After answering
+   * one, the next poll waits the usual interval.
    */
   private async _deepresearchWait(
     taskId: string,
     options: WaitOptions = {}
   ): Promise<DeepResearchStatusResponse> {
     const userInterval = options.pollInterval || undefined;
-    const maxWaitTime = options.maxWaitTime || 7200000;
+    const maxWaitTime = options.maxWaitTime || DEFAULT_MAX_WAIT_TIME_MS;
     const startTime = Date.now();
+    // Checkpoints already passed to onInteraction. The status can still show
+    // a checkpoint for a moment after it was answered, so each is offered once.
+    const handledInteractions = new Set<string>();
 
     while (true) {
       const { status, changed, retryAfterMs } =
@@ -1456,20 +1514,23 @@ export class Valyu {
       }
 
       // HITL checkpoint handling
+      const interaction = status.interaction;
       if (
         (status.status === "awaiting_input" || status.status === "paused") &&
-        status.interaction
+        interaction &&
+        options.onInteraction &&
+        !handledInteractions.has(interaction.interaction_id)
       ) {
-        if (options.onInteraction) {
-          const response = await options.onInteraction(status.interaction);
-          if (response) {
-            await this._deepresearchRespond(
-              taskId,
-              status.interaction.interaction_id,
-              response
-            );
-            continue;
-          }
+        handledInteractions.add(interaction.interaction_id);
+        const response = await options.onInteraction(interaction);
+        if (response) {
+          const sent = await this._deepresearchRespond(
+            taskId,
+            interaction.interaction_id,
+            response
+          );
+          // Offer the checkpoint again on a later poll if the answer did not land.
+          if (!sent.success) handledInteractions.delete(interaction.interaction_id);
         }
       }
 
@@ -1498,11 +1559,16 @@ export class Valyu {
    * Progress callbacks are not repeated for a poll the server answers 304 Not
    * Modified. The poll interval follows the server's Retry-After hint (clamped to 1-30 seconds),
    * else 5 seconds.
+   * @param options.maxWaitTime - Give up with "Maximum wait time exceeded" via
+   *   onError after this many milliseconds (default: 7200000, as for wait())
    */
   private async _deepresearchStream(
     taskId: string,
-    callback: StreamCallback
+    callback: StreamCallback,
+    options: StreamOptions = {}
   ): Promise<void> {
+    const maxWaitTime = options.maxWaitTime || DEFAULT_MAX_WAIT_TIME_MS;
+    const startTime = Date.now();
     let isComplete = false;
     let lastMessageCount = 0;
 
@@ -1552,6 +1618,10 @@ export class Valyu {
         }
 
         if (!isComplete) {
+          if (Date.now() - startTime > maxWaitTime) {
+            callback.onError?.(new Error("Maximum wait time exceeded"));
+            return;
+          }
           await this.sleep(nextPollIntervalMs(undefined, retryAfterMs));
         }
       } catch (error: any) {
@@ -1573,14 +1643,14 @@ export class Valyu {
       const limit = options?.limit || 10;
       const response = await this.client.get(
         `${this.baseUrl}/deepresearch/list?limit=${limit}`,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, data: response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1603,14 +1673,14 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/update`,
         { instruction },
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1633,14 +1703,14 @@ export class Valyu {
           interaction_id: interactionId,
           response,
         },
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...resp.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1717,14 +1787,14 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/cancel`,
         {},
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1738,14 +1808,14 @@ export class Valyu {
     try {
       const response = await this.client.delete(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/delete`,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1761,14 +1831,14 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/tasks/${taskId}/public`,
         { public: isPublic },
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1807,6 +1877,7 @@ export class Valyu {
       const response = await this.client.get(url, {
         headers,
         responseType: "arraybuffer", // For binary data
+        timeout: this.timeout,
       });
 
       return {
@@ -1819,7 +1890,7 @@ export class Valyu {
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1828,7 +1899,7 @@ export class Valyu {
    * Batch: Create a new batch
    * @param options - Batch configuration options
    * @param options.name - Optional name for the batch
-   * @param options.model - DeepResearch mode: "fast", "standard", or "heavy" (default: "standard")
+   * @param options.mode - DeepResearch mode: "fast", "standard", "heavy" or "max" (default: "standard"). "instant" is not available for batches
    * @param options.outputFormats - Output formats for tasks (default: ["markdown"])
    * @param options.search - Search configuration for all tasks in batch
    * @param options.search.searchType - Type of search: "all", "web", or "proprietary" (default: "all")
@@ -1893,14 +1964,14 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches`,
         payload,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1914,14 +1985,14 @@ export class Valyu {
     try {
       const response = await this.client.get(
         `${this.baseUrl}/deepresearch/batches/${batchId}`,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, batch: response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -1996,14 +2067,14 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
         { tasks: tasksPayload },
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -2040,13 +2111,13 @@ export class Valyu {
       const url = `${this.baseUrl}/deepresearch/batches/${batchId}/tasks${
         params.toString() ? `?${params.toString()}` : ""
       }`;
-      const response = await this.client.get(url, { headers: this.headers });
+      const response = await this.client.get(url, { headers: this.headers, timeout: this.timeout });
 
       return { success: true, ...response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -2061,14 +2132,14 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/deepresearch/batches/${batchId}/cancel`,
         {},
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -2094,13 +2165,14 @@ export class Valyu {
       }`;
       const response = await this.client.get(url, {
         headers: this.headers,
+        timeout: this.timeout,
       });
 
       return { success: true, batches: response.data };
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -2350,7 +2422,7 @@ export class Valyu {
         const errorData = await response.json().catch(() => ({}));
         return {
           success: false,
-          error: errorData.error || `HTTP Error: ${response.status}`,
+          error: bodyErrorText(errorData) || `HTTP Error: ${response.status}`,
         };
       }
 
@@ -2464,7 +2536,7 @@ export class Valyu {
         const errorData = await response.json().catch(() => ({}));
         yield {
           type: "error",
-          error: errorData.error || `HTTP Error: ${response.status}`,
+          error: bodyErrorText(errorData) || `HTTP Error: ${response.status}`,
         };
         return;
       }
@@ -2573,7 +2645,7 @@ export class Valyu {
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -2592,7 +2664,7 @@ export class Valyu {
     } catch (e: any) {
       return {
         success: false,
-        error: e.response?.data?.error || e.message,
+        error: errorText(e),
       };
     }
   }
@@ -2623,7 +2695,7 @@ export class Valyu {
       const url = `${this.baseUrl}/workflows${
         params.toString() ? `?${params.toString()}` : ""
       }`;
-      const response = await this.client.get(url, { headers: this.headers });
+      const response = await this.client.get(url, { headers: this.headers, timeout: this.timeout });
 
       return { success: true, ...response.data };
     } catch (e: any) {
@@ -2644,7 +2716,7 @@ export class Valyu {
       const url = `${this.baseUrl}/workflows/${encodeURIComponent(slug)}${
         version !== undefined ? `?version=${version}` : ""
       }`;
-      const response = await this.client.get(url, { headers: this.headers });
+      const response = await this.client.get(url, { headers: this.headers, timeout: this.timeout });
 
       return { success: true, workflow: response.data };
     } catch (e: any) {
@@ -2662,7 +2734,7 @@ export class Valyu {
     try {
       const response = await this.client.get(
         `${this.baseUrl}/workflows/${encodeURIComponent(slug)}/versions`,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
@@ -2692,7 +2764,7 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/workflows/${encodeURIComponent(slug)}/preview`,
         payload,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
@@ -2725,7 +2797,7 @@ export class Valyu {
       const response = await this.client.post(
         `${this.baseUrl}/workflows`,
         payload,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, workflow: response.data };
@@ -2763,7 +2835,7 @@ export class Valyu {
       const response = await this.client.patch(
         `${this.baseUrl}/workflows/${encodeURIComponent(slug)}`,
         payload,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, workflow: response.data };
@@ -2782,7 +2854,7 @@ export class Valyu {
     try {
       const response = await this.client.delete(
         `${this.baseUrl}/workflows/${encodeURIComponent(slug)}`,
-        { headers: this.headers }
+        { headers: this.headers, timeout: this.timeout }
       );
 
       return { success: true, ...response.data };
@@ -2793,6 +2865,7 @@ export class Valyu {
 }
 
 export type {
+  ValyuOptions,
   SearchResponse,
   SearchType,
   SearchResult,
@@ -2824,6 +2897,7 @@ export type {
   ExtractionMetadata,
   AlertEmailConfig,
   DeepResearchMode,
+  DeepResearchBatchMode,
   DeepResearchStatus,
   DeepResearchOutputFormat,
   ImageType,
@@ -2858,6 +2932,7 @@ export type {
   InteractionHistoryEntry,
   WaitOptions,
   StreamCallback,
+  StreamOptions,
   ListOptions,
   BatchStatus,
   BatchCounts,
