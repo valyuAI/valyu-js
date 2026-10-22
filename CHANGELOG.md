@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.11.1
+
+- `search()`, `contents()`, `answer()`, `deepresearch.create()`, `batch.create()` and `batch.addTasks()` now automatically retry a 429 response. A 429 means the request was never accepted, so retrying it is always safe. Retries honor the server's `retry_after`/`Retry-After`, capped at 60 seconds per attempt; configure the count with `new Valyu(apiKey, baseUrl, { maxRateLimitRetries })` (default 2, `0` disables it).
+- A failed `search()`, `contents()`, `answer()`, `deepresearch.create()`, `batch.create()` or `batch.addTasks()` response now carries a `rateLimit` field (`retryAfter`, `plan`, `limit`, `upgradeUrl`/`contactUrl`) when the failure was a 429, once retries are exhausted. New exported `RateLimitError` (thrown by the retry logic once exhausted) and `RateLimitDetail` type.
+- `CreateBatchResponse` and `AddBatchTasksResponse` gain `message?: string`, matching the raw response data they already passed through at runtime (e.g. a DeepResearch concurrency-queue notice).
+- New `includeImageLinks` option for `search()` and `contents()`. Set it to `false` to replace image markdown `![alt](url)` in result content with `[Image: alt]`; images with no alt text are removed. The SDK sends `include_image_links` only when the value is `false`. Default behavior does not change.
+
 ## 2.11.0
 
 - DeepResearch: new `instant` mode (`mode: "instant"`) returns a short cited answer, typically in under 30 seconds. Human-in-the-loop checkpoints do not run in instant mode, and batches do not accept it (`batch.create()` types now exclude it). Create and status responses gain `research_mode`; for instant tasks, which the API reports through `research_mode` only, the SDK also sets `mode`.

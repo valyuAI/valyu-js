@@ -57,9 +57,19 @@ import {
   WorkflowCreateOptions,
   WorkflowUpdateOptions,
   WorkflowDeleteResponse,
+  RateLimitDetail,
 } from "./types";
 
-const SDK_VERSION = "2.11.0";
+const SDK_VERSION = "2.11.1";
+
+/** `maxRateLimitRetries` when the constructor options do not set one. */
+const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;
+
+/** Seconds to wait before retrying a 429 that carries no retry_after and no Retry-After header. */
+const DEFAULT_RATE_LIMIT_RETRY_AFTER_SECONDS = 1;
+
+/** Longest a single 429 retry wait is allowed to be, regardless of what the server asks for. */
+const MAX_RATE_LIMIT_RETRY_DELAY_MS = 60000;
 
 /**
  * Maximum combined character length of research_strategy (or its legacy
@@ -125,6 +135,108 @@ function bodyErrorText(data: any): string | undefined {
 /** Error text from a failed request, else the transport error's message. */
 function errorText(e: any): string {
   return bodyErrorText(e?.response?.data) || e?.message;
+}
+
+/**
+ * Thrown by withRateLimitRetry / fetchWithRateLimitRetry once
+ * maxRateLimitRetries is exhausted on a 429. A 429 means the request was
+ * never accepted (and never billed), so every retry leading up to this was
+ * safe to make. `message` carries the server's own text.
+ */
+export class RateLimitError extends Error {
+  /** Seconds to wait before retrying: the body's retry_after, else the Retry-After header. */
+  retryAfter: number;
+  plan?: string;
+  limit?: { endpoint: string; requestsPerSecond: number };
+  upgradeUrl?: string;
+  contactUrl?: string;
+
+  constructor(message: string, detail: RateLimitDetail) {
+    super(message);
+    this.name = "RateLimitError";
+    this.retryAfter = detail.retryAfter;
+    this.plan = detail.plan;
+    this.limit = detail.limit;
+    this.upgradeUrl = detail.upgradeUrl;
+    this.contactUrl = detail.contactUrl;
+  }
+}
+
+/**
+ * Human-readable text for a 429 body specifically: its `message` (e.g.
+ * "Search rate limit reached: ..."), else its `error`, else `fallback`.
+ * A 429's `error` is a machine code ("rate_limited"), not the human text —
+ * the opposite of bodyErrorText's assumption for every other endpoint,
+ * where `error` already IS the human-readable string — so this is kept
+ * separate rather than changing bodyErrorText itself.
+ */
+function rateLimitErrorText(data: any, fallback: string): string {
+  return data?.message || data?.error || fallback;
+}
+
+/**
+ * Build a RateLimitDetail from a 429 body and a raw Retry-After header
+ * value. Shared core for both the axios and fetch adapters below so the
+ * retry_after/plan/limit/upgrade_url/contact_url mapping lives in one place.
+ */
+function buildRateLimitDetail(
+  data: any,
+  retryAfterHeaderValue: unknown
+): RateLimitDetail {
+  const headerMs = parseRetryAfterMs(retryAfterHeaderValue);
+  const retryAfter =
+    typeof data?.retry_after === "number"
+      ? data.retry_after
+      : headerMs !== undefined
+        ? Math.ceil(headerMs / 1000)
+        : DEFAULT_RATE_LIMIT_RETRY_AFTER_SECONDS;
+
+  return {
+    retryAfter,
+    plan: data?.plan,
+    limit: data?.limit
+      ? {
+          endpoint: data.limit.endpoint,
+          requestsPerSecond: data.limit.requests_per_second,
+        }
+      : undefined,
+    upgradeUrl: data?.upgrade_url,
+    contactUrl: data?.contact_url,
+  };
+}
+
+/** RateLimitDetail from a rejected axios call, or undefined when it was not a 429. */
+function rateLimitDetailFrom(e: any): RateLimitDetail | undefined {
+  if (e?.response?.status !== 429) return undefined;
+  return buildRateLimitDetail(e.response.data, e.response.headers?.["retry-after"]);
+}
+
+/** RateLimitDetail from a fetch Response, or undefined when it was not a 429. */
+function rateLimitDetailFromFetchResponse(
+  response: Response,
+  data: any
+): RateLimitDetail | undefined {
+  if (response.status !== 429) return undefined;
+  return buildRateLimitDetail(data, response.headers.get("retry-after"));
+}
+
+/**
+ * RateLimitDetail from whatever a retry-wrapped call can throw: a
+ * RateLimitError (maxRateLimitRetries exhausted) or a raw 429 rejection
+ * (maxRateLimitRetries: 0, so nothing was wrapped into an error). Used in
+ * catch blocks that populate a response's `rateLimit` field.
+ */
+function rateLimitDetailFromCatch(e: any): RateLimitDetail | undefined {
+  if (e instanceof RateLimitError) {
+    return {
+      retryAfter: e.retryAfter,
+      plan: e.plan,
+      limit: e.limit,
+      upgradeUrl: e.upgradeUrl,
+      contactUrl: e.contactUrl,
+    };
+  }
+  return rateLimitDetailFrom(e);
 }
 
 /**
@@ -349,6 +461,8 @@ export class Valyu {
   private client: AxiosInstance;
   // Timeout for DeepResearch, batch and workflow requests (0 = none)
   private timeout: number;
+  // Automatic 429 retries for search/contents/answer/create calls (0 = none)
+  private maxRateLimitRetries: number;
   // taskId -> last ETag (if any) and status response, for conditional polling
   private pollCache = new Map<
     string,
@@ -445,6 +559,8 @@ export class Valyu {
    * @param baseUrl - API base URL
    * @param options.timeout - Timeout in milliseconds for DeepResearch, batch
    *   and workflow requests (default: 120000; 0 disables it)
+   * @param options.maxRateLimitRetries - How many times to automatically
+   *   retry a 429 on search/contents/answer/create calls (default: 2; 0 disables it)
    */
   constructor(
     apiKey?: string,
@@ -459,6 +575,8 @@ export class Valyu {
     }
     this.baseUrl = baseUrl;
     this.timeout = options.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    this.maxRateLimitRetries =
+      options.maxRateLimitRetries ?? DEFAULT_MAX_RATE_LIMIT_RETRIES;
     this.headers = {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
@@ -649,6 +767,7 @@ export class Valyu {
    * @param options.endDate - End date filter (YYYY-MM-DD format)
    * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
    * @param options.includeAbstracts - Search PubMed's complete abstract corpus and return document-level abstracts instead of full-text papers (default: false)
+   * @param options.includeImageLinks - When false, image markdown in result content `![alt](url)` becomes `[Image: alt]` (URL removed, alt text kept) and images with no alt text are removed (default: true)
    * @param options.countryCode - Country code filter for search results
    * @param options.responseLength - Response content length: "short"/"medium"/"large"/"max" or integer character count
    * @param options.fastMode - Fast mode for quicker but shorter results (default: false)
@@ -855,6 +974,10 @@ export class Valyu {
         payload.include_abstracts = options.includeAbstracts;
       }
 
+      if (options.includeImageLinks === false) {
+        payload.include_image_links = false;
+      }
+
       if (options.countryCode !== undefined) {
         payload.country_code = options.countryCode;
       }
@@ -875,9 +998,11 @@ export class Valyu {
         payload.instructions = options.instructions;
       }
 
-      const response = await this.client.post(`${this.baseUrl}/search`, payload, {
-        headers: this.headers,
-      });
+      const response = await this.withRateLimitRetry(() =>
+        this.client.post(`${this.baseUrl}/search`, payload, {
+          headers: this.headers,
+        })
+      );
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {
@@ -897,6 +1022,7 @@ export class Valyu {
       return {
         success: false,
         error: errorText(e),
+        rateLimit: rateLimitDetailFromCatch(e),
         tx_id: null,
         query,
         results: [],
@@ -921,6 +1047,7 @@ export class Valyu {
    * @param options.startDate - Start date filter (YYYY-MM-DD format), inclusive
    * @param options.endDate - End date filter (YYYY-MM-DD format), inclusive
    * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
+   * @param options.includeImageLinks - When false, image markdown in result content `![alt](url)` becomes `[Image: alt]` (URL removed, alt text kept) and images with no alt text are removed (default: true)
    * @returns Promise resolving to sync results or async job (when async: true or >10 URLs)
    */
   async contents(
@@ -1086,9 +1213,15 @@ export class Valyu {
         payload.historical_cache_strict = options.historicalCacheStrict;
       }
 
-      const response = await this.client.post(`${this.baseUrl}/contents`, payload, {
-        headers: this.headers,
-      });
+      if (options.includeImageLinks === false) {
+        payload.include_image_links = false;
+      }
+
+      const response = await this.withRateLimitRetry(() =>
+        this.client.post(`${this.baseUrl}/contents`, payload, {
+          headers: this.headers,
+        })
+      );
 
       if (!response.status || response.status < 200 || response.status >= 300) {
         return {
@@ -1113,6 +1246,7 @@ export class Valyu {
       return {
         success: false,
         error: errorText(e),
+        rateLimit: rateLimitDetailFromCatch(e),
         urls_requested: urls.length,
         urls_processed: 0,
         urls_failed: urls.length,
@@ -1270,10 +1404,12 @@ export class Valyu {
         // the template only supplies the freeform fields.
         Object.assign(payload, buildSharedFields(options));
 
-        const response = await this.client.post(
-          `${this.baseUrl}/deepresearch/tasks`,
-          payload,
-          { headers: this.headers, timeout: this.timeout }
+        const response = await this.withRateLimitRetry(() =>
+          this.client.post(
+            `${this.baseUrl}/deepresearch/tasks`,
+            payload,
+            { headers: this.headers, timeout: this.timeout }
+          )
         );
         return withMode({ success: true, ...response.data });
       }
@@ -1316,10 +1452,12 @@ export class Valyu {
 
       Object.assign(payload, buildSharedFields(options));
 
-      const response = await this.client.post(
-        `${this.baseUrl}/deepresearch/tasks`,
-        payload,
-        { headers: this.headers, timeout: this.timeout }
+      const response = await this.withRateLimitRetry(() =>
+        this.client.post(
+          `${this.baseUrl}/deepresearch/tasks`,
+          payload,
+          { headers: this.headers, timeout: this.timeout }
+        )
       );
 
       return withMode({ success: true, ...response.data });
@@ -1327,6 +1465,7 @@ export class Valyu {
       return {
         success: false,
         error: apiErrorMessage(e),
+        rateLimit: rateLimitDetailFromCatch(e),
       };
     }
   }
@@ -1469,6 +1608,67 @@ export class Valyu {
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Retry an axios-based call when it is rejected by a 429. A 429 means the
+   * request was never accepted (and never billed), so retrying it is always
+   * safe — unlike retrying after a timeout, where it's unknown whether the
+   * request landed server-side.
+   *
+   * Honors the body's retry_after, falling back to the Retry-After header,
+   * each wait capped at 60s. Once maxRateLimitRetries is exhausted (0 means
+   * immediately), throws RateLimitError with the last 429's detail; the
+   * caller's existing try/catch turns that into its usual
+   * `{ success: false, error, rateLimit }` return rather than throwing out.
+   */
+  private async withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
+    let attempt = 0;
+    while (true) {
+      try {
+        return await fn();
+      } catch (e: any) {
+        const detail = rateLimitDetailFrom(e);
+        if (!detail) throw e;
+        if (attempt >= this.maxRateLimitRetries) {
+          throw new RateLimitError(rateLimitErrorText(e?.response?.data, errorText(e)), detail);
+        }
+        attempt++;
+        await this.sleep(Math.min(detail.retryAfter * 1000, MAX_RATE_LIMIT_RETRY_DELAY_MS));
+      }
+    }
+  }
+
+  /**
+   * Same 429 retry semantics as withRateLimitRetry, for answer()'s raw
+   * fetch() calls (axios isn't used there, and fetch doesn't throw on an
+   * HTTP error status). Returns the first non-429 response, or throws
+   * RateLimitError once maxRateLimitRetries is exhausted.
+   */
+  private async fetchWithRateLimitRetry(
+    url: string,
+    init: RequestInit
+  ): Promise<Response> {
+    let attempt = 0;
+    while (true) {
+      const response = await fetch(url, init);
+      if (response.status !== 429) return response;
+
+      const data = await response
+        .clone()
+        .json()
+        .catch(() => ({}));
+      const detail = rateLimitDetailFromFetchResponse(response, data);
+      if (!detail) return response;
+      if (attempt >= this.maxRateLimitRetries) {
+        throw new RateLimitError(
+          rateLimitErrorText(data, `HTTP Error: ${response.status}`),
+          detail
+        );
+      }
+      attempt++;
+      await this.sleep(Math.min(detail.retryAfter * 1000, MAX_RATE_LIMIT_RETRY_DELAY_MS));
+    }
   }
 
   /**
@@ -1961,10 +2161,12 @@ export class Valyu {
       if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
       if (options.metadata) payload.metadata = options.metadata;
 
-      const response = await this.client.post(
-        `${this.baseUrl}/deepresearch/batches`,
-        payload,
-        { headers: this.headers, timeout: this.timeout }
+      const response = await this.withRateLimitRetry(() =>
+        this.client.post(
+          `${this.baseUrl}/deepresearch/batches`,
+          payload,
+          { headers: this.headers, timeout: this.timeout }
+        )
       );
 
       return { success: true, ...response.data };
@@ -1972,6 +2174,7 @@ export class Valyu {
       return {
         success: false,
         error: errorText(e),
+        rateLimit: rateLimitDetailFromCatch(e),
       };
     }
   }
@@ -2064,10 +2267,12 @@ export class Valyu {
         return taskPayload;
       });
 
-      const response = await this.client.post(
-        `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
-        { tasks: tasksPayload },
-        { headers: this.headers, timeout: this.timeout }
+      const response = await this.withRateLimitRetry(() =>
+        this.client.post(
+          `${this.baseUrl}/deepresearch/batches/${batchId}/tasks`,
+          { tasks: tasksPayload },
+          { headers: this.headers, timeout: this.timeout }
+        )
       );
 
       return { success: true, ...response.data };
@@ -2075,6 +2280,7 @@ export class Valyu {
       return {
         success: false,
         error: errorText(e),
+        rateLimit: rateLimitDetailFromCatch(e),
       };
     }
   }
@@ -2409,7 +2615,7 @@ export class Valyu {
     payload: Record<string, any>
   ): Promise<AnswerResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/answer`, {
+      const response = await this.fetchWithRateLimitRetry(`${this.baseUrl}/answer`, {
         method: "POST",
         headers: {
           ...this.headers,
@@ -2512,6 +2718,7 @@ export class Valyu {
       return {
         success: false,
         error: e.message || "Request failed",
+        rateLimit: rateLimitDetailFromCatch(e),
       };
     }
   }
@@ -2523,7 +2730,7 @@ export class Valyu {
     payload: Record<string, any>
   ): AsyncGenerator<AnswerStreamChunk, void, unknown> {
     try {
-      const response = await fetch(`${this.baseUrl}/answer`, {
+      const response = await this.fetchWithRateLimitRetry(`${this.baseUrl}/answer`, {
         method: "POST",
         headers: {
           ...this.headers,
@@ -2866,6 +3073,7 @@ export class Valyu {
 
 export type {
   ValyuOptions,
+  RateLimitDetail,
   SearchResponse,
   SearchType,
   SearchResult,

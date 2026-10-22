@@ -9,6 +9,37 @@ export interface ValyuOptions {
    * status polls retry it. Set 0 to disable.
    */
   timeout?: number;
+  /**
+   * How many times to automatically retry search(), contents(), answer(),
+   * deepresearch.create(), batch.create() and batch.addTasks() when the API
+   * responds 429 (default: 2). A 429 means the request was never accepted,
+   * so retrying it is always safe. Each retry waits for the server's
+   * retry_after/Retry-After, capped at 60 seconds. Set 0 to disable.
+   */
+  maxRateLimitRetries?: number;
+}
+
+/**
+ * Structured detail from a 429 rate-limit response, carried on the
+ * `rateLimit` field of a failed search/contents/answer/DeepResearch/batch
+ * response, and on a thrown RateLimitError once retries are exhausted.
+ *
+ * `plan`, `limit`, `upgradeUrl` and `contactUrl` are only present on newer
+ * API responses — an older server's generic 429 body leaves them undefined.
+ */
+export interface RateLimitDetail {
+  /** Seconds to wait before retrying: the body's retry_after, else the Retry-After header. */
+  retryAfter: number;
+  /** The caller's current plan name. */
+  plan?: string;
+  limit?: {
+    endpoint: string;
+    requestsPerSecond: number;
+  };
+  /** Self-serve upgrade link, for a plan with a next tier to offer. */
+  upgradeUrl?: string;
+  /** Sales contact link, for a plan with no self-serve upgrade (e.g. enterprise). */
+  contactUrl?: string;
 }
 
 export type CountryCode =
@@ -94,6 +125,7 @@ export interface SearchOptions {
   historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
   historicalCacheStrict?: HistoricalCacheStrict; // Point-in-time strictness for a historicalCache search. "only" serves ONLY content provably captured at or before endDate, dropping a result rather than falling back to a live crawl (use for strict backtests); "prefer" (API default) falls back to a live crawl so the query is never empty; "off" disables the guarantee. No-op without historicalCache=true
   includeAbstracts?: boolean; // Search PubMed's complete abstract corpus instead of full-text papers
+  includeImageLinks?: boolean; // When false, image markdown ![alt](url) in result content becomes [Image: alt] (URL removed, alt text kept); images with no alt text are removed. Default true keeps image links. Sent only when false
   countryCode?: CountryCode;
   responseLength?: ResponseLength;
   fastMode?: boolean;
@@ -104,6 +136,8 @@ export interface SearchOptions {
 export interface SearchResponse {
   success: boolean;
   error?: string;
+  /** Present when `error` was caused by a 429. */
+  rateLimit?: RateLimitDetail;
   tx_id: string | null;
   query: string;
   results: SearchResult[];
@@ -141,6 +175,7 @@ export interface ContentsOptions {
   endDate?: string; // ISO date format (YYYY-MM-DD), inclusive
   historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
   historicalCacheStrict?: HistoricalCacheStrict; // Point-in-time strictness for a historicalCache search. "only" serves ONLY content provably captured at or before endDate, dropping a result rather than falling back to a live crawl (use for strict backtests); "prefer" (API default) falls back to a live crawl so the query is never empty; "off" disables the guarantee. No-op without historicalCache=true
+  includeImageLinks?: boolean; // When false, image markdown ![alt](url) in result content becomes [Image: alt] (URL removed, alt text kept); images with no alt text are removed. Default true keeps image links. Sent only when false
 }
 
 // ContentResult - discriminated union (success | failed)
@@ -217,6 +252,8 @@ export interface ContentsAsyncJobResponse {
 export interface ContentsResponse {
   success: boolean;
   error?: string | null;
+  /** Present when `error` was caused by a 429. */
+  rateLimit?: RateLimitDetail;
   tx_id?: string;
   urls_requested?: number;
   urls_processed?: number;
@@ -299,6 +336,8 @@ export interface AnswerSuccessResponse {
 export interface AnswerErrorResponse {
   success: false;
   error: string;
+  /** Present when `error` was caused by a 429. */
+  rateLimit?: RateLimitDetail;
 }
 
 export type AnswerResponse = AnswerSuccessResponse | AnswerErrorResponse;
@@ -618,6 +657,8 @@ export interface DeepResearchCreateResponse {
   message?: string;
   workflow?: WorkflowRunInfo; // Present when the task was created from a workflow
   error?: string;
+  /** Present when `error` was caused by a 429. */
+  rateLimit?: RateLimitDetail;
 }
 
 export interface DeepResearchStatusResponse {
@@ -851,7 +892,10 @@ export interface CreateBatchResponse {
   counts?: BatchCounts;
   cost?: number; // Replaces 'usage' object
   webhook_secret?: string; // Only returned on batch creation
+  message?: string; // e.g. a DeepResearch concurrency-queue notice
   error?: string;
+  /** Present when `error` was caused by a 429. */
+  rateLimit?: RateLimitDetail;
 }
 
 export interface BatchStatusResponse {
@@ -872,7 +916,10 @@ export interface AddBatchTasksResponse {
   added?: number; // Number of tasks added
   tasks?: BatchTaskCreated[]; // Array of created tasks
   counts?: BatchCounts; // Updated batch counts
+  message?: string; // e.g. a DeepResearch concurrency-queue notice
   error?: string;
+  /** Present when `error` was caused by a 429. */
+  rateLimit?: RateLimitDetail;
 }
 
 export interface BatchTaskListItem {

@@ -66,6 +66,7 @@ const response = await valyu.search("CRISPR gene therapy clinical trials 2026", 
 | `countryCode` | `string` | - | Country filter (e.g. `"US"`, `"GB"`) |
 | `responseLength` | `string \| number` | - | `"short"`, `"medium"`, `"large"`, `"max"`, or character count |
 | `includeAbstracts` | `boolean` | `false` | Search PubMed's complete abstract corpus instead of full-text papers |
+| `includeImageLinks` | `boolean` | `true` | When `false`, image markdown `![alt](url)` in result content becomes `[Image: alt]`; images with no alt text are removed |
 | `category` | `string` | - | Category filter |
 
 </details>
@@ -82,6 +83,11 @@ const response = await valyu.contents(["https://arxiv.org/abs/2301.00001"]);
 const response = await valyu.contents(["https://example.com/article"], {
   summary: true,
   responseLength: "medium",
+});
+
+// Replace image links with their alt text
+const response = await valyu.contents(["https://example.com/article"], {
+  includeImageLinks: false,   // `![alt](url)` becomes `[Image: alt]`; also available on search()
 });
 
 // Structured data extraction with JSON schema
@@ -296,6 +302,29 @@ if (!response.success) {
   console.error(`tx_id: ${response.tx_id}`);
 }
 ```
+
+## Rate Limiting
+
+The API returns `429` when a request exceeds your plan's rate limit. The SDK retries `search()`, `contents()`, `answer()`, `deepresearch.create()`, `batch.create()` and `batch.addTasks()` automatically on a `429` — these requests are never accepted when rate-limited, so a retry is always safe. Retries wait for the amount of time the server asks for (capped at 60 seconds per attempt).
+
+```typescript
+// Default: up to 2 automatic retries. Set 0 to disable.
+const valyu = new Valyu(apiKey, baseUrl, { maxRateLimitRetries: 2 });
+```
+
+If every retry still comes back `429`, the failed response carries a `rateLimit` field with the detail from the last attempt:
+
+```typescript
+const response = await valyu.search("test");
+
+if (!response.success && response.rateLimit) {
+  console.error(response.rateLimit.retryAfter); // seconds to wait
+  console.error(response.rateLimit.plan); // e.g. "Pay-as-you-go" (older servers may omit this)
+  console.error(response.rateLimit.upgradeUrl ?? response.rateLimit.contactUrl);
+}
+```
+
+`plan`, `limit`, `upgradeUrl` and `contactUrl` are only sent by newer servers, so treat them as optional.
 
 ## Integrations
 
