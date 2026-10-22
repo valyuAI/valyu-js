@@ -767,6 +767,7 @@ export class Valyu {
    * @param options.endDate - End date filter (YYYY-MM-DD format)
    * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
    * @param options.includeAbstracts - Search PubMed's complete abstract corpus and return document-level abstracts instead of full-text papers (default: false)
+   * @param options.includeImageLinks - When false, image markdown in result content `![alt](url)` becomes `[Image: alt]` (URL removed, alt text kept) and images with no alt text are removed (default: true)
    * @param options.countryCode - Country code filter for search results
    * @param options.responseLength - Response content length: "short"/"medium"/"large"/"max" or integer character count
    * @param options.fastMode - Fast mode for quicker but shorter results (default: false)
@@ -973,6 +974,10 @@ export class Valyu {
         payload.include_abstracts = options.includeAbstracts;
       }
 
+      if (options.includeImageLinks === false) {
+        payload.include_image_links = false;
+      }
+
       if (options.countryCode !== undefined) {
         payload.country_code = options.countryCode;
       }
@@ -1042,6 +1047,7 @@ export class Valyu {
    * @param options.startDate - Start date filter (YYYY-MM-DD format), inclusive
    * @param options.endDate - End date filter (YYYY-MM-DD format), inclusive
    * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
+   * @param options.includeImageLinks - When false, image markdown in result content `![alt](url)` becomes `[Image: alt]` (URL removed, alt text kept) and images with no alt text are removed (default: true)
    * @returns Promise resolving to sync results or async job (when async: true or >10 URLs)
    */
   async contents(
@@ -1205,6 +1211,10 @@ export class Valyu {
 
       if (options.historicalCacheStrict !== undefined) {
         payload.historical_cache_strict = options.historicalCacheStrict;
+      }
+
+      if (options.includeImageLinks === false) {
+        payload.include_image_links = false;
       }
 
       const response = await this.withRateLimitRetry(() =>

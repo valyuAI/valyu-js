@@ -66,6 +66,7 @@ const response = await valyu.search("CRISPR gene therapy clinical trials 2026", 
 | `countryCode` | `string` | - | Country filter (e.g. `"US"`, `"GB"`) |
 | `responseLength` | `string \| number` | - | `"short"`, `"medium"`, `"large"`, `"max"`, or character count |
 | `includeAbstracts` | `boolean` | `false` | Search PubMed's complete abstract corpus instead of full-text papers |
+| `includeImageLinks` | `boolean` | `true` | When `false`, image markdown `![alt](url)` in result content becomes `[Image: alt]`; images with no alt text are removed |
 | `category` | `string` | - | Category filter |
 
 </details>
@@ -82,6 +83,11 @@ const response = await valyu.contents(["https://arxiv.org/abs/2301.00001"]);
 const response = await valyu.contents(["https://example.com/article"], {
   summary: true,
   responseLength: "medium",
+});
+
+// Replace image links with their alt text
+const response = await valyu.contents(["https://example.com/article"], {
+  includeImageLinks: false,   // `![alt](url)` becomes `[Image: alt]`; also available on search()
 });
 
 // Structured data extraction with JSON schema
