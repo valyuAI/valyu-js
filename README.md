@@ -297,6 +297,29 @@ if (!response.success) {
 }
 ```
 
+## Rate Limiting
+
+The API returns `429` when a request exceeds your plan's rate limit. The SDK retries `search()`, `contents()`, `answer()`, `deepresearch.create()`, `batch.create()` and `batch.addTasks()` automatically on a `429` — these requests are never accepted when rate-limited, so a retry is always safe. Retries wait for the amount of time the server asks for (capped at 60 seconds per attempt).
+
+```typescript
+// Default: up to 2 automatic retries. Set 0 to disable.
+const valyu = new Valyu(apiKey, baseUrl, { maxRateLimitRetries: 2 });
+```
+
+If every retry still comes back `429`, the failed response carries a `rateLimit` field with the detail from the last attempt:
+
+```typescript
+const response = await valyu.search("test");
+
+if (!response.success && response.rateLimit) {
+  console.error(response.rateLimit.retryAfter); // seconds to wait
+  console.error(response.rateLimit.plan); // e.g. "Pay-as-you-go" (older servers may omit this)
+  console.error(response.rateLimit.upgradeUrl ?? response.rateLimit.contactUrl);
+}
+```
+
+`plan`, `limit`, `upgradeUrl` and `contactUrl` are only sent by newer servers, so treat them as optional.
+
 ## Integrations
 
 Valyu works with [Vercel AI SDK](https://www.npmjs.com/package/@valyu/ai-sdk), [LangChain](https://docs.valyu.ai), [MCP](https://docs.valyu.ai), and more. See [docs.valyu.ai](https://docs.valyu.ai) for integration guides.
