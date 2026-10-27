@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.2
+
+- New `warnings?: ResponseWarning[]` on `SearchResponse`, `AnswerSuccessResponse`, `AnswerStreamChunk` (metadata chunk), `DeepResearchCreateResponse` and `DeepResearchStatusResponse`. Each warning has `type`, `message` and optional `detail`; `type` is an open string, not a closed union. New exported `ResponseWarning` type. Older responses that send plain-string warnings are normalised to `{ type: "warning", message }`, and malformed entries are dropped instead of breaking the response.
+
 ## 2.11.1
 
 - `search()`, `contents()`, `answer()`, `deepresearch.create()`, `batch.create()` and `batch.addTasks()` now automatically retry a 429 response. A 429 means the request was never accepted, so retrying it is always safe. Retries honor the server's `retry_after`/`Retry-After`, capped at 60 seconds per attempt; configure the count with `new Valyu(apiKey, baseUrl, { maxRateLimitRetries })` (default 2, `0` disables it).

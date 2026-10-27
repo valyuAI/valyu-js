@@ -303,6 +303,8 @@ if (!response.success) {
 }
 ```
 
+Search, answer and DeepResearch responses may also carry non-fatal `warnings` (`ResponseWarning[]` with `type`, `message` and optional `detail`), for example when a requested dataset isn't included in your plan and was skipped.
+
 ## Rate Limiting
 
 The API returns `429` when a request exceeds your plan's rate limit. The SDK retries `search()`, `contents()`, `answer()`, `deepresearch.create()`, `batch.create()` and `batch.addTasks()` automatically on a `429` — these requests are never accepted when rate-limited, so a retry is always safe. Retries wait for the amount of time the server asks for (capped at 60 seconds per attempt).

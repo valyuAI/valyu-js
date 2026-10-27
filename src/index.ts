@@ -58,9 +58,10 @@ import {
   WorkflowUpdateOptions,
   WorkflowDeleteResponse,
   RateLimitDetail,
+  ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.1";
+const SDK_VERSION = "2.11.2";
 
 /** `maxRateLimitRetries` when the constructor options do not set one. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;
@@ -237,6 +238,27 @@ function rateLimitDetailFromCatch(e: any): RateLimitDetail | undefined {
     };
   }
   return rateLimitDetailFrom(e);
+}
+
+/**
+ * Older responses send warnings as plain strings: normalise those to
+ * `{ type: "warning", message }` and drop anything else malformed, so a bad
+ * entry never breaks the response.
+ */
+function normalizeWarnings(value: unknown): ResponseWarning[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.flatMap((w): ResponseWarning[] => {
+    if (typeof w === "string") return [{ type: "warning", message: w }];
+    if (w && typeof w.type === "string" && typeof w.message === "string") {
+      return [w];
+    }
+    return [];
+  });
+}
+
+function withWarnings<T extends { warnings?: ResponseWarning[] }>(body: T): T {
+  if (!body || body.warnings === undefined) return body;
+  return { ...body, warnings: normalizeWarnings(body.warnings) };
 }
 
 /**
@@ -1017,7 +1039,7 @@ export class Valyu {
         };
       }
 
-      return response.data;
+      return withWarnings(response.data);
     } catch (e: any) {
       return {
         success: false,
@@ -1411,7 +1433,7 @@ export class Valyu {
             { headers: this.headers, timeout: this.timeout }
           )
         );
-        return withMode({ success: true, ...response.data });
+        return withMode(withWarnings({ success: true, ...response.data }));
       }
 
       // Validation
@@ -1460,7 +1482,7 @@ export class Valyu {
         )
       );
 
-      return withMode({ success: true, ...response.data });
+      return withMode(withWarnings({ success: true, ...response.data }));
     } catch (e: any) {
       return {
         success: false,
@@ -1553,10 +1575,9 @@ export class Valyu {
             };
           } else {
             const { success: _ignored, ...rest } = body as any;
-            const status: DeepResearchStatusResponse = withMode({
-              success: true,
-              ...rest,
-            });
+            const status: DeepResearchStatusResponse = withMode(
+              withWarnings({ success: true, ...rest })
+            );
             const etag = response.headers?.["etag"];
             this.rememberPoll(taskId, {
               etag: typeof etag === "string" ? etag : undefined,
@@ -2703,6 +2724,7 @@ export class Valyu {
             search_deduction_dollars: 0,
             ai_deduction_dollars: 0,
           },
+          warnings: normalizeWarnings(finalMetadata.warnings),
         };
         if (finalMetadata.extraction_metadata) {
           response.extraction_metadata = finalMetadata.extraction_metadata;
@@ -2806,6 +2828,7 @@ export class Valyu {
                 ai_usage: parsed.ai_usage,
                 cost: parsed.cost,
                 extraction_metadata: parsed.extraction_metadata,
+                warnings: normalizeWarnings(parsed.warnings),
               };
             }
           } catch {
@@ -3074,6 +3097,7 @@ export class Valyu {
 export type {
   ValyuOptions,
   RateLimitDetail,
+  ResponseWarning,
   SearchResponse,
   SearchType,
   SearchResult,
