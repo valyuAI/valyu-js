@@ -42,6 +42,17 @@ export interface RateLimitDetail {
   contactUrl?: string;
 }
 
+/**
+ * A non-fatal notice the API attaches to search, answer and DeepResearch
+ * responses, e.g. datasets skipped because the plan doesn't include them.
+ * `type` is an open set: new values can appear at any time.
+ */
+export interface ResponseWarning {
+  type: string;
+  message: string;
+  detail?: Record<string, unknown> | null;
+}
+
 export type CountryCode =
   | "ALL"
   | "AR"
@@ -147,6 +158,7 @@ export interface SearchResponse {
   };
   total_deduction_dollars: number;
   total_characters: number;
+  warnings?: ResponseWarning[];
 }
 
 export interface FeedbackResponse {
@@ -331,6 +343,7 @@ export interface AnswerSuccessResponse {
   ai_usage: AIUsage;
   cost: Cost;
   extraction_metadata?: ExtractionMetadata;
+  warnings?: ResponseWarning[];
 }
 
 export interface AnswerErrorResponse {
@@ -368,6 +381,7 @@ export interface AnswerStreamChunk {
   ai_usage?: AIUsage;
   cost?: Cost;
   extraction_metadata?: ExtractionMetadata;
+  warnings?: ResponseWarning[];
 
   // For type="error"
   error?: string;
@@ -656,6 +670,7 @@ export interface DeepResearchCreateResponse {
   webhook_secret?: string;
   message?: string;
   workflow?: WorkflowRunInfo; // Present when the task was created from a workflow
+  warnings?: ResponseWarning[];
   error?: string;
   /** Present when `error` was caused by a 429. */
   rateLimit?: RateLimitDetail;
@@ -691,6 +706,7 @@ export interface DeepResearchStatusResponse {
   hitl_config?: Record<string, boolean>; // HITL configuration (mirrors request hitl param)
   interaction?: Interaction; // Current HITL checkpoint (present when awaiting_input or paused)
   hitl_history?: InteractionHistoryEntry[]; // History of completed HITL checkpoints
+  warnings?: ResponseWarning[];
   error?: string;
   // True when success=false because the status endpoint could not be reached
   // after retries (transient gateway/network failure). Retryable and distinct
