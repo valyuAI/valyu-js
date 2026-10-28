@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.11.3
+
+- New `maxAge` option for `contents()`: the oldest cached copy of a page, in seconds, that you accept. `0` forces a live crawl. Use an integer from 0 to 2592000 (30 days). Omit it for the default cache policy. The SDK sends `max_age` only when you set it. It also works with async jobs.
+- Successful `contents()` results gain `cache_state` (`"hit"`, `"miss"` or `"stale"`) and `crawled_at` (ISO 8601 capture time, or `null`). New exported `CacheState` type.
+
 ## 2.11.2
 
 - New `warnings?: ResponseWarning[]` on `SearchResponse`, `AnswerSuccessResponse`, `AnswerStreamChunk` (metadata chunk), `DeepResearchCreateResponse` and `DeepResearchStatusResponse`. Each warning has `type`, `message` and optional `detail`; `type` is an open string, not a closed union. New exported `ResponseWarning` type. Older responses that send plain-string warnings are normalised to `{ type: "warning", message }`, and malformed entries are dropped instead of breaking the response.

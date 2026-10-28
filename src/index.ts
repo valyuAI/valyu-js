@@ -61,7 +61,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.2";
+const SDK_VERSION = "2.11.3";
 
 /** `maxRateLimitRetries` when the constructor options do not set one. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;
@@ -1070,6 +1070,7 @@ export class Valyu {
    * @param options.endDate - End date filter (YYYY-MM-DD format), inclusive
    * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
    * @param options.includeImageLinks - When false, image markdown in result content `![alt](url)` becomes `[Image: alt]` (URL removed, alt text kept) and images with no alt text are removed (default: true)
+   * @param options.maxAge - Oldest cached copy of a page, in seconds, that you accept. 0 forces a live crawl. Integer from 0 to 2592000 (30 days). Omit for the default cache policy. Cannot be combined with historicalCache
    * @returns Promise resolving to sync results or async job (when async: true or >10 URLs)
    */
   async contents(
@@ -1237,6 +1238,10 @@ export class Valyu {
 
       if (options.includeImageLinks === false) {
         payload.include_image_links = false;
+      }
+
+      if (options.maxAge !== undefined) {
+        payload.max_age = options.maxAge;
       }
 
       const response = await this.withRateLimitRetry(() =>
@@ -3116,6 +3121,7 @@ export type {
   ContentResultSuccess,
   ContentResultFailed,
   ExtractEffort,
+  CacheState,
   ContentResponseLength,
   AnswerOptions,
   AnswerResponse,

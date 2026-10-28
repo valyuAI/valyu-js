@@ -167,6 +167,7 @@ export interface FeedbackResponse {
 }
 
 // Contents API Types
+export type CacheState = "hit" | "miss" | "stale";
 export type ExtractEffort = "normal" | "high" | "auto";
 export type ContentResponseLength =
   | "short"
@@ -188,6 +189,7 @@ export interface ContentsOptions {
   historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
   historicalCacheStrict?: HistoricalCacheStrict; // Point-in-time strictness for a historicalCache search. "only" serves ONLY content provably captured at or before endDate, dropping a result rather than falling back to a live crawl (use for strict backtests); "prefer" (API default) falls back to a live crawl so the query is never empty; "off" disables the guarantee. No-op without historicalCache=true
   includeImageLinks?: boolean; // When false, image markdown ![alt](url) in result content becomes [Image: alt] (URL removed, alt text kept); images with no alt text are removed. Default true keeps image links. Sent only when false
+  maxAge?: number; // Oldest cached copy of a page, in seconds, that you accept. 0 forces a live crawl. Integer from 0 to 2592000 (30 days). Omit for the default cache policy. Cannot be combined with historicalCache. Also works with async jobs
 }
 
 // ContentResult - discriminated union (success | failed)
@@ -212,6 +214,8 @@ export interface ContentResultSuccess extends ContentResultBase {
   source_type?: string;
   publication_date?: string;
   citation?: string;
+  cache_state?: CacheState; // "miss": crawled for this request. "hit": a fresh cached copy. "stale": a cached copy older than 5 minutes, served while it refreshes (only when maxAge is omitted)
+  crawled_at?: string | null; // ISO 8601 capture time of the page copy. null when there is no page copy to date, for example a paper served from the index
 }
 
 export interface ContentResultFailed extends ContentResultBase {
