@@ -195,7 +195,7 @@ export interface ContentsOptions {
 // ContentResult - discriminated union (success | failed)
 export interface ContentResultBase {
   url: string;
-  status: "success" | "failed";
+  status: "success" | "failed" | "not_found";
 }
 
 export interface ContentResultSuccess extends ContentResultBase {
@@ -219,7 +219,7 @@ export interface ContentResultSuccess extends ContentResultBase {
 }
 
 export interface ContentResultFailed extends ContentResultBase {
-  status: "failed";
+  status: "failed" | "not_found"; // "not_found": the page returned 404
   error: string;
 }
 

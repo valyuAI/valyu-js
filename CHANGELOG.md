@@ -4,6 +4,7 @@
 
 - New `maxAge` option for `contents()`: the oldest cached copy of a page, in seconds, that you accept. `0` forces a live crawl. Use an integer from 0 to 2592000 (30 days). Omit it for the default cache policy. The SDK sends `max_age` only when you set it. It also works with async jobs.
 - Successful `contents()` results gain `cache_state` (`"hit"`, `"miss"` or `"stale"`) and `crawled_at` (ISO 8601 capture time, or `null`). New exported `CacheState` type.
+- `ContentResultFailed.status` now includes `"not_found"`, the status of a page that returns 404 (`error` is `"Page not found (404)"`).
 
 ## 2.11.2
 
