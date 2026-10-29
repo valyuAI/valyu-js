@@ -97,6 +97,33 @@ export type ResponseLength = "short" | "medium" | "large" | "max" | number;
 // Per-request point-in-time strictness for a historicalCache (backtest) request.
 export type HistoricalCacheStrict = "off" | "prefer" | "only";
 
+export type ScopePolicy = "advisory" | "strict";
+export type HlsCoverage = "hls" | "increased_coverage";
+
+/** A passage from a DeepResearch source that supports a citation. */
+export interface DeepResearchSourceLocation {
+  excerpt: string; // The exact passage from the source
+  page?: number; // Page number in the source document, when known
+  piece?: number; // Which part of a long document the passage comes from, when it was read in parts
+}
+
+/**
+ * Receipt for a `scopePolicy: "strict"` search. It shows which datasets were
+ * dispatched and which returned rows. It does not certify full coverage.
+ */
+export interface SourceScope {
+  policy: "strict";
+  allowed_dataset_ids?: string[];
+  selected_dataset_ids?: string[];
+  completed_dataset_ids?: string[];
+  returned_dataset_ids?: string[];
+  omitted_dataset_ids?: string[];
+  selection_basis?: string;
+  coverage?: string;
+  exhaustive?: boolean;
+  errors?: { code?: string; [key: string]: any }[];
+}
+
 export interface SearchResult {
   title: string;
   url: string;
@@ -106,6 +133,7 @@ export interface SearchResult {
   source_type?: string; // "website", "data", "forum"
   data_type?: DataType;
   date?: string;
+  crawl_date?: string; // When the page was crawled (web results), ISO 8601
   length: number;
   price: number;
   relevance_score?: number;
@@ -129,8 +157,12 @@ export interface SearchOptions {
   relevanceThreshold?: number;
   includedSources?: string[];
   excludeSources?: string[];
+  excludedSources?: string[]; // Alias of excludeSources, matching Answer and DeepResearch. excludeSources wins if both are set
   sourceBiases?: Record<string, number>;
+  /** @deprecated Use `instructions` instead. The API falls back to this only when `instructions` is not set. */
   category?: string;
+  scopePolicy?: ScopePolicy; // "advisory" (API default) guides source selection. "strict" searches exactly the datasets in includedSources
+  hlsCoverage?: HlsCoverage; // Wiley Health & Life Sciences coverage. "hls" (API default) is licensed Wiley content only. "increased_coverage" blends it with open-access biomedical literature
   startDate?: string;
   endDate?: string;
   historicalCache?: boolean; // When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl
@@ -159,6 +191,7 @@ export interface SearchResponse {
   total_deduction_dollars: number;
   total_characters: number;
   warnings?: ResponseWarning[];
+  source_scope?: SourceScope; // Present only for scopePolicy "strict" requests
 }
 
 export interface FeedbackResponse {
@@ -214,6 +247,11 @@ export interface ContentResultSuccess extends ContentResultBase {
   source_type?: string;
   publication_date?: string;
   citation?: string;
+  id?: string; // The URL for web pages, or the paper id / DOI for academic papers
+  doi?: string; // Academic papers served from the processed index
+  authors?: string[]; // Academic papers served from the processed index
+  citation_count?: number; // Academic papers served from the processed index
+  structured_metadata?: Record<string, any>; // Only present when data_type is "structured"
   cache_state?: CacheState; // "miss": crawled for this request. "hit": a fresh cached copy. "stale": a cached copy older than 5 minutes, served while it refreshes (only when maxAge is omitted)
   crawled_at?: string | null; // ISO 8601 capture time of the page copy. null when there is no page copy to date, for example a paper served from the index
   http_status?: number; // 404 when the page returned 404 but its body is a real page. Not set for a normal page
@@ -409,7 +447,6 @@ export type DeepResearchMode =
   | "instant"
   | "fast"
   | "standard"
-  | "lite"
   | "heavy"
   | "max";
 
@@ -505,6 +542,8 @@ export interface DeepResearchSearchConfig {
   endDate?: string; // Inclusive end bound. Bare date (YYYY-MM-DD) or full ISO-8601 datetime; a datetime with any time component requires historicalCache=true, else HTTP 400
   historicalCache?: boolean; // When true and a date range is set, searches return the newest cached snapshot inside the range (leak-safe as-of backtest) instead of the latest crawl. Also required to pass any sub-day timestamp on startDate/endDate. No-op without a date range. User-set only; locked for the whole research run (the agent cannot toggle it)
   historicalCacheStrict?: HistoricalCacheStrict; // Point-in-time strictness for a historicalCache search. "only" serves ONLY content provably captured at or before endDate, dropping a result rather than falling back to a live crawl (use for strict backtests); "prefer" (API default) falls back to a live crawl so the query is never empty; "off" disables the guarantee. No-op without historicalCache=true
+  referenceDate?: string; // Pins the run to this date for backtests. Takes precedence over endDate. YYYY-MM-DD or ISO-8601 datetime; dates before 2026 return HTTP 400
+  /** @deprecated Not part of the documented DeepResearch search config. */
   category?: string;
   countryCode?: CountryCode; // Country code for location-filtered searches
 }
@@ -645,6 +684,7 @@ export interface DeepResearchSource {
   source_id?: number;
   word_count?: number;
   fragment?: string;
+  locations?: DeepResearchSourceLocation[]; // Passages that support the citation. Present only when the source has them
 }
 
 export interface DeepResearchUsage {
@@ -1047,6 +1087,11 @@ export interface Datasource {
   update_frequency?: string; // e.g., "Monthly", "Quarterly", "Realtime"
   size?: number; // Number of records/documents
   coverage?: DatasourceCoverage;
+  required_plan?: { id: string; name: string; price: string } | null; // Cheapest plan that includes this dataset. null when licensed separately
+  access_modes?: ("search" | "answer" | "deepresearch")[]; // Products this datasource can be used in
+  geography?: Record<string, any>;
+  capabilities?: Record<string, any>;
+  data_source?: { provider?: string; license?: string };
 }
 
 export interface DatasourceCategory {
@@ -1063,6 +1108,24 @@ export interface DatasourcesListOptions {
 export interface DatasourcesListResponse {
   success: boolean;
   datasources?: Datasource[];
+  total_count?: number;
+  error?: string;
+}
+
+export interface DatasourcesSearchOptions {
+  limit?: number; // 1-100 (API default 20)
+}
+
+export interface DatasourceSearchResult extends Datasource {
+  relevance_score?: number; // 0-1, best first
+}
+
+export interface DatasourcesSearchResponse {
+  success: boolean;
+  query?: string;
+  search_mode?: "semantic" | "lexical";
+  total_count?: number;
+  results?: DatasourceSearchResult[];
   error?: string;
 }
 

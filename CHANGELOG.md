@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.11.5
+
+- **Behavior change:** `deepresearch.create()` now sends `mode: "standard"` when you pass no `mode` (or `model`). It sent `"fast"` before. `standard` is the API default (100 credits; `fast` is 25). To keep the old behavior, pass `mode: "fast"`.
+- `search()`: new `scopePolicy` option (`"advisory"` or `"strict"`) and `SearchResponse.source_scope` receipt. New `hlsCoverage` option (`"hls"` or `"increased_coverage"`). New `excludedSources` option, an alias of `excludeSources`.
+- `SearchResult` gains `crawl_date`. `ContentResultSuccess` gains `id`, `doi`, `authors`, `citation_count` and `structured_metadata`.
+- DeepResearch: new `search.referenceDate` (sent as `reference_date`) for `create()` and `batch.create()`. `DeepResearchSource` gains `locations` (passage-level citations).
+- New `datasources.search(query, { limit })` for semantic datasource search. `Datasource` gains `required_plan`, `access_modes`, `geography`, `capabilities` and `data_source`. `datasources.list()` returns `total_count`.
+- The `"lite"` DeepResearch mode is removed from the `DeepResearchMode` type. The API has no `lite` mode.
+- `category` is marked deprecated (use `instructions`). Docs: corrected `maxPrice`, `maxNumResults` and `searchType` descriptions and the DeepResearch method table.
+
 ## 2.11.4
 
 - Successful `contents()` results gain `http_status`. It is `404` when the page returned 404 but its body is a real page (`status` is `"success"` and the page is billed). It is not set for a normal page.

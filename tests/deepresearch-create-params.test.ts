@@ -27,7 +27,7 @@ describe("deepresearch.create request body", () => {
 
     expect(post.mock.calls[0][1]).toEqual({
       query: "UK housing market outlook",
-      mode: "fast",
+      mode: "standard",
       output_formats: ["markdown"],
       search: { search_type: "web", country_code: "GB" },
     });
@@ -63,7 +63,7 @@ describe("deepresearch.create request body", () => {
 
     expect(post.mock.calls[0][1]).toEqual({
       query: "Summarise open issues",
-      mode: "fast",
+      mode: "standard",
       output_formats: ["markdown"],
       mcp_servers: [
         {

@@ -40,8 +40,8 @@ Search across web and proprietary data sources with a single query.
 
 ```typescript
 const response = await valyu.search("CRISPR gene therapy clinical trials 2026", {
-  searchType: "proprietary",                    // "all", "web", or "proprietary"
-  maxNumResults: 10,                            // 1-20 results
+  searchType: "proprietary",                    // "all", "web", "proprietary", or "news"
+  maxNumResults: 10,                            // up to 20 results (more on request)
   includedSources: ["valyu/valyu-pubmed"],      // filter to specific sources
   includeAbstracts: true,                       // search the full PubMed abstract corpus
   startDate: "2026-01-01",                      // date filtering
@@ -55,19 +55,21 @@ const response = await valyu.search("CRISPR gene therapy clinical trials 2026", 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `query` | `string` | required | Search query |
-| `searchType` | `string` | `"all"` | `"all"`, `"web"`, or `"proprietary"` |
-| `maxNumResults` | `number` | `10` | Results to return (1-20) |
-| `maxPrice` | `number` | `30` | Max price per thousand queries (CPM) |
+| `searchType` | `string` | `"all"` | `"all"`, `"web"`, `"proprietary"`, or `"news"` |
+| `maxNumResults` | `number` | `10` | Results to return. The API caps this at 20 unless your key has a higher limit; a larger value is lowered and the response carries a `max_num_results_capped` warning |
+| `maxPrice` | `number` | - | Max cost of the whole request. Sent only when set; the API default is 1000 |
 | `relevanceThreshold` | `number` | `0.5` | Min relevance score (0-1) |
 | `includedSources` | `string[]` | `[]` | Sources to search |
-| `excludeSources` | `string[]` | `[]` | Sources to exclude |
+| `excludeSources` | `string[]` | `[]` | Sources to exclude (`excludedSources` is an alias) |
 | `startDate` | `string` | - | Start date (YYYY-MM-DD) |
 | `endDate` | `string` | - | End date (YYYY-MM-DD) |
 | `countryCode` | `string` | - | Country filter (e.g. `"US"`, `"GB"`) |
 | `responseLength` | `string \| number` | - | `"short"`, `"medium"`, `"large"`, `"max"`, or character count |
 | `includeAbstracts` | `boolean` | `false` | Search PubMed's complete abstract corpus instead of full-text papers |
 | `includeImageLinks` | `boolean` | `true` | When `false`, image markdown `![alt](url)` in result content becomes `[Image: alt]`; images with no alt text are removed |
-| `category` | `string` | - | Category filter |
+| `category` | `string` | - | Deprecated. Use `instructions` instead |
+| `scopePolicy` | `string` | `"advisory"` | `"strict"` searches exactly the datasets in `includedSources`; the response then carries `source_scope` |
+| `hlsCoverage` | `string` | `"hls"` | `"increased_coverage"` blends Wiley HLS with open-access biomedical literature |
 
 </details>
 
@@ -124,7 +126,7 @@ Multi-step research agent that produces comprehensive reports with citations.
 // Start a research task
 const task = await valyu.deepresearch.create({
   query: "Compare CRISPR and base editing approaches for sickle cell disease",
-  model: "heavy",
+  mode: "heavy",
   outputFormats: ["markdown", "pdf"],
 });
 
@@ -139,7 +141,7 @@ console.log(result.output);   // Markdown report
 console.log(result.pdf_url);  // PDF download link
 ```
 
-**Modes.** From quickest to most thorough: `instant`, `fast` (SDK default), `standard`, `heavy`, `max`. `instant` returns a short cited answer, typically in under 30 seconds:
+**Modes.** From quickest to most thorough: `instant`, `fast`, `standard` (default), `heavy`, `max`. `instant` returns a short cited answer, typically in under 30 seconds:
 
 ```typescript
 const task = await valyu.deepresearch.create({
@@ -182,6 +184,11 @@ const result = await valyu.deepresearch.wait(task.deepresearch_id, {
 | `delete(taskId)` | Delete a task |
 | `togglePublic(taskId, isPublic)` | Toggle public access |
 | `respond(taskId, interactionId, response)` | Answer a HITL checkpoint |
+| `respondPlanningQuestions(taskId, interactionId, answers)` | Answer planning questions |
+| `approvePlan(taskId, interactionId, modifications?)` | Approve the research plan, or send changes |
+| `respondSourceReview(taskId, interactionId, options?)` | Answer a source review checkpoint |
+| `approveOutline(taskId, interactionId, modifications?)` | Approve the report outline, or send changes |
+| `getAssets(taskId, assetId, options?)` | Get a generated asset |
 
 </details>
 
@@ -270,6 +277,7 @@ List available data sources programmatically.
 ```typescript
 const sources = await valyu.datasources.list();
 const categories = await valyu.datasources.categories();
+const matches = await valyu.datasources.search("clinical trial results", { limit: 5 });
 ```
 
 ## Authentication
