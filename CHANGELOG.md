@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.11.5
+
+- DeepResearch: new `coverArt` option on `deepresearch.create()`, a cover picture for one report. It replaces the brand kit's cover art on the report PDF and PDF deliverable, and works without a kit. Pass `{ kind?, data | url, filename?, mediaType? }` (`kind` is `"image"` or `"pattern"`). PNG or JPEG, at most 2 MB, 800 px or more on the short side. A picture that cannot be used does not fail the task; the response `warnings` include `cover_art_not_used`. New exported `CoverArt` type.
+- DeepResearch: `brandCollectionId` accepts `"none"` to opt a task out of your organization's default kit.
+
 ## 2.11.4
 
 - Successful `contents()` results gain `http_status`. It is `404` when the page returned 404 but its body is a real page (`status` is `"success"` and the page is billed). It is not set for a normal page.

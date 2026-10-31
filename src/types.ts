@@ -456,6 +456,25 @@ export interface FileAttachment {
   context?: string;
 }
 
+/**
+ * Cover art for one report. Replaces the brand kit's cover art on the report
+ * PDF and PDF deliverable, and works without a kit. Send exactly one of `data`
+ * or `url`. PNG or JPEG, at most 2 MB, 800 px or more on the short side. A
+ * picture that cannot be used never fails the task: the kit's cover art (or the
+ * standard cover) is used and the response `warnings` include `cover_art_not_used`.
+ */
+export interface CoverArt {
+  /** "image" (photo or illustration, default) or "pattern" (brand graphic, shown more quietly). */
+  kind?: "image" | "pattern";
+  /** Base64 string or data URL of the picture. */
+  data?: string;
+  /** Public https URL of the picture, fetched when the report is rendered. */
+  url?: string;
+  filename?: string;
+  /** "image/png" or "image/jpeg". */
+  mediaType?: string;
+}
+
 export interface MCPServerConfig {
   url: string;
   name?: string;
@@ -548,7 +567,10 @@ export interface DeepResearchCreateOptions {
   previousReports?: string[];
   webhookUrl?: string;
   alertEmail?: string | AlertEmailConfig; // Email or { email, custom_url } with {id} placeholder
+  /** Brand collection (kit) ID. Pass "none" to opt out of your organization's default kit. */
   brandCollectionId?: string;
+  /** Cover art for this report, replacing the brand kit's cover art on the report PDF and PDF deliverable. */
+  coverArt?: CoverArt;
   metadata?: Record<string, string | number | boolean>;
   hitl?: HitlConfig; // Human-in-the-loop configuration (not available for batch or instant mode)
   // Workflow slug to run — the template supplies query/strategy/format. Mutually

@@ -126,3 +126,48 @@ describe("batch.create request body", () => {
     });
   });
 });
+
+describe("deepresearch.create coverArt and brandCollectionId", () => {
+  it("sends coverArt as cover_art with mediaType kept camelCase", async () => {
+    const { valyu, post } = makeClient();
+
+    await valyu.deepresearch.create({
+      query: "Q3 board update",
+      brandCollectionId: "none",
+      coverArt: {
+        kind: "image",
+        data: "AAAA",
+        mediaType: "image/jpeg",
+        filename: "cover.jpg",
+      },
+    });
+
+    const body = post.mock.calls[0][1];
+    expect(body.brand_collection_id).toBe("none");
+    expect(body.cover_art).toEqual({
+      kind: "image",
+      data: "AAAA",
+      mediaType: "image/jpeg",
+      filename: "cover.jpg",
+    });
+  });
+
+  it("sends a url cover art and omits unset fields", async () => {
+    const { valyu, post } = makeClient();
+
+    await valyu.deepresearch.create({
+      query: "Q3 board update",
+      coverArt: { url: "https://example.com/a.png" },
+    });
+
+    expect(post.mock.calls[0][1].cover_art).toEqual({
+      url: "https://example.com/a.png",
+    });
+  });
+
+  it("omits cover_art when coverArt is unset", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update" });
+    expect(post.mock.calls[0][1]).not.toHaveProperty("cover_art");
+  });
+});

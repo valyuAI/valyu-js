@@ -61,7 +61,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.4";
+const SDK_VERSION = "2.11.5";
 
 /** `maxRateLimitRetries` when the constructor options do not set one. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;
@@ -450,6 +450,16 @@ function buildSharedFields(
   if (options.webhookUrl) fields.webhook_url = options.webhookUrl;
   if (options.brandCollectionId)
     fields.brand_collection_id = options.brandCollectionId;
+  if (options.coverArt) {
+    const { kind, data, url, filename, mediaType } = options.coverArt;
+    const coverArt: Record<string, any> = {};
+    if (kind !== undefined) coverArt.kind = kind;
+    if (data !== undefined) coverArt.data = data;
+    if (url !== undefined) coverArt.url = url;
+    if (filename !== undefined) coverArt.filename = filename;
+    if (mediaType !== undefined) coverArt.mediaType = mediaType;
+    fields.cover_art = coverArt;
+  }
   if (options.alertEmail) {
     fields.alert_email =
       typeof options.alertEmail === "string"
@@ -3141,6 +3151,7 @@ export type {
   ImageType,
   ChartType,
   FileAttachment,
+  CoverArt,
   MCPServerConfig,
   DeepResearchSearchConfig,
   DeepResearchCreateOptions,
