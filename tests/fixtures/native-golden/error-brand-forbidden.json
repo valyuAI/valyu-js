@@ -1,0 +1,10 @@
+{
+  "case": "error-brand-forbidden",
+  "provisional": false,
+  "source": "response shape sample, values replaced by placeholders",
+  "http": 403,
+  "body": {
+    "error": "s",
+    "code": "s"
+  }
+}

@@ -27,7 +27,7 @@ describe("deepresearch.create request body", () => {
 
     expect(post.mock.calls[0][1]).toEqual({
       query: "UK housing market outlook",
-      mode: "fast",
+      mode: "standard",
       output_formats: ["markdown"],
       search: { search_type: "web", country_code: "GB" },
     });
@@ -63,7 +63,7 @@ describe("deepresearch.create request body", () => {
 
     expect(post.mock.calls[0][1]).toEqual({
       query: "Summarise open issues",
-      mode: "fast",
+      mode: "standard",
       output_formats: ["markdown"],
       mcp_servers: [
         {
@@ -169,5 +169,106 @@ describe("deepresearch.create coverArt and brandCollectionId", () => {
     const { valyu, post } = makeClient();
     await valyu.deepresearch.create({ query: "Q3 board update" });
     expect(post.mock.calls[0][1]).not.toHaveProperty("cover_art");
+  });
+});
+
+describe("deepresearch.create tools.ultrasearch", () => {
+  it("sends tools.ultrasearch: true and no top-level ultrasearch key", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({
+      query: "Q3 board update",
+      mode: "heavy",
+      tools: { ultrasearch: true },
+    });
+    const body = post.mock.calls[0][1];
+    expect(body.tools).toEqual({ ultrasearch: true });
+    expect(body).not.toHaveProperty("ultrasearch");
+  });
+
+  it("sends tools.ultrasearch with a max_usd cap", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({
+      query: "Q3 board update",
+      mode: "max",
+      tools: { ultrasearch: { max_usd: 1.25 } },
+    });
+    const body = post.mock.calls[0][1];
+    expect(body.tools).toEqual({ ultrasearch: { max_usd: 1.25 } });
+    expect(body).not.toHaveProperty("ultrasearch");
+  });
+
+  it("omits every ultrasearch key when the option is absent", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({
+      query: "Q3 board update",
+      mode: "heavy",
+      tools: { charts: true },
+    });
+    const body = post.mock.calls[0][1];
+    expect(body.tools).not.toHaveProperty("ultrasearch");
+    expect(body).not.toHaveProperty("ultrasearch");
+    await valyu.deepresearch.create({ query: "Q3 board update" });
+    const plain = post.mock.calls[1][1];
+    expect(plain).not.toHaveProperty("tools");
+    expect(plain).not.toHaveProperty("ultrasearch");
+  });
+
+  it.each([0, -1, NaN, Infinity])(
+    "rejects max_usd %p without sending a request",
+    async (maxUsd) => {
+      const { valyu, post } = makeClient();
+      const result = await valyu.deepresearch.create({
+        query: "Q3 board update",
+        mode: "heavy",
+        tools: { ultrasearch: { max_usd: maxUsd } },
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("tools.ultrasearch");
+      expect(post).not.toHaveBeenCalled();
+    }
+  );
+
+  it("accepts ultrasearch in a response body type", () => {
+    const status: import("../src/types").DeepResearchStatusResponse = {
+      success: true,
+      tools: { ultrasearch: { max_usd: 0.5 } },
+    };
+    expect(status.tools?.ultrasearch).toEqual({ max_usd: 0.5 });
+  });
+});
+
+describe("deepresearch.create deprecated lite mode", () => {
+  it("sends mode standard in place of lite", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update", mode: "lite" });
+    expect(post.mock.calls[0][1].mode).toBe("standard");
+  });
+
+  it("maps the model alias lite to standard", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update", model: "lite" });
+    expect(post.mock.calls[0][1].mode).toBe("standard");
+  });
+
+  it("sends the deprecated model option as mode only", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update", model: "heavy" });
+    const body = post.mock.calls[0][1];
+    expect(body.mode).toBe("heavy");
+    expect(body).not.toHaveProperty("model");
+  });
+
+  it("maps lite to standard on a workflow run", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ workflowId: "wf", mode: "lite" });
+    expect(post.mock.calls[0][1].mode).toBe("standard");
+  });
+
+  it("leaves other modes unchanged and defaults to standard", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update", mode: "heavy" });
+    await valyu.deepresearch.create({ query: "Q3 board update" });
+    expect(post.mock.calls[0][1].mode).toBe("heavy");
+    expect(post.mock.calls[1][1].mode).toBe("standard");
   });
 });
