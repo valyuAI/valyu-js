@@ -642,7 +642,8 @@ export interface DeepResearchCreateOptions {
   query?: string; // Research query or task description
   input?: string; // Deprecated: use query instead
   mode?: DeepResearchMode; // Preferred field name
-  model?: DeepResearchMode; // Deprecated: use mode instead (backward compatible)
+  /** @deprecated Use `mode`. The SDK sends this value as `mode`. */
+  model?: DeepResearchMode;
   outputFormats?: DeepResearchOutputFormat[];
   strategy?: string; // Deprecated: use researchStrategy instead
   researchStrategy?: string; // Natural language strategy to guide the research phase. Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
@@ -820,14 +821,6 @@ export interface DeepResearchCostBreakdown {
   total_usd?: number;
 }
 
-/** One model in the `models` lineup of a historical_cache task: which model filled which
- * role, and its training-data cutoff. */
-export interface ModelLineupEntry {
-  role?: string;
-  model?: string;
-  training_cutoff?: string;
-}
-
 /** One node of a structured_report's section tree. heading is null for the lead: the text
  * between the report's title and its first heading. */
 export interface StructuredSection {
@@ -886,8 +879,6 @@ export interface DeepResearchCreateResponse {
   webhook_secret?: string;
   message?: string;
   workflow?: WorkflowRunInfo; // Present when the task was created from a workflow
-  /** The historical_cache model lineup (role, model, training cutoff). */
-  models?: ModelLineupEntry[];
   warnings?: ResponseWarning[];
   ignored_fields?: string[];
   error?: string;
@@ -924,8 +915,6 @@ export interface DeepResearchStatusResponse {
   images?: ImageMetadata[];
   deliverables?: DeliverableResult[];
   sources?: DeepResearchSource[];
-  /** The historical_cache model lineup. */
-  models?: ModelLineupEntry[];
   cost?: number; // Total cost in dollars (preferred)
   usage?: DeepResearchUsage; // Detailed cost breakdown (backward compatible)
   cost_breakdown?: DeepResearchCostBreakdown;  // Itemized cost breakdown
@@ -1156,7 +1145,8 @@ export interface DeepResearchBatch {
 export interface CreateBatchOptions {
   name?: string;
   mode?: DeepResearchBatchMode; // "instant" is not available for batches
-  model?: DeepResearchBatchMode; // Backward compatible (not documented)
+  /** @deprecated Use `mode`. The SDK sends this value as `mode`. */
+  model?: DeepResearchBatchMode;
   outputFormats?: DeepResearchOutputFormat[];
   search?: DeepResearchSearchConfig;
   webhookUrl?: string;

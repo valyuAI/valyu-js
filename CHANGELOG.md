@@ -3,7 +3,7 @@
 ## 2.11.6
 
 - DeepResearch: new `tools.ultrasearch` option on `deepresearch.create()`. Pass `true` for the default spend cap, or `{ max_usd: number }` for your own cap in US dollars (above 0). `false` or omitted leaves it off. Ultrasearch works in `heavy` and `max` modes only, and the API refuses it on a task with a historical date bound. The SDK rejects a `max_usd` that is not a finite number above 0. Its charges appear as ordinary lines in `cost_breakdown.tools` and `cost_breakdown.datasets`. The response `tools` field can echo `ultrasearch`. New exported `UltrasearchConfig` type.
-- DeepResearch: new response fields in the types: itemized `cost_detail`, `structured_report`, `sources[].locations`, `models`, `ignored_fields`, `error_code` and `error_message`. Mode, status, chart, image, deliverable and batch status unions now also accept unknown strings. New helpers `effectiveMode()`, `effectiveOutputFormats()` and `effectiveCostDetail()`.
+- DeepResearch: new response fields in the types: itemized `cost_detail`, `structured_report`, `sources[].locations`, `ignored_fields`, `error_code` and `error_message`. Mode, status, chart, image, deliverable and batch status unions now also accept unknown strings. New helpers `effectiveMode()`, `effectiveOutputFormats()` and `effectiveCostDetail()`.
 - DeepResearch: `batch.create()` accepts an optional `tasks` array to create a batch with its tasks.
 - Answer: new opt-in `engine: "deepresearch_instant"` option on `answer()`. It runs an instant DeepResearch task and returns it in the Answer response shape. The default engine does not change.
 - **Behavior change:** `deepresearch.create()` now sends `mode: "standard"` when you pass no `mode` (or `model`). It sent `"fast"` before. `standard` is the API default (100 credits; `fast` is 25). To keep the old behavior, pass `mode: "fast"`.
@@ -12,6 +12,7 @@
 - DeepResearch: new `search.referenceDate` (sent as `reference_date`) for `create()` and `batch.create()`. `DeepResearchSource` gains `locations` (passage-level citations).
 - New `datasources.search(query, { limit })` for semantic datasource search. `Datasource` gains `required_plan`, `access_modes`, `geography`, `capabilities` and `data_source`. `datasources.list()` returns `total_count`.
 - The `"lite"` DeepResearch mode stays in the `DeepResearchMode` type but is marked `@deprecated`. `deepresearch.create()` and `batch.create()` send `"standard"` in place of `"lite"` (for both `mode` and `model`).
+- The `model` option of `deepresearch.create()` and `batch.create()` is marked `@deprecated`. Use `mode`. The SDK sends its value as `mode`.
 - `category` is marked deprecated (use `instructions`). Docs: corrected `maxPrice`, `maxNumResults` and `searchType` descriptions and the DeepResearch method table.
 
 ## 2.11.5

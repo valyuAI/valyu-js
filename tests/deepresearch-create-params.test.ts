@@ -250,6 +250,14 @@ describe("deepresearch.create deprecated lite mode", () => {
     expect(post.mock.calls[0][1].mode).toBe("standard");
   });
 
+  it("sends the deprecated model option as mode only", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update", model: "heavy" });
+    const body = post.mock.calls[0][1];
+    expect(body.mode).toBe("heavy");
+    expect(body).not.toHaveProperty("model");
+  });
+
   it("maps lite to standard on a workflow run", async () => {
     const { valyu, post } = makeClient();
     await valyu.deepresearch.create({ workflowId: "wf", mode: "lite" });
