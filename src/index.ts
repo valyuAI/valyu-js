@@ -61,7 +61,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.5";
+const SDK_VERSION = "2.11.6";
 
 /** `maxRateLimitRetries` when the constructor options do not set one. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;
@@ -388,6 +388,21 @@ function validateFileContexts(
   }
   if (total > MAX_TOTAL_FILE_CONTEXT_CHARS) {
     return `files[].context combined length exceeds 100,000 character limit (${total} characters)`;
+  }
+  return undefined;
+}
+
+/**
+ * Check tools.ultrasearch: a boolean, or an object with a finite max_usd above 0.
+ * Returns an error message, or undefined when the value is valid or absent.
+ */
+function validateUltrasearch(tools: unknown): string | undefined {
+  const value = (tools as Record<string, any> | undefined)?.ultrasearch;
+  if (value === undefined || typeof value === "boolean") return undefined;
+  const maxUsd =
+    value !== null && typeof value === "object" ? value.max_usd : undefined;
+  if (typeof maxUsd !== "number" || !Number.isFinite(maxUsd) || maxUsd <= 0) {
+    return "tools.ultrasearch must be a boolean or { max_usd: number } with max_usd above 0";
   }
   return undefined;
 }
@@ -1386,6 +1401,11 @@ export class Valyu {
     options: DeepResearchCreateOptions
   ): Promise<DeepResearchCreateResponse> {
     try {
+      const ultrasearchError = validateUltrasearch(options.tools);
+      if (ultrasearchError) {
+        return { success: false, error: ultrasearchError };
+      }
+
       // Enforce the server's combined-length cap on research_strategy (or its
       // legacy alias strategy) plus report_format before doing any work, so the
       // client-side error matches the server's 400 body exactly and no request

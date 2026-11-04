@@ -152,6 +152,16 @@ console.log(result.output);
 
 Human-in-the-loop checkpoints (`hitl`) do not run in `instant` mode, and batches cannot use it. An instant task's `mode` reads `"instant"`; the API also reports it as `research_mode`.
 
+**Ultrasearch.** In `heavy` and `max` modes, set `tools.ultrasearch` to `true` for the default spend cap, or to `{ max_usd: 1 }` for your own cap in US dollars. Leave it out (or set `false`) to keep it off. The API refuses it in other modes and on a task with a historical date bound. Its charges show as ordinary lines in `cost_breakdown.tools` and `cost_breakdown.datasets`.
+
+```typescript
+const task = await valyu.deepresearch.create({
+  query: "Map the competitive landscape for grid-scale batteries",
+  mode: "heavy",
+  tools: { ultrasearch: { max_usd: 1 } },
+});
+```
+
 **Human-in-the-loop.** With `hitl` enabled, `wait()` passes each checkpoint to `onInteraction` once. Return a response to answer it, or `null` to leave it unanswered:
 
 ```typescript

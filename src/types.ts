@@ -568,6 +568,11 @@ export interface ToolConfig {
   max_calls?: number;
 }
 
+/** Spend cap for Ultrasearch, in US dollars. Must be a finite number above 0. */
+export interface UltrasearchConfig {
+  max_usd: number;
+}
+
 export interface DeepResearchTools {
   code_execution?: boolean | ToolConfig;
   screenshots?: boolean | ToolConfig;
@@ -582,7 +587,14 @@ export interface DeepResearchTools {
   analyse?: boolean | ToolConfig;
   browse?: boolean | ToolConfig;
   screenshot?: boolean | ToolConfig;
-  ultrasearch?: boolean | ToolConfig;
+  /**
+   * Ultrasearch, available in "heavy" and "max" modes only. `true` enables it with the default
+   * spend cap. `{ max_usd }` sets the cap in US dollars (a number above 0). `false` or omitted
+   * leaves it off. Its charges appear as ordinary lines in `cost_breakdown.tools` and
+   * `cost_breakdown.datasets`. Not available on a task with a historical date bound
+   * (`search.historicalCache` with an end date).
+   */
+  ultrasearch?: boolean | UltrasearchConfig;
 }
 
 export interface DeepResearchCreateOptions {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.11.6
+
+- DeepResearch: new `tools.ultrasearch` option on `deepresearch.create()`. Pass `true` for the default spend cap, or `{ max_usd: number }` for your own cap in US dollars (above 0). `false` or omitted leaves it off. Ultrasearch works in `heavy` and `max` modes only, and the API refuses it on a task with a historical date bound. The SDK rejects a `max_usd` that is not a finite number above 0. Its charges appear as ordinary lines in `cost_breakdown.tools` and `cost_breakdown.datasets`. The response `tools` field can echo `ultrasearch`. New exported `UltrasearchConfig` type.
+- DeepResearch: new response fields in the types: itemized `cost_detail`, `structured_report`, `sources[].locations`, `models`, `ignored_fields`, `error_code` and `error_message`. Mode, status, chart, image, deliverable and batch status unions now also accept unknown strings. New helpers `effectiveMode()`, `effectiveOutputFormats()` and `effectiveCostDetail()`.
+- DeepResearch: `batch.create()` accepts an optional `tasks` array to create a batch with its tasks.
+- Answer: new opt-in `engine: "deepresearch_instant"` option on `answer()`. It runs an instant DeepResearch task and returns it in the Answer response shape. The default engine does not change.
+
 ## 2.11.5
 
 - DeepResearch: new `coverArt` option on `deepresearch.create()`, a cover picture for one report. It replaces the brand kit's cover art on the report PDF and PDF deliverable, and works without a kit. Pass `{ kind?, data | url, filename?, mediaType? }` (`kind` is `"image"` or `"pattern"`). PNG or JPEG, at most 2 MB, 800 px or more on the short side. A picture that cannot be used does not fail the task; the response `warnings` include `cover_art_not_used`. New exported `CoverArt` type.

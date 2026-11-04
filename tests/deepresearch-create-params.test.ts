@@ -171,3 +171,68 @@ describe("deepresearch.create coverArt and brandCollectionId", () => {
     expect(post.mock.calls[0][1]).not.toHaveProperty("cover_art");
   });
 });
+
+describe("deepresearch.create tools.ultrasearch", () => {
+  it("sends tools.ultrasearch: true and no top-level ultrasearch key", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({
+      query: "Q3 board update",
+      mode: "heavy",
+      tools: { ultrasearch: true },
+    });
+    const body = post.mock.calls[0][1];
+    expect(body.tools).toEqual({ ultrasearch: true });
+    expect(body).not.toHaveProperty("ultrasearch");
+  });
+
+  it("sends tools.ultrasearch with a max_usd cap", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({
+      query: "Q3 board update",
+      mode: "max",
+      tools: { ultrasearch: { max_usd: 1.25 } },
+    });
+    const body = post.mock.calls[0][1];
+    expect(body.tools).toEqual({ ultrasearch: { max_usd: 1.25 } });
+    expect(body).not.toHaveProperty("ultrasearch");
+  });
+
+  it("omits every ultrasearch key when the option is absent", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({
+      query: "Q3 board update",
+      mode: "heavy",
+      tools: { charts: true },
+    });
+    const body = post.mock.calls[0][1];
+    expect(body.tools).not.toHaveProperty("ultrasearch");
+    expect(body).not.toHaveProperty("ultrasearch");
+    await valyu.deepresearch.create({ query: "Q3 board update" });
+    const plain = post.mock.calls[1][1];
+    expect(plain).not.toHaveProperty("tools");
+    expect(plain).not.toHaveProperty("ultrasearch");
+  });
+
+  it.each([0, -1, NaN, Infinity])(
+    "rejects max_usd %p without sending a request",
+    async (maxUsd) => {
+      const { valyu, post } = makeClient();
+      const result = await valyu.deepresearch.create({
+        query: "Q3 board update",
+        mode: "heavy",
+        tools: { ultrasearch: { max_usd: maxUsd } },
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("tools.ultrasearch");
+      expect(post).not.toHaveBeenCalled();
+    }
+  );
+
+  it("accepts ultrasearch in a response body type", () => {
+    const status: import("../src/types").DeepResearchStatusResponse = {
+      success: true,
+      tools: { ultrasearch: { max_usd: 0.5 } },
+    };
+    expect(status.tools?.ultrasearch).toEqual({ max_usd: 0.5 });
+  });
+});
