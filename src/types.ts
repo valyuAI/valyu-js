@@ -474,18 +474,15 @@ export type DeepResearchStatus =
   | "paused"
   | "completed"
   | "failed"
-  | "cancelled"
-  // See DeepResearchMode: kept open so a future status value cannot break a caller's switch
-  // or wait()'s terminal-state check at the type level.
-  | (string & {});
+  | "cancelled";
 export type DeepResearchOutputFormat =
   | "markdown"
   | "pdf"
   | "toon"
   | "structured_report"
   | Record<string, any>;
-export type DeepResearchOutputType = "markdown" | "json" | "toon" | (string & {});
-export type ImageType = "chart" | "ai_generated" | "screenshot" | "attachment" | (string & {});
+export type DeepResearchOutputType = "markdown" | "json" | "toon";
+export type ImageType = "chart" | "ai_generated" | "screenshot" | "attachment";
 export type ChartType =
   | "line"
   | "bar"
@@ -506,7 +503,7 @@ export type ChartType =
   // Additional chart kinds, sent as-is rather than mapped onto the 16 legacy types above.
   | "stacked"
   | "slope"
-  | (string & {});
+ ;
 
 export interface FileAttachment {
   data: string;
@@ -548,7 +545,7 @@ export interface MCPServerConfig {
 }
 
 export type DeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf";
-export type DeliverableStatus = "completed" | "failed" | "pending" | (string & {});
+export type DeliverableStatus = "completed" | "failed" | "pending";
 
 export interface Deliverable {
   type: DeliverableType;
@@ -563,19 +560,16 @@ export interface Deliverable {
 export interface DeliverableResult {
   id: string;
   request: string;
-  type: DeliverableType | "unknown" | (string & {});
+  type: DeliverableType | "unknown";
   status: DeliverableStatus;
   title: string;
   description?: string;
-  /** Absent while status is "pending" (the deliverable is still being produced). */
-  url?: string;
-  /** Absent while status is "pending". */
-  s3_key?: string;
+  url: string;
+  s3_key: string;
   row_count?: number;
   column_count?: number;
   error?: string;
-  /** Absent while status is "pending". */
-  created_at?: number;
+  created_at: number;
   // Additional fields, beside the ones above.
   filename?: string;
   bytes?: number;
@@ -734,8 +728,7 @@ export interface ImageMetadata {
   title: string;
   description?: string;
   image_url: string;
-  /** Absent on an image attachment entry. */
-  created_at?: number;
+  created_at: number;
   chart_type?: ChartType;
   /** The API's own chart kind, kept beside chart_type even when chart_type holds the value
    * mapped onto one of the 16 legacy types (e.g. "stacked" -> "stackedBar"). */
@@ -1093,7 +1086,7 @@ export type BatchStatus =
   | "completed"
   | "completed_with_errors"
   | "cancelled"
-  | (string & {});
+ ;
 
 export interface BatchCounts {
   total: number;
@@ -1108,10 +1101,9 @@ export interface BatchCounts {
 
 export interface DeepResearchBatch {
   batch_id: string;
-  // Not always sent.
-  organisation_id?: string;
-  api_key_id?: string;
-  credit_id?: string;
+  organisation_id: string;
+  api_key_id: string;
+  credit_id: string;
   status: BatchStatus;
   mode: DeepResearchMode; // Renamed from 'model' in responses
   /** See DeepResearchStatusResponse's research_mode: a batch made in a mode this field cannot
