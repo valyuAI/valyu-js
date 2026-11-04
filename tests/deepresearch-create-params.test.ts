@@ -236,3 +236,31 @@ describe("deepresearch.create tools.ultrasearch", () => {
     expect(status.tools?.ultrasearch).toEqual({ max_usd: 0.5 });
   });
 });
+
+describe("deepresearch.create deprecated lite mode", () => {
+  it("sends mode standard in place of lite", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update", mode: "lite" });
+    expect(post.mock.calls[0][1].mode).toBe("standard");
+  });
+
+  it("maps the model alias lite to standard", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update", model: "lite" });
+    expect(post.mock.calls[0][1].mode).toBe("standard");
+  });
+
+  it("maps lite to standard on a workflow run", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ workflowId: "wf", mode: "lite" });
+    expect(post.mock.calls[0][1].mode).toBe("standard");
+  });
+
+  it("leaves other modes unchanged and defaults to standard", async () => {
+    const { valyu, post } = makeClient();
+    await valyu.deepresearch.create({ query: "Q3 board update", mode: "heavy" });
+    await valyu.deepresearch.create({ query: "Q3 board update" });
+    expect(post.mock.calls[0][1].mode).toBe("heavy");
+    expect(post.mock.calls[1][1].mode).toBe("standard");
+  });
+});

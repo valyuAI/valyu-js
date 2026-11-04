@@ -460,6 +460,8 @@ export type DeepResearchMode =
   | "instant"
   | "fast"
   | "standard"
+  /** @deprecated Use "standard" instead. The SDK sends "standard" in place of "lite". */
+  | "lite"
   | "heavy"
   | "max";
 

@@ -394,6 +394,11 @@ function validateFileContexts(
   return undefined;
 }
 
+/** Map the deprecated "lite" mode to "standard"; any other mode is returned unchanged. */
+function normalizeMode<T extends string | undefined>(mode: T): T | "standard" {
+  return mode === "lite" ? "standard" : mode;
+}
+
 /**
  * Check tools.ultrasearch: a boolean, or an object with a finite max_usd above 0.
  * Returns an error message, or undefined when the value is valid or absent.
@@ -1412,7 +1417,7 @@ export class Valyu {
 
   /**
    * DeepResearch: Create a new research task
-   * @param options.mode - "instant", "fast", "standard" (default), "heavy" or "max". "instant" returns a short cited answer, typically in under 30 seconds; HITL checkpoints do not run in instant mode
+   * @param options.mode - "instant", "fast", "standard" (default), "heavy" or "max" ("lite" is deprecated and sent as "standard"). "instant" returns a short cited answer, typically in under 30 seconds; HITL checkpoints do not run in instant mode
    * @param options.search - Search configuration options
    * @param options.search.searchType - Type of search: "all", "web", or "proprietary" (default: "all")
    * @param options.search.includedSources - Array of source types to include (e.g., ["academic", "finance", "web"])
@@ -1478,7 +1483,7 @@ export class Valyu {
         }
         // Only send mode/output_formats when explicitly set so the
         // workflow's recommended defaults apply otherwise
-        const explicitMode = options.mode ?? options.model;
+        const explicitMode = normalizeMode(options.mode ?? options.model);
         if (explicitMode) payload.mode = explicitMode;
         if (options.outputFormats) payload.output_formats = options.outputFormats;
 
@@ -1518,7 +1523,7 @@ export class Valyu {
 
       // Build payload with snake_case
       // Prefer mode over model (backward compatible)
-      const mode = options.mode ?? options.model;
+      const mode = normalizeMode(options.mode ?? options.model);
       const payload: Record<string, any> = {
         query: queryValue,
         mode: mode || "standard", // Matches the API default
@@ -2203,7 +2208,7 @@ export class Valyu {
 
       if (options.name) payload.name = options.name;
       // Accept both mode (preferred) and model (backward compatible)
-      const mode = options.mode ?? options.model;
+      const mode = normalizeMode(options.mode ?? options.model);
       if (mode) payload.mode = mode;
       if (options.outputFormats) payload.output_formats = options.outputFormats;
       if (options.search) {

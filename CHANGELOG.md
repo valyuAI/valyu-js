@@ -11,7 +11,7 @@
 - `SearchResult` gains `crawl_date`. `ContentResultSuccess` gains `id`, `doi`, `authors`, `citation_count` and `structured_metadata`.
 - DeepResearch: new `search.referenceDate` (sent as `reference_date`) for `create()` and `batch.create()`. `DeepResearchSource` gains `locations` (passage-level citations).
 - New `datasources.search(query, { limit })` for semantic datasource search. `Datasource` gains `required_plan`, `access_modes`, `geography`, `capabilities` and `data_source`. `datasources.list()` returns `total_count`.
-- The `"lite"` DeepResearch mode is removed from the `DeepResearchMode` type. The API has no `lite` mode.
+- The `"lite"` DeepResearch mode stays in the `DeepResearchMode` type but is marked `@deprecated`. `deepresearch.create()` and `batch.create()` send `"standard"` in place of `"lite"` (for both `mode` and `model`).
 - `category` is marked deprecated (use `instructions`). Docs: corrected `maxPrice`, `maxNumResults` and `searchType` descriptions and the DeepResearch method table.
 
 ## 2.11.5
