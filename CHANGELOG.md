@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.11.6
+
+- DeepResearch status responses gain optional fields: `cost_credits`, `cost_breakdown_credits`, `cost_detail` (line-by-line tool and dataset costs), `pending_deliverables`, `research_output_formats` and `error_code`. `research_mode` is also typed on the status response.
+- `DeepResearchCostBreakdown` gains optional `datasets`, `x_search`, `browse`, `ocr`, `urls` and `other_tools`, and accepts other numeric keys. New exported `DeepResearchCostDetail` types.
+- `ImageMetadata` gains optional `chart_kind` (including `"stacked"` and `"slope"`). `title` and `created_at` are now optional on images, and `created_at` is optional on deliverables.
+- Response enums accept unknown strings, so a new value from the API does not break your types: `status`, `mode`, `output_formats`, `image_type`, `chart_type`, and deliverable `type` and `status` (which now includes `"pending"`). New exported helper types `OpenString` and `Known*` types for the closed lists.
+- New `skills` option on `deepresearch.create()`, for example `["forecasting"]`. The SDK sends it only when you set it.
+
 ## 2.11.5
 
 - DeepResearch: new `coverArt` option on `deepresearch.create()`, a cover picture for one report. It replaces the brand kit's cover art on the report PDF and PDF deliverable, and works without a kit. Pass `{ kind?, data | url, filename?, mediaType? }` (`kind` is `"image"` or `"pattern"`). PNG or JPEG, at most 2 MB, 800 px or more on the short side. A picture that cannot be used does not fail the task; the response `warnings` include `cover_art_not_used`. New exported `CoverArt` type.

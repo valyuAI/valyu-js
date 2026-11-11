@@ -429,8 +429,23 @@ export type DeepResearchOutputFormat =
   | "toon"
   | Record<string, any>;
 export type DeepResearchOutputType = "markdown" | "json" | "toon";
-export type ImageType = "chart" | "ai_generated" | "screenshot";
-export type ChartType =
+
+/**
+ * A union of known string values that also accepts any other string, so a value
+ * added by the API later never breaks type checks. Editor autocomplete still
+ * lists the known values.
+ */
+export type OpenString<T extends string> = T | (string & {});
+
+/** A mode as reported in a response. Known modes plus any string the API may add. */
+export type DeepResearchModeValue = OpenString<DeepResearchMode>;
+/** A task status as reported in a response. Known statuses plus any other string. */
+export type DeepResearchStatusValue = OpenString<DeepResearchStatus>;
+/** An output format as reported in a response: a name or a structured format object. */
+export type DeepResearchOutputFormatValue = string | Record<string, unknown>;
+export type KnownImageType = "chart" | "ai_generated" | "screenshot";
+export type ImageType = OpenString<KnownImageType>;
+export type KnownChartType =
   | "line"
   | "bar"
   | "area"
@@ -447,6 +462,9 @@ export type ChartType =
   | "waterfall"
   | "timeline"
   | "bubble";
+export type ChartType = OpenString<KnownChartType>;
+/** Chart kinds: the chart types plus "stacked" and "slope". Unknown strings are accepted. */
+export type ChartKind = OpenString<KnownChartType | "stacked" | "slope">;
 
 export interface FileAttachment {
   data: string;
@@ -487,11 +505,15 @@ export interface MCPServerConfig {
   allowedTools?: string[];
 }
 
-export type DeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf";
-export type DeliverableStatus = "completed" | "failed";
+export type KnownDeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf";
+/** Deliverable file type. Unknown strings are accepted in responses. */
+export type DeliverableType = OpenString<KnownDeliverableType>;
+export type KnownDeliverableStatus = "completed" | "failed" | "pending";
+/** Deliverable status. Unknown strings are accepted in responses. */
+export type DeliverableStatus = OpenString<KnownDeliverableStatus>;
 
 export interface Deliverable {
-  type: DeliverableType;
+  type: KnownDeliverableType;
   description: string;
   columns?: string[];
   includeHeaders?: boolean;
@@ -503,7 +525,7 @@ export interface Deliverable {
 export interface DeliverableResult {
   id: string;
   request: string;
-  type: DeliverableType | "unknown";
+  type: DeliverableType;
   status: DeliverableStatus;
   title: string;
   description?: string;
@@ -512,7 +534,7 @@ export interface DeliverableResult {
   row_count?: number;
   column_count?: number;
   error?: string;
-  created_at: number;
+  created_at?: number;
 }
 
 export interface DeepResearchSearchConfig {
@@ -553,6 +575,8 @@ export interface DeepResearchCreateOptions {
   mode?: DeepResearchMode; // Preferred field name
   model?: DeepResearchMode; // Deprecated: use mode instead (backward compatible)
   outputFormats?: DeepResearchOutputFormat[];
+  /** Skills to enable for this task, for example `["forecasting"]`. */
+  skills?: string[];
   strategy?: string; // Deprecated: use researchStrategy instead
   researchStrategy?: string; // Natural language strategy to guide the research phase. Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
   reportFormat?: string; // Natural language instructions for output format (highest priority). Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
@@ -639,11 +663,12 @@ export interface ChartDataSeries {
 export interface ImageMetadata {
   image_id: string;
   image_type: ImageType;
-  title: string;
+  title?: string;
   description?: string;
   image_url: string;
-  created_at: number;
+  created_at?: number; // Epoch milliseconds
   chart_type?: ChartType;
+  chart_kind?: ChartKind;
   x_axis_label?: string;
   y_axis_label?: string;
   data_series?: ChartDataSeries[];
@@ -682,15 +707,53 @@ export interface DeepResearchCostBreakdown {
   screenshots?: number;
   code_execution?: number;
   deliverables?: number;
+  datasets?: number;
+  x_search?: number;
+  browse?: number;
+  ocr?: number;
+  urls?: number;
+  other_tools?: number;
+  /** Other cost lines the API may add. */
+  [key: string]: number | undefined;
+}
+
+export interface DeepResearchCostDetailTool {
+  item: string;
+  label?: string;
+  pricing?: string;
+  unit?: string;
+  units?: number;
+  free_units?: number;
+  billed_units?: number;
+  unit_price_usd?: number;
+  usd: number;
+  credits?: number;
+}
+
+export interface DeepResearchCostDetailDataset {
+  source: string;
+  rows: number;
+  usd: number;
+  credits?: number;
+}
+
+/** Line-by-line cost detail for a task. */
+export interface DeepResearchCostDetail {
+  base_usd: number | null;
+  tools: DeepResearchCostDetailTool[];
+  datasets: DeepResearchCostDetailDataset[];
+  total_usd: number | null;
+  base_credits?: number;
+  total_credits?: number;
 }
 
 export interface DeepResearchCreateResponse {
   success: boolean;
   deepresearch_id?: string;
-  status?: DeepResearchStatus;
-  mode?: DeepResearchMode; // Filled from research_mode when the API omits it (instant tasks)
-  model?: DeepResearchMode; // Deprecated: kept for backward compatibility
-  research_mode?: DeepResearchMode; // Mode as reported by the API; set for instant tasks
+  status?: DeepResearchStatusValue;
+  mode?: DeepResearchModeValue; // Filled from research_mode when the API omits it (instant tasks)
+  model?: DeepResearchModeValue; // Deprecated: kept for backward compatibility
+  research_mode?: DeepResearchModeValue; // Mode as reported by the API; set for instant tasks
   created_at?: string;
   metadata?: Record<string, string | number | boolean>;
   public?: boolean;
@@ -706,11 +769,12 @@ export interface DeepResearchCreateResponse {
 export interface DeepResearchStatusResponse {
   success: boolean;
   deepresearch_id?: string;
-  status?: DeepResearchStatus;
+  status?: DeepResearchStatusValue;
   query?: string;
-  mode?: DeepResearchMode; // Filled from research_mode when the API omits it (instant tasks)
-  research_mode?: DeepResearchMode; // Mode as reported by the API; set for instant tasks
-  output_formats?: DeepResearchOutputFormat[];
+  mode?: DeepResearchModeValue; // Filled from research_mode when the API omits it (instant tasks)
+  research_mode?: DeepResearchModeValue; // Mode as reported by the API; set for instant tasks
+  output_formats?: DeepResearchOutputFormatValue[];
+  research_output_formats?: DeepResearchOutputFormatValue[]; // Output formats as reported by the API
   created_at?: string; // ISO 8601 timestamp string
   public?: boolean;
   progress?: Progress;
@@ -723,10 +787,14 @@ export interface DeepResearchStatusResponse {
   pdf_url?: string;
   images?: ImageMetadata[];
   deliverables?: DeliverableResult[];
+  pending_deliverables?: DeliverableResult[]; // Deliverables not finished yet (status "pending")
   sources?: DeepResearchSource[];
   cost?: number; // Total cost in dollars (preferred)
+  cost_credits?: number; // The same amount in platform credits
   usage?: DeepResearchUsage; // Detailed cost breakdown (backward compatible)
   cost_breakdown?: DeepResearchCostBreakdown;  // Itemized cost breakdown
+  cost_breakdown_credits?: DeepResearchCostBreakdown; // Same shape as cost_breakdown, in credits
+  cost_detail?: DeepResearchCostDetail; // Line-by-line cost detail
   tools?: DeepResearchTools;  // Resolved tools configuration
   batch_id?: string; // Batch ID if task belongs to a batch
   batch_task_id?: string; // Batch task ID if task belongs to a batch
@@ -735,6 +803,7 @@ export interface DeepResearchStatusResponse {
   hitl_history?: InteractionHistoryEntry[]; // History of completed HITL checkpoints
   warnings?: ResponseWarning[];
   error?: string;
+  error_code?: string; // Machine-readable code for `error`
   // True when success=false because the status endpoint could not be reached
   // after retries (transient gateway/network failure). Retryable and distinct
   // from a failed task — the report may still be available.

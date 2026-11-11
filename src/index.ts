@@ -4,7 +4,7 @@ import https from "https";
 import axios, { AxiosInstance } from "axios";
 import {
   ValyuOptions,
-  DeepResearchMode,
+  DeepResearchModeValue,
   SearchResponse,
   SearchType,
   SearchOptions,
@@ -61,7 +61,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.5";
+const SDK_VERSION = "2.11.6";
 
 /** `maxRateLimitRetries` when the constructor options do not set one. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;
@@ -265,7 +265,7 @@ function withWarnings<T extends { warnings?: ResponseWarning[] }>(body: T): T {
  * Instant tasks report their mode as `research_mode` only. Mirror it into
  * `mode` so the mode reads the same way for every task.
  */
-function withMode<T extends { mode?: DeepResearchMode; research_mode?: DeepResearchMode }>(
+function withMode<T extends { mode?: DeepResearchModeValue; research_mode?: DeepResearchModeValue }>(
   body: T
 ): T {
   if (body.mode !== undefined || body.research_mode === undefined) return body;
@@ -446,6 +446,7 @@ function buildSharedFields(
       }
     );
   }
+  if (options.skills !== undefined) fields.skills = options.skills;
   if (options.previousReports) fields.previous_reports = options.previousReports;
   if (options.webhookUrl) fields.webhook_url = options.webhookUrl;
   if (options.brandCollectionId)
@@ -3110,6 +3111,10 @@ export class Valyu {
 }
 
 export type {
+  DeliverableResult,
+  DeliverableType,
+  DeliverableStatus,
+  Deliverable,
   ValyuOptions,
   RateLimitDetail,
   ResponseWarning,
@@ -3150,6 +3155,18 @@ export type {
   DeepResearchOutputFormat,
   ImageType,
   ChartType,
+  KnownChartType,
+  ChartKind,
+  KnownImageType,
+  OpenString,
+  DeepResearchModeValue,
+  DeepResearchStatusValue,
+  DeepResearchOutputFormatValue,
+  KnownDeliverableType,
+  KnownDeliverableStatus,
+  DeepResearchCostDetail,
+  DeepResearchCostDetailTool,
+  DeepResearchCostDetailDataset,
   FileAttachment,
   CoverArt,
   MCPServerConfig,
