@@ -488,6 +488,11 @@ function buildSharedFields(
 }
 
 // Valyu API client
+/** "lite" is the old name of "standard": send "standard", as the Python SDK does. */
+function apiMode<T extends string | undefined>(mode: T): T | "standard" {
+  return mode === "lite" ? "standard" : mode;
+}
+
 export class Valyu {
   private baseUrl: string;
   private headers: Record<string, string>;
@@ -1434,7 +1439,7 @@ export class Valyu {
         }
         // Only send mode/output_formats when explicitly set so the
         // workflow's recommended defaults apply otherwise
-        const explicitMode = options.mode ?? options.model;
+        const explicitMode = apiMode(options.mode ?? options.model);
         if (explicitMode) payload.mode = explicitMode;
         if (options.outputFormats) payload.output_formats = options.outputFormats;
 
@@ -1474,7 +1479,7 @@ export class Valyu {
 
       // Build payload with snake_case
       // Prefer mode over model (backward compatible)
-      const mode = options.mode ?? options.model;
+      const mode = apiMode(options.mode ?? options.model);
       const payload: Record<string, any> = {
         query: queryValue,
         mode: mode || "fast", // API defaults to "standard", but we keep "fast" for backward compatibility
@@ -2159,7 +2164,7 @@ export class Valyu {
 
       if (options.name) payload.name = options.name;
       // Accept both mode (preferred) and model (backward compatible)
-      const mode = options.mode ?? options.model;
+      const mode = apiMode(options.mode ?? options.model);
       if (mode) payload.mode = mode;
       if (options.outputFormats) payload.output_formats = options.outputFormats;
       if (options.search) {
@@ -2411,7 +2416,10 @@ export class Valyu {
         timeout: this.timeout,
       });
 
-      return { success: true, batches: response.data };
+      // The API answers a list; accept a `{ batches: [...] }` body too.
+      const data = response.data;
+      const batches = Array.isArray(data) ? data : Array.isArray(data?.batches) ? data.batches : [];
+      return { success: true, batches };
     } catch (e: any) {
       return {
         success: false,

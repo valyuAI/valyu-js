@@ -427,6 +427,7 @@ export type DeepResearchOutputFormat =
   | "markdown"
   | "pdf"
   | "toon"
+  | "structured_report"
   | Record<string, any>;
 export type DeepResearchOutputType = "markdown" | "json" | "toon";
 
@@ -702,19 +703,29 @@ export interface DeepResearchUsage {
   total_cost: number;
 }
 
+/**
+ * Itemized cost. The API can also send the v2 form: `base_usd`, `tools` (lines),
+ * `datasets` as a list of lines instead of a number, `total_usd`, `base_credits`
+ * and `total_credits`.
+ */
 export interface DeepResearchCostBreakdown {
   task: number;
   screenshots?: number;
   code_execution?: number;
   deliverables?: number;
-  datasets?: number;
+  datasets?: number | Record<string, unknown>[];
+  base_usd?: number;
+  tools?: Record<string, unknown>[];
+  total_usd?: number;
+  base_credits?: number;
+  total_credits?: number;
   x_search?: number;
   browse?: number;
   ocr?: number;
   urls?: number;
   other_tools?: number;
   /** Other cost lines the API may add. */
-  [key: string]: number | undefined;
+  [key: string]: number | Record<string, unknown>[] | undefined;
 }
 
 export interface DeepResearchCostDetailTool {
