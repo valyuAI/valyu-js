@@ -61,7 +61,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.8";
+const SDK_VERSION = "2.11.7";
 
 /** `maxRateLimitRetries` when the constructor options do not set one. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;

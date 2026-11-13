@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.11.8
+## 2.11.7
 
 - DeepResearch status responses gain optional fields: `cost_credits`, `cost_breakdown_credits`, `cost_detail` (line-by-line tool and dataset costs), `pending_deliverables`, `research_output_formats` and `error_code`. `research_mode` is also typed on the status response.
 - `DeepResearchCostBreakdown` gains optional `datasets`, `x_search`, `browse`, `ocr`, `urls` and `other_tools`, and accepts other numeric keys. New exported `DeepResearchCostDetail` types.
