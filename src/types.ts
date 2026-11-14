@@ -217,6 +217,7 @@ export interface ContentResultSuccess extends ContentResultBase {
   cache_state?: CacheState; // "miss": crawled for this request. "hit": a fresh cached copy. "stale": a cached copy older than 5 minutes, served while it refreshes (only when maxAge is omitted)
   crawled_at?: string | null; // ISO 8601 capture time of the page copy. null when there is no page copy to date, for example a paper served from the index
   http_status?: number; // 404 when the page returned 404 but its body is a real page. Not set for a normal page
+  final_url?: string; // The page the request ended on, when it redirected to a different page. Not set when there was no redirect
 }
 
 export interface ContentResultFailed extends ContentResultBase {
