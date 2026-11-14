@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.11.7
+
+- DeepResearch status responses gain optional fields: `cost_credits`, `cost_breakdown_credits`, `cost_detail` (line-by-line tool and dataset costs), `pending_deliverables`, `research_output_formats` and `error_code`. `research_mode` is also typed on the status response.
+- `DeepResearchCostBreakdown` gains optional `datasets`, `x_search`, `browse`, `ocr`, `urls` and `other_tools`, and accepts other numeric keys. New exported `DeepResearchCostDetail` types.
+- `ImageMetadata` gains optional `chart_kind` (including `"stacked"` and `"slope"`). `title` and `created_at` are now optional on images, and `created_at` is optional on deliverables.
+- Response enums accept unknown strings, so a new value from the API does not break your types: `status`, `mode`, `output_formats`, `image_type`, `chart_type`, and deliverable `type` and `status` (which now includes `"pending"`). New exported helper types `OpenString` and `Known*` types for the closed lists.
+- New `skills` option on `deepresearch.create()`, for example `["forecasting"]`. The SDK sends it only when you set it.
+- `mode: "lite"` (the old name of `standard`) is sent as `"standard"`, as the Python SDK does.
+- `batch.list()` accepts a `{ batches: [...] }` body as well as a list.
+- `DeepResearchCostBreakdown` types the v2 form: `datasets` as a list of lines, plus `base_usd`, `tools`, `total_usd`, `base_credits` and `total_credits`. `DeepResearchOutputFormat` includes `structured_report`.
+
 ## 2.11.6
 
 - Successful `contents()` results gain `final_url`: the page the request ended on, when the URL redirected to a different page (for example a closed job posting that redirects to the careers page). It is not set when there was no redirect. A change of scheme, host case, `www.`, trailing slash or fragment is not a different page.
