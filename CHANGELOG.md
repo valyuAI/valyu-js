@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.6
+
+- Successful `contents()` results gain `final_url`: the page the request ended on, when the URL redirected to a different page (for example a closed job posting that redirects to the careers page). It is not set when there was no redirect. A change of scheme, host case, `www.`, trailing slash or fragment is not a different page.
+
 ## 2.11.5
 
 - DeepResearch: new `coverArt` option on `deepresearch.create()`, a cover picture for one report. It replaces the brand kit's cover art on the report PDF and PDF deliverable, and works without a kit. Pass `{ kind?, data | url, filename?, mediaType? }` (`kind` is `"image"` or `"pattern"`). PNG or JPEG, at most 2 MB, 800 px or more on the short side. A picture that cannot be used does not fail the task; the response `warnings` include `cover_art_not_used`. New exported `CoverArt` type.
