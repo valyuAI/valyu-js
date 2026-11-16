@@ -333,19 +333,6 @@ export interface AnswerOptions {
   endDate?: string;
   fastMode?: boolean;
   streaming?: boolean; // Default: false - when true, returns AsyncGenerator
-  /**
-   * Which backend answers the query. Defaults to "default" (the standard answer path; nothing
-   * changes). "deepresearch_instant" is an OPT-IN, experimental path that instead runs a
-   * DeepResearch `instant` task and adapts it into this same response shape:
-   *   - Cost is the cost of a DeepResearch instant task, not the usual per-token/per-source charge.
-   *   - Streaming is synthetic: one search_results chunk, the full answer as a single content
-   *     chunk (no incremental text), then metadata and done.
-   *   - A cited source's content is a short snippet, not the full retrieved text.
-   *   - dataMaxPrice, fastMode=true and searchType="news" have no equivalent here and throw
-   *     rather than being silently ignored.
-   *   - Depends on DeepResearch instant being reachable from your account.
-   */
-  engine?: "default" | "deepresearch_instant";
 }
 
 export interface SearchMetadata {
