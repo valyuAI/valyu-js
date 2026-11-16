@@ -258,6 +258,37 @@ function normalizeWarnings(value: unknown): ResponseWarning[] | undefined {
   });
 }
 
+/** Internal keys a DeepResearch response may carry. The SDK removes them, as the Python SDK does. */
+const INTERNAL_DELIVERABLE_KEYS = ["s3_key"];
+const INTERNAL_SOURCE_KEYS = ["org_id", "doc_id", "source_id"];
+const INTERNAL_BATCH_KEYS = ["organisation_id", "api_key_id", "credit_id"];
+
+function dropKeys(value: unknown, keys: readonly string[]): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return;
+  for (const k of keys) delete (value as Record<string, unknown>)[k];
+}
+
+/**
+ * Removes internal keys from a DeepResearch response body in place: `s3_key` from deliverables, `org_id`,
+ * `doc_id` and `source_id` from sources, and `organisation_id`, `api_key_id` and `credit_id` from batches.
+ * It walks nested objects and lists (a batch's tasks, a list page), at most 6 levels deep.
+ */
+export function stripInternalFields<T>(body: T, depth = 0): T {
+  if (body === null || typeof body !== "object" || depth > 6) return body;
+  if (Array.isArray(body)) {
+    for (const item of body) stripInternalFields(item, depth + 1);
+    return body;
+  }
+  const obj = body as Record<string, unknown>;
+  if ("batch_id" in obj) dropKeys(obj, INTERNAL_BATCH_KEYS);
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === "deliverables" && Array.isArray(value)) for (const d of value) dropKeys(d, INTERNAL_DELIVERABLE_KEYS);
+    if (key === "sources" && Array.isArray(value)) for (const src of value) dropKeys(src, INTERNAL_SOURCE_KEYS);
+    stripInternalFields(value, depth + 1);
+  }
+  return body;
+}
+
 function withWarnings<T extends { warnings?: ResponseWarning[] }>(body: T): T {
   if (!body || body.warnings === undefined) return body;
   return { ...body, warnings: normalizeWarnings(body.warnings) };
@@ -651,6 +682,11 @@ export class Valyu {
       headers: this.headers,
       httpAgent: new http.Agent({ keepAlive: true }),
       httpsAgent: new https.Agent({ keepAlive: true }),
+    });
+    // DeepResearch responses: remove internal keys (stripInternalFields).
+    this.client.interceptors?.response?.use((response) => {
+      if (String(response?.config?.url ?? "").includes("/deepresearch")) stripInternalFields(response.data);
+      return response;
     });
 
     // Initialize DeepResearch namespace

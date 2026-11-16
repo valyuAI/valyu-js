@@ -584,7 +584,6 @@ export interface DeliverableResult {
   title: string;
   description?: string;
   url: string;
-  s3_key: string;
   row_count?: number;
   column_count?: number;
   error?: string;
@@ -768,13 +767,10 @@ export interface DeepResearchSource {
   snippet?: string;
   description?: string;
   source?: string;
-  org_id?: string;
   price?: number;
   id?: string;
-  doc_id?: number;
   doi?: string;
   category?: string;
-  source_id?: number;
   word_count?: number;
   fragment?: string;
   // Dates and tier: additional fields.
@@ -1136,9 +1132,6 @@ export interface BatchCounts {
 
 export interface DeepResearchBatch {
   batch_id: string;
-  organisation_id: string;
-  api_key_id: string;
-  credit_id: string;
   status: BatchStatus;
   mode: DeepResearchMode; // Renamed from 'model' in responses
   /** See DeepResearchStatusResponse's research_mode: a batch made in a mode this field cannot
