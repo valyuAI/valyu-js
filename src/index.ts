@@ -4,7 +4,7 @@ import https from "https";
 import axios, { AxiosInstance } from "axios";
 import {
   ValyuOptions,
-  DeepResearchMode,
+  DeepResearchModeValue,
   SearchResponse,
   SearchType,
   SearchOptions,
@@ -63,7 +63,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.6";
+const SDK_VERSION = "2.11.8";
 
 /** `maxRateLimitRetries` when the constructor options do not set one. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;
@@ -267,7 +267,7 @@ function withWarnings<T extends { warnings?: ResponseWarning[] }>(body: T): T {
  * Instant tasks report their mode as `research_mode` only. Mirror it into
  * `mode` so the mode reads the same way for every task.
  */
-function withMode<T extends { mode?: DeepResearchMode; research_mode?: DeepResearchMode }>(
+function withMode<T extends { mode?: DeepResearchModeValue; research_mode?: DeepResearchModeValue }>(
   body: T
 ): T {
   if (body.mode !== undefined || body.research_mode === undefined) return body;
@@ -394,11 +394,6 @@ function validateFileContexts(
   return undefined;
 }
 
-/** Map the deprecated "lite" mode to "standard"; any other mode is returned unchanged. */
-function normalizeMode<T extends string | undefined>(mode: T): T | "standard" {
-  return mode === "lite" ? "standard" : mode;
-}
-
 /**
  * Check tools.ultrasearch: a boolean, or an object with a finite max_usd above 0.
  * Returns an error message, or undefined when the value is valid or absent.
@@ -470,6 +465,7 @@ function buildSharedFields(
       }
     );
   }
+  if (options.skills !== undefined) fields.skills = options.skills;
   if (options.previousReports) fields.previous_reports = options.previousReports;
   if (options.webhookUrl) fields.webhook_url = options.webhookUrl;
   if (options.brandCollectionId)
@@ -511,6 +507,11 @@ function buildSharedFields(
 }
 
 // Valyu API client
+/** "lite" is the old name of "standard": send "standard", as the Python SDK does. */
+function apiMode<T extends string | undefined>(mode: T): T | "standard" {
+  return mode === "lite" ? "standard" : mode;
+}
+
 export class Valyu {
   private baseUrl: string;
   private headers: Record<string, string>;
@@ -1483,7 +1484,7 @@ export class Valyu {
         }
         // Only send mode/output_formats when explicitly set so the
         // workflow's recommended defaults apply otherwise
-        const explicitMode = normalizeMode(options.mode ?? options.model);
+        const explicitMode = apiMode(options.mode ?? options.model);
         if (explicitMode) payload.mode = explicitMode;
         if (options.outputFormats) payload.output_formats = options.outputFormats;
 
@@ -1523,7 +1524,7 @@ export class Valyu {
 
       // Build payload with snake_case
       // Prefer mode over model (backward compatible)
-      const mode = normalizeMode(options.mode ?? options.model);
+      const mode = apiMode(options.mode ?? options.model);
       const payload: Record<string, any> = {
         query: queryValue,
         mode: mode || "standard", // Matches the API default
@@ -2208,7 +2209,7 @@ export class Valyu {
 
       if (options.name) payload.name = options.name;
       // Accept both mode (preferred) and model (backward compatible)
-      const mode = normalizeMode(options.mode ?? options.model);
+      const mode = apiMode(options.mode ?? options.model);
       if (mode) payload.mode = mode;
       if (options.outputFormats) payload.output_formats = options.outputFormats;
       if (options.search) {
@@ -2480,7 +2481,10 @@ export class Valyu {
         timeout: this.timeout,
       });
 
-      return { success: true, batches: response.data };
+      // The API answers a list; accept a `{ batches: [...] }` body too.
+      const data = response.data;
+      const batches = Array.isArray(data) ? data : Array.isArray(data?.batches) ? data.batches : [];
+      return { success: true, batches };
     } catch (e: any) {
       return {
         success: false,
@@ -3384,6 +3388,10 @@ export class Valyu {
 }
 
 export type {
+  DeliverableResult,
+  DeliverableType,
+  DeliverableStatus,
+  Deliverable,
   ValyuOptions,
   RateLimitDetail,
   ResponseWarning,
@@ -3428,6 +3436,18 @@ export type {
   DeepResearchOutputFormat,
   ImageType,
   ChartType,
+  KnownChartType,
+  ChartKind,
+  KnownImageType,
+  OpenString,
+  DeepResearchModeValue,
+  DeepResearchStatusValue,
+  DeepResearchOutputFormatValue,
+  KnownDeliverableType,
+  KnownDeliverableStatus,
+  DeepResearchCostDetail,
+  DeepResearchCostDetailTool,
+  DeepResearchCostDetailDataset,
   FileAttachment,
   CoverArt,
   MCPServerConfig,

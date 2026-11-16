@@ -255,6 +255,7 @@ export interface ContentResultSuccess extends ContentResultBase {
   cache_state?: CacheState; // "miss": crawled for this request. "hit": a fresh cached copy. "stale": a cached copy older than 5 minutes, served while it refreshes (only when maxAge is omitted)
   crawled_at?: string | null; // ISO 8601 capture time of the page copy. null when there is no page copy to date, for example a paper served from the index
   http_status?: number; // 404 when the page returned 404 but its body is a real page. Not set for a normal page
+  final_url?: string; // The page the request ended on, when it redirected to a different page. Not set when there was no redirect
 }
 
 export interface ContentResultFailed extends ContentResultBase {
@@ -482,8 +483,23 @@ export type DeepResearchOutputFormat =
   | "structured_report"
   | Record<string, any>;
 export type DeepResearchOutputType = "markdown" | "json" | "toon";
-export type ImageType = "chart" | "ai_generated" | "screenshot" | "attachment";
-export type ChartType =
+
+/**
+ * A union of known string values that also accepts any other string, so a value
+ * added by the API later never breaks type checks. Editor autocomplete still
+ * lists the known values.
+ */
+export type OpenString<T extends string> = T | (string & {});
+
+/** A mode as reported in a response. Known modes plus any string the API may add. */
+export type DeepResearchModeValue = OpenString<DeepResearchMode>;
+/** A task status as reported in a response. Known statuses plus any other string. */
+export type DeepResearchStatusValue = OpenString<DeepResearchStatus>;
+/** An output format as reported in a response: a name or a structured format object. */
+export type DeepResearchOutputFormatValue = string | Record<string, unknown>;
+export type KnownImageType = "chart" | "ai_generated" | "screenshot" | "attachment";
+export type ImageType = OpenString<KnownImageType>;
+export type KnownChartType =
   | "line"
   | "bar"
   | "area"
@@ -499,11 +515,10 @@ export type ChartType =
   | "histogram"
   | "waterfall"
   | "timeline"
-  | "bubble"
-  // Additional chart kinds, sent as-is rather than mapped onto the 16 legacy types above.
-  | "stacked"
-  | "slope"
- ;
+  | "bubble";
+export type ChartType = OpenString<KnownChartType>;
+/** Chart kinds: the chart types plus "stacked" and "slope". Unknown strings are accepted. */
+export type ChartKind = OpenString<KnownChartType | "stacked" | "slope">;
 
 export interface FileAttachment {
   data: string;
@@ -544,11 +559,15 @@ export interface MCPServerConfig {
   allowedTools?: string[];
 }
 
-export type DeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf";
-export type DeliverableStatus = "completed" | "failed" | "pending";
+export type KnownDeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf";
+/** Deliverable file type. Unknown strings are accepted in responses. */
+export type DeliverableType = OpenString<KnownDeliverableType>;
+export type KnownDeliverableStatus = "completed" | "failed" | "pending";
+/** Deliverable status. Unknown strings are accepted in responses. */
+export type DeliverableStatus = OpenString<KnownDeliverableStatus>;
 
 export interface Deliverable {
-  type: DeliverableType;
+  type: KnownDeliverableType;
   description: string;
   columns?: string[];
   includeHeaders?: boolean;
@@ -560,7 +579,7 @@ export interface Deliverable {
 export interface DeliverableResult {
   id: string;
   request: string;
-  type: DeliverableType | "unknown";
+  type: DeliverableType;
   status: DeliverableStatus;
   title: string;
   description?: string;
@@ -569,7 +588,7 @@ export interface DeliverableResult {
   row_count?: number;
   column_count?: number;
   error?: string;
-  created_at: number;
+  created_at?: number;
   // Additional fields, beside the ones above.
   filename?: string;
   bytes?: number;
@@ -639,6 +658,8 @@ export interface DeepResearchCreateOptions {
   /** @deprecated Use `mode`. The SDK sends this value as `mode`. */
   model?: DeepResearchMode;
   outputFormats?: DeepResearchOutputFormat[];
+  /** Skills to enable for this task, for example `["forecasting"]`. */
+  skills?: string[];
   strategy?: string; // Deprecated: use researchStrategy instead
   researchStrategy?: string; // Natural language strategy to guide the research phase. Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
   reportFormat?: string; // Natural language instructions for output format (highest priority). Combined length of researchStrategy (or legacy strategy) and reportFormat must not exceed 15,000 characters.
@@ -725,14 +746,14 @@ export interface ChartDataSeries {
 export interface ImageMetadata {
   image_id: string;
   image_type: ImageType;
-  title: string;
+  title?: string;
   description?: string;
   image_url: string;
-  created_at: number;
+  created_at?: number; // Epoch milliseconds
   chart_type?: ChartType;
   /** The API's own chart kind, kept beside chart_type even when chart_type holds the value
    * mapped onto one of the 16 legacy types (e.g. "stacked" -> "stackedBar"). */
-  chart_kind?: string;
+  chart_kind?: ChartKind;
   x_axis_label?: string;
   y_axis_label?: string;
   data_series?: ChartDataSeries[];
@@ -772,9 +793,33 @@ export interface DeepResearchUsage {
   total_cost: number;
 }
 
-/** One line of an itemized bill (a tool charge or a dataset charge). */
-export interface CostDetailLine {
-  item?: string;
+/**
+ * Itemized cost. The API can also send the v2 form: `base_usd`, `tools` (lines),
+ * `datasets` as a list of lines instead of a number, `total_usd`, `base_credits`
+ * and `total_credits`.
+ */
+export interface DeepResearchCostBreakdown {
+  task: number;
+  screenshots?: number;
+  code_execution?: number;
+  deliverables?: number;
+  datasets?: number | Record<string, unknown>[];
+  base_usd?: number;
+  tools?: Record<string, unknown>[];
+  total_usd?: number;
+  base_credits?: number;
+  total_credits?: number;
+  x_search?: number;
+  browse?: number;
+  ocr?: number;
+  urls?: number;
+  other_tools?: number;
+  /** Other cost lines the API may add. */
+  [key: string]: number | Record<string, unknown>[] | undefined;
+}
+
+export interface DeepResearchCostDetailTool {
+  item: string;
   label?: string;
   pricing?: string;
   unit?: string;
@@ -782,36 +827,25 @@ export interface CostDetailLine {
   free_units?: number;
   billed_units?: number;
   unit_price_usd?: number;
-  usd?: number;
+  usd: number;
+  credits?: number;
 }
 
-/**
- * The itemized bill: the base price, each tool and dataset charged, and the total. The API sends
- * this under cost_detail, or directly as cost_breakdown instead of
- * duplicating it under cost_detail — see effectiveCostDetail().
- */
+export interface DeepResearchCostDetailDataset {
+  source: string;
+  rows: number;
+  usd: number;
+  credits?: number;
+}
+
+/** Line-by-line cost detail for a task. */
 export interface DeepResearchCostDetail {
-  task?: number;
-  base_usd?: number;
-  tools?: CostDetailLine[];
-  datasets?: CostDetailLine[];
-  total_usd?: number;
-}
-
-export interface DeepResearchCostBreakdown {
-  task: number;
-  screenshots?: number;
-  code_execution?: number;
-  deliverables?: number;
-  /** A summed number or a list of line items. */
-  datasets?: number | CostDetailLine[];
-  x_search?: number;
-  browse?: number;
-  other_tools?: number;
-  // Present when cost_breakdown holds the itemized bill.
-  base_usd?: number;
-  tools?: CostDetailLine[];
-  total_usd?: number;
+  base_usd: number | null;
+  tools: DeepResearchCostDetailTool[];
+  datasets: DeepResearchCostDetailDataset[];
+  total_usd: number | null;
+  base_credits?: number;
+  total_credits?: number;
 }
 
 /** One node of a structured_report's section tree. heading is null for the lead: the text
@@ -858,14 +892,14 @@ export interface StructuredReport {
 export interface DeepResearchCreateResponse {
   success: boolean;
   deepresearch_id?: string;
-  status?: DeepResearchStatus;
-  mode?: DeepResearchMode; // Filled from research_mode when the API omits it (instant tasks)
-  model?: DeepResearchMode; // Deprecated: kept for backward compatibility
-  research_mode?: DeepResearchMode; // Mode as reported by the API; set for instant tasks
+  status?: DeepResearchStatusValue;
+  mode?: DeepResearchModeValue; // Filled from research_mode when the API omits it (instant tasks)
+  model?: DeepResearchModeValue; // Deprecated: kept for backward compatibility
+  research_mode?: DeepResearchModeValue; // Mode as reported by the API; set for instant tasks
   query?: string;
   title?: string;
-  output_formats?: DeepResearchOutputFormat[];
-  research_output_formats?: DeepResearchOutputFormat[];
+  output_formats?: DeepResearchOutputFormatValue[];
+  research_output_formats?: DeepResearchOutputFormatValue[];
   created_at?: string;
   metadata?: Record<string, string | number | boolean>;
   public?: boolean;
@@ -884,12 +918,12 @@ export interface DeepResearchCreateResponse {
 export interface DeepResearchStatusResponse {
   success: boolean;
   deepresearch_id?: string;
-  status?: DeepResearchStatus;
+  status?: DeepResearchStatusValue;
   query?: string;
-  mode?: DeepResearchMode; // Filled from research_mode when the API omits it (instant tasks)
-  research_mode?: DeepResearchMode; // Mode as reported by the API; set for instant tasks
-  output_formats?: DeepResearchOutputFormat[];
-  research_output_formats?: DeepResearchOutputFormat[];
+  mode?: DeepResearchModeValue; // Filled from research_mode when the API omits it (instant tasks)
+  research_mode?: DeepResearchModeValue; // Mode as reported by the API; set for instant tasks
+  output_formats?: DeepResearchOutputFormatValue[];
+  research_output_formats?: DeepResearchOutputFormatValue[]; // Output formats as reported by the API
   created_at?: string; // ISO 8601 timestamp string
   public?: boolean;
   progress?: Progress;
@@ -907,12 +941,14 @@ export interface DeepResearchStatusResponse {
   pdf_url?: string;
   images?: ImageMetadata[];
   deliverables?: DeliverableResult[];
+  pending_deliverables?: DeliverableResult[]; // Deliverables not finished yet (status "pending")
   sources?: DeepResearchSource[];
   cost?: number; // Total cost in dollars (preferred)
+  cost_credits?: number; // The same amount in platform credits
   usage?: DeepResearchUsage; // Detailed cost breakdown (backward compatible)
   cost_breakdown?: DeepResearchCostBreakdown;  // Itemized cost breakdown
-  /** The itemized bill, beside the numbers-only cost_breakdown. See effectiveCostDetail(). */
-  cost_detail?: DeepResearchCostDetail;
+  cost_breakdown_credits?: DeepResearchCostBreakdown; // Same shape as cost_breakdown, in credits
+  cost_detail?: DeepResearchCostDetail; // Line-by-line cost detail
   tools?: DeepResearchTools;  // Resolved tools configuration
   batch_id?: string; // Batch ID if task belongs to a batch
   batch_task_id?: string; // Batch task ID if task belongs to a batch
@@ -925,7 +961,7 @@ export interface DeepResearchStatusResponse {
   warnings?: ResponseWarning[];
   error?: string;
   error_message?: string; // User-facing sentence for error_code
-  error_code?: string; // Machine-readable error code
+  error_code?: string; // Machine-readable code for `error`
   // True when success=false because the status endpoint could not be reached
   // after retries (transient gateway/network failure). Retryable and distinct
   // from a failed task — the report may still be available.
@@ -935,18 +971,18 @@ export interface DeepResearchStatusResponse {
 /** The mode the server actually resolved to: research_mode when mode/model had to be left out
  * for an SDK that cannot type it (e.g. "instant"), else mode or model. */
 export function effectiveMode(r: {
-  research_mode?: DeepResearchMode;
-  mode?: DeepResearchMode;
-  model?: DeepResearchMode;
-}): DeepResearchMode | undefined {
+  research_mode?: DeepResearchModeValue;
+  mode?: DeepResearchModeValue;
+  model?: DeepResearchModeValue;
+}): DeepResearchModeValue | undefined {
   return r.research_mode ?? r.mode ?? r.model;
 }
 
 /** The output formats the server actually resolved to, mirroring effectiveMode(). */
 export function effectiveOutputFormats(r: {
-  research_output_formats?: DeepResearchOutputFormat[];
-  output_formats?: DeepResearchOutputFormat[];
-}): DeepResearchOutputFormat[] | undefined {
+  research_output_formats?: DeepResearchOutputFormatValue[];
+  output_formats?: DeepResearchOutputFormatValue[];
+}): DeepResearchOutputFormatValue[] | undefined {
   return r.research_output_formats ?? r.output_formats;
 }
 
@@ -963,14 +999,14 @@ export function effectiveCostDetail(r: {
   const cb = r.cost_breakdown;
   if (!cb || cb.base_usd === undefined) return undefined;
   return {
-    task: cb.task,
     base_usd: cb.base_usd,
-    tools: cb.tools,
-    datasets: Array.isArray(cb.datasets) ? cb.datasets : undefined,
-    total_usd: cb.total_usd,
+    tools: (cb.tools ?? []) as unknown as DeepResearchCostDetail["tools"],
+    datasets: (Array.isArray(cb.datasets) ? cb.datasets : []) as unknown as DeepResearchCostDetail["datasets"],
+    total_usd: cb.total_usd ?? null,
+    base_credits: cb.base_credits,
+    total_credits: cb.total_credits,
   };
 }
-
 
 export interface DeepResearchTaskListItem {
   deepresearch_id: string;
@@ -1085,8 +1121,7 @@ export type BatchStatus =
   | "processing"
   | "completed"
   | "completed_with_errors"
-  | "cancelled"
- ;
+  | "cancelled";
 
 export interface BatchCounts {
   total: number;

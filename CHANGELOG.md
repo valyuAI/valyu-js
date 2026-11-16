@@ -1,9 +1,9 @@
 # Changelog
 
-## 2.11.6
+## 2.11.8
 
 - DeepResearch: new `tools.ultrasearch` option on `deepresearch.create()`. Pass `true` for the default spend cap, or `{ max_usd: number }` for your own cap in US dollars (above 0). `false` or omitted leaves it off. Ultrasearch works in `heavy` and `max` modes only, and the API refuses it on a task with a historical date bound. The SDK rejects a `max_usd` that is not a finite number above 0. Its charges appear as ordinary lines in `cost_breakdown.tools` and `cost_breakdown.datasets`. The response `tools` field can echo `ultrasearch`. New exported `UltrasearchConfig` type.
-- DeepResearch: new response fields in the types: itemized `cost_detail`, `structured_report`, `sources[].locations`, `ignored_fields`, `error_code` and `error_message`. Image, chart, deliverable and batch status types gain the new values the API returns (for example `attachment` and `pending`). New helpers `effectiveMode()`, `effectiveOutputFormats()` and `effectiveCostDetail()`.
+- DeepResearch: new response fields in the types: `structured_report`, `sources[].locations`, `ignored_fields` and `error_message`. The image type also accepts `attachment`. New helpers `effectiveMode()`, `effectiveOutputFormats()` and `effectiveCostDetail()`.
 - DeepResearch: `batch.create()` accepts an optional `tasks` array to create a batch with its tasks.
 - Answer: new opt-in `engine: "deepresearch_instant"` option on `answer()`. It runs an instant DeepResearch task and returns it in the Answer response shape. The default engine does not change.
 - **Behavior change:** `deepresearch.create()` now sends `mode: "standard"` when you pass no `mode` (or `model`). It sent `"fast"` before. `standard` is the API default (100 credits; `fast` is 25). To keep the old behavior, pass `mode: "fast"`.
@@ -11,9 +11,24 @@
 - `SearchResult` gains `crawl_date`. `ContentResultSuccess` gains `id`, `doi`, `authors`, `citation_count` and `structured_metadata`.
 - DeepResearch: new `search.referenceDate` (sent as `reference_date`) for `create()` and `batch.create()`. `DeepResearchSource` gains `locations` (passage-level citations).
 - New `datasources.search(query, { limit })` for semantic datasource search. `Datasource` gains `required_plan`, `access_modes`, `geography`, `capabilities` and `data_source`. `datasources.list()` returns `total_count`.
-- The `"lite"` DeepResearch mode stays in the `DeepResearchMode` type but is marked `@deprecated`. `deepresearch.create()` and `batch.create()` send `"standard"` in place of `"lite"` (for both `mode` and `model`).
+- The `"lite"` DeepResearch mode stays in the `DeepResearchMode` type but is marked `@deprecated`. Use `"standard"`.
 - The `model` option of `deepresearch.create()` and `batch.create()` is marked `@deprecated`. Use `mode`. The SDK sends its value as `mode`.
 - `category` is marked deprecated (use `instructions`). Docs: corrected `maxPrice`, `maxNumResults` and `searchType` descriptions and the DeepResearch method table.
+
+## 2.11.7
+
+- DeepResearch status responses gain optional fields: `cost_credits`, `cost_breakdown_credits`, `cost_detail` (line-by-line tool and dataset costs), `pending_deliverables`, `research_output_formats` and `error_code`. `research_mode` is also typed on the status response.
+- `DeepResearchCostBreakdown` gains optional `datasets`, `x_search`, `browse`, `ocr`, `urls` and `other_tools`, and accepts other numeric keys. New exported `DeepResearchCostDetail` types.
+- `ImageMetadata` gains optional `chart_kind` (including `"stacked"` and `"slope"`). `title` and `created_at` are now optional on images, and `created_at` is optional on deliverables.
+- Response enums accept unknown strings, so a new value from the API does not break your types: `status`, `mode`, `output_formats`, `image_type`, `chart_type`, and deliverable `type` and `status` (which now includes `"pending"`). New exported helper types `OpenString` and `Known*` types for the closed lists.
+- New `skills` option on `deepresearch.create()`, for example `["forecasting"]`. The SDK sends it only when you set it.
+- `mode: "lite"` (the old name of `standard`) is sent as `"standard"`, as the Python SDK does.
+- `batch.list()` accepts a `{ batches: [...] }` body as well as a list.
+- `DeepResearchCostBreakdown` types the v2 form: `datasets` as a list of lines, plus `base_usd`, `tools`, `total_usd`, `base_credits` and `total_credits`. `DeepResearchOutputFormat` includes `structured_report`.
+
+## 2.11.6
+
+- Successful `contents()` results gain `final_url`: the page the request ended on, when the URL redirected to a different page (for example a closed job posting that redirects to the careers page). It is not set when there was no redirect. A change of scheme, host case, `www.`, trailing slash or fragment is not a different page.
 
 ## 2.11.5
 
