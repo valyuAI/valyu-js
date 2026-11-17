@@ -283,6 +283,7 @@ export interface ContentsResponse {
 }
 
 // Answer API Types
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerOptions {
   structuredOutput?: Record<string, any>;
   systemInstructions?: string;
@@ -324,6 +325,7 @@ export interface ExtractionMetadata {
   extract_effort: string;
 }
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerSearchResult {
   title: string;
   url: string;
@@ -339,6 +341,7 @@ export interface AnswerSearchResult {
   abstract?: string;
 }
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerSuccessResponse {
   success: true;
   tx_id: string;
@@ -352,6 +355,7 @@ export interface AnswerSuccessResponse {
   warnings?: ResponseWarning[];
 }
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerErrorResponse {
   success: false;
   error: string;
@@ -359,9 +363,11 @@ export interface AnswerErrorResponse {
   rateLimit?: RateLimitDetail;
 }
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export type AnswerResponse = AnswerSuccessResponse | AnswerErrorResponse;
 
 // Streaming Types for Answer API
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export type AnswerStreamChunkType =
   | "search_results"
   | "content"
@@ -369,6 +375,7 @@ export type AnswerStreamChunkType =
   | "done"
   | "error";
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerStreamChunk {
   type: AnswerStreamChunkType;
 

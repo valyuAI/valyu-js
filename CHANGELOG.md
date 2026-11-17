@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.8
+
+- Deprecation: the Answer API stops working on 2026-12-17, when the endpoint returns HTTP 410. `answer()` still works as before, but now logs a one-time `console.warn` per process. The `Answer*` types are marked `@deprecated`. Use DeepResearch with `mode: "instant"`, or `search()` plus your own LLM. Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer
+
 ## 2.11.7
 
 - DeepResearch status responses gain optional fields: `cost_credits`, `cost_breakdown_credits`, `cost_detail` (line-by-line tool and dataset costs), `pending_deliverables`, `research_output_formats` and `error_code`. `research_mode` is also typed on the status response.
