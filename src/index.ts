@@ -31,7 +31,9 @@ import {
   DeepResearchRespondResponse,
   DeepResearchStatusOptions,
   DeepResearchEditOptions,
+  DeepResearchEditRecord,
   DeepResearchEditResponse,
+  DeepResearchVersion,
   DeepResearchEditErrorResponse,
   DeepResearchEditListResponse,
   DeepResearchVersionListResponse,
@@ -69,7 +71,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.12.0";
+const SDK_VERSION = "2.12.1";
 
 const ANSWER_DEPRECATION_MESSAGE =
   "Valyu.answer() is deprecated and stops working on 2026-12-17. Use DeepResearch with mode: 'instant' (valyu.deepresearch.create({ query, mode: 'instant' })) or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer";
@@ -142,6 +144,69 @@ function nextPollIntervalMs(
 
 /** Default wait for an edit; edits finish in seconds to a few minutes. */
 const DEFAULT_EDIT_MAX_WAIT_TIME_MS = 600000;
+
+/** The documented fields of an edit record; the SDK returns only these. */
+const EDIT_RECORD_FIELDS = [
+  "edit_id",
+  "deepresearch_id",
+  "status",
+  "target",
+  "instruction",
+  "focus",
+  "base_version",
+  "version",
+  "created_at",
+  "completed_at",
+  "retry_after_seconds",
+  "summary",
+  "changes",
+  "unapplied",
+  "stats",
+  "warnings",
+  "decline",
+  "error",
+  "citations",
+  "mode",
+  "pdf_url",
+] as const;
+
+/** The documented fields of a version entry; the SDK returns only these. */
+const VERSION_FIELDS = [
+  "version",
+  "kind",
+  "target",
+  "created_at",
+  "edit_id",
+  "instruction",
+  "summary",
+  "stats",
+  "is_head",
+  "pdf_url",
+  "restored_from",
+] as const;
+
+function pickFields(source: any, fields: readonly string[]): Record<string, any> {
+  const out: Record<string, any> = {};
+  if (!source || typeof source !== "object") return out;
+  for (const key of fields) {
+    if (source[key] !== undefined) out[key] = source[key];
+  }
+  return out;
+}
+
+/** An edit record with only its documented fields (progress carries only `step`). */
+function editRecord(source: any): DeepResearchEditRecord {
+  const record = pickFields(source, EDIT_RECORD_FIELDS);
+  const progress = source?.progress;
+  if (progress && typeof progress === "object" && progress.step !== undefined) {
+    record.progress = { step: progress.step };
+  }
+  return record as DeepResearchEditRecord;
+}
+
+function versionEntry(source: any): DeepResearchVersion {
+  return pickFields(source, VERSION_FIELDS) as DeepResearchVersion;
+}
 
 /**
  * A failed edit, edits, versions or restore request, with the API's error
@@ -1665,6 +1730,7 @@ export class Valyu {
             };
           } else {
             const { success: _ignored, ...rest } = body as any;
+            if (rest.active_edit) rest.active_edit = editRecord(rest.active_edit);
             const status: DeepResearchStatusResponse = withMode(
               withWarnings({ success: true, ...rest })
             );
@@ -2148,7 +2214,7 @@ export class Valyu {
         // A server-side wait adds up to 20 seconds to the request.
         { headers, timeout: this.timeout && this.timeout + 20000 }
       );
-      return { success: true, ...response.data };
+      return { success: true, ...editRecord(response.data) };
     } catch (e: any) {
       return editErrorResponse(e);
     }
@@ -2166,7 +2232,7 @@ export class Valyu {
         `${this.baseUrl}/deepresearch/tasks/${taskId}/edits/${editId}`,
         { headers: this.headers, timeout: this.timeout }
       );
-      return { success: true, ...response.data };
+      return { success: true, ...editRecord(response.data) };
     } catch (e: any) {
       return editErrorResponse(e);
     }
@@ -2183,7 +2249,12 @@ export class Valyu {
         `${this.baseUrl}/deepresearch/tasks/${taskId}/edits`,
         { headers: this.headers, timeout: this.timeout }
       );
-      return { success: true, ...response.data };
+      const data = response.data ?? {};
+      return {
+        success: true,
+        deepresearch_id: data.deepresearch_id,
+        edits: Array.isArray(data.edits) ? data.edits.map(editRecord) : [],
+      };
     } catch (e: any) {
       return editErrorResponse(e);
     }
@@ -2236,7 +2307,13 @@ export class Valyu {
         `${this.baseUrl}/deepresearch/tasks/${taskId}/versions`,
         { headers: this.headers, timeout: this.timeout }
       );
-      return { success: true, ...response.data };
+      const data = response.data ?? {};
+      return {
+        success: true,
+        deepresearch_id: data.deepresearch_id,
+        head: data.head,
+        versions: Array.isArray(data.versions) ? data.versions.map(versionEntry) : [],
+      };
     } catch (e: any) {
       return editErrorResponse(e);
     }

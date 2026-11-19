@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.12.1
+
+- Edit records from `deepresearch.edit()`, `getEdit()`, `listEdits()` and `waitForEdit()`, the `active_edit` on status responses, and `listVersions()` entries now contain only their documented fields. `progress` carries `step`. `DeepResearchEditRecord` types `instruction`, `progress`, `citations` and `mode`; `DeepResearchVersion` types `restored_from`.
+
 ## 2.12.0
 
 - DeepResearch report editing. Make small, targeted edits to a finished DeepResearch report or deliverable with a plain-language instruction. Untouched text stays exactly as it was, citations stay consistent, and every edit creates a new version you can restore.

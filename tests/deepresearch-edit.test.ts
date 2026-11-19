@@ -190,3 +190,76 @@ describe("deepresearch versions", () => {
     expect(restored).toEqual({ success: true, version: 3, restored_from: 1 });
   });
 });
+
+describe("edit record fields", () => {
+  // Records are spread into the caller's object, so a field the API adds
+  // later would reach every caller (and anything they log or forward)
+  // without being part of the documented shape.
+  it("returns only documented fields on edits, edit lists, versions and the active edit", async () => {
+    const { valyu, get, post } = makeClient();
+    const record = {
+      ...applied,
+      progress: { step: "rewriting", detail: "x" },
+      unlisted: "x",
+    };
+    post.mockResolvedValue({ status: 200, data: record });
+    get.mockImplementation(async (url: string) => {
+      if (url.endsWith("/edits/ed_1")) return { status: 200, data: record };
+      if (url.endsWith("/edits")) {
+        return { status: 200, data: { deepresearch_id: "dr_1", edits: [record], unlisted: "x" } };
+      }
+      if (url.endsWith("/versions")) {
+        return {
+          status: 200,
+          data: {
+            deepresearch_id: "dr_1",
+            head: 2,
+            unlisted: "x",
+            versions: [{ version: 2, kind: "edit", created_at: "t", is_head: true, unlisted: "x" }],
+          },
+        };
+      }
+      return {
+        status: 200,
+        headers: { "content-type": "application/json" },
+        data: { deepresearch_id: "dr_1", status: "completed", active_edit: record },
+      };
+    });
+
+    const expected = {
+      edit_id: "ed_1",
+      deepresearch_id: "dr_1",
+      status: "applied",
+      target: { kind: "report" },
+      base_version: 1,
+      version: 2,
+      created_at: "2026-11-19T14:20:00.000Z",
+      retry_after_seconds: null,
+      summary: "Cut the summary to 3 bullets.",
+      progress: { step: "rewriting" },
+    };
+
+    expect(await valyu.deepresearch.edit("dr_1", { instruction: "x" })).toEqual({
+      success: true,
+      ...expected,
+    });
+    expect(await valyu.deepresearch.getEdit("dr_1", "ed_1")).toEqual({ success: true, ...expected });
+    expect(await valyu.deepresearch.waitForEdit("dr_1", "ed_1")).toEqual({
+      success: true,
+      ...expected,
+    });
+    expect(await valyu.deepresearch.listEdits("dr_1")).toEqual({
+      success: true,
+      deepresearch_id: "dr_1",
+      edits: [expected],
+    });
+    expect(await valyu.deepresearch.listVersions("dr_1")).toEqual({
+      success: true,
+      deepresearch_id: "dr_1",
+      head: 2,
+      versions: [{ version: 2, kind: "edit", created_at: "t", is_head: true }],
+    });
+    const status = await valyu.deepresearch.status("dr_1");
+    expect((status as any).active_edit).toEqual(expected);
+  });
+});
