@@ -1042,12 +1042,14 @@ export interface DeepResearchEditRecord {
   deepresearch_id: string;
   status: DeepResearchEditStatus;
   target: DeepResearchEditTargetRecord;
+  instruction?: string;
   base_version: number;
   version?: number | null; // The new version, when status is "applied"
   focus?: DeepResearchEditFocusRecord | null;
   created_at: string;
   completed_at?: string | null;
   retry_after_seconds?: number | null; // Suggested poll delay while running
+  progress?: { step?: string } | null; // Current step while running
   summary?: string | null;
   changes?: Record<string, any>[];
   unapplied?: (string | Record<string, any>)[]; // Parts of the instruction not applied
@@ -1055,6 +1057,8 @@ export interface DeepResearchEditRecord {
   warnings?: ResponseWarning[]; // e.g. deliverables_stale after a report edit
   decline?: DeepResearchEditDecline | null;
   error?: DeepResearchEditFailure | null;
+  citations?: OpenString<"stable" | "compact"> | null;
+  mode?: string | null;
   pdf_url?: string | null; // Re-rendered PDF for the new version
 }
 
@@ -1100,6 +1104,7 @@ export interface DeepResearchVersion {
   stats?: DeepResearchEditStats | null;
   is_head: boolean;
   pdf_url?: string | null;
+  restored_from?: number | null; // The version a "restore" copied
 }
 
 export type DeepResearchVersionListResponse =
