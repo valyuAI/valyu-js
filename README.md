@@ -169,13 +169,46 @@ const result = await valyu.deepresearch.wait(task.deepresearch_id, {
 });
 ```
 
+**Editing a finished report.** Make small, targeted edits to a finished DeepResearch report or deliverable with a plain-language instruction. Untouched text stays exactly as it was, citations stay consistent, and every edit creates a new version you can restore.
+
+```typescript
+const status = await valyu.deepresearch.status(taskId);
+if (status.editable) {
+  let edit = await valyu.deepresearch.edit(taskId, {
+    instruction: "Cut the executive summary to 3 bullets",
+    focus: { section: "Executive Summary" },
+    baseVersion: status.version,
+    waitSeconds: 15,
+  });
+  if (edit.success && edit.status === "running") {
+    edit = await valyu.deepresearch.waitForEdit(taskId, edit.edit_id);
+  }
+  if (edit.success && edit.status === "applied") {
+    const updated = await valyu.deepresearch.status(taskId);
+    console.log(updated.version, edit.summary);
+  } else if (edit.success && edit.status === "declined") {
+    console.log(edit.decline?.code, edit.decline?.suggestion);
+  } else if (!edit.success) {
+    console.log(edit.code, edit.error); // e.g. "edit.revision_conflict"
+  }
+}
+```
+
+- `target`: `{ kind: "report" }` (default) or `{ kind: "deliverable", deliverableId: "f_01" }`.
+- `focus`: a highlighted passage (`startChar`/`endChar` UTF-16 offsets into `output`, `text`, `prefix`, `suffix`) or a `section` heading, with `scope: "prefer"` (default) or `"strict"`.
+- `citations`: `"stable"` (default) keeps citation numbers, `"compact"` renumbers them by first use.
+- `idempotencyKey` is sent as the `Idempotency-Key` header, so a retry returns the same edit.
+- A declined edit (for example `edit.out_of_evidence` or `edit.rewrite_requested`) is a successful response with `status: "declined"`. Large rewrites are declined; start a new task for those.
+- Request errors come back as `{ success: false, error, code, httpStatus }`, with `candidates` for `focus.ambiguous`.
+- Versions: `listVersions(taskId)`, `status(taskId, { version: 1 })` to read an older one, and `restoreVersion(taskId, 1)` to make it the head again (history is kept).
+
 <details>
 <summary>All DeepResearch methods</summary>
 
 | Method | Description |
 |---|---|
 | `create(options)` | Start a new research task |
-| `status(taskId)` | Get task status |
+| `status(taskId, { version }?)` | Get task status, or one version of the report |
 | `wait(taskId, options?)` | Poll until completion |
 | `stream(taskId, callbacks)` | Stream real-time updates |
 | `list(options)` | List research tasks |
@@ -184,6 +217,12 @@ const result = await valyu.deepresearch.wait(task.deepresearch_id, {
 | `delete(taskId)` | Delete a task |
 | `togglePublic(taskId, isPublic)` | Toggle public access |
 | `respond(taskId, interactionId, response)` | Answer a HITL checkpoint |
+| `edit(taskId, options)` | Edit a finished report or deliverable |
+| `getEdit(taskId, editId)` | Get one edit |
+| `listEdits(taskId)` | List a task's edits |
+| `waitForEdit(taskId, editId, options?)` | Poll until an edit is applied, declined or failed |
+| `listVersions(taskId)` | List the report's versions |
+| `restoreVersion(taskId, version)` | Restore an earlier version as the new head |
 
 </details>
 

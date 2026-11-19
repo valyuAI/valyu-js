@@ -29,6 +29,14 @@ import {
   DeepResearchGetAssetsOptions,
   DeepResearchGetAssetsResponse,
   DeepResearchRespondResponse,
+  DeepResearchStatusOptions,
+  DeepResearchEditOptions,
+  DeepResearchEditResponse,
+  DeepResearchEditErrorResponse,
+  DeepResearchEditListResponse,
+  DeepResearchVersionListResponse,
+  DeepResearchRestoreVersionResponse,
+  WaitForEditOptions,
   WaitOptions,
   StreamCallback,
   StreamOptions,
@@ -130,6 +138,34 @@ function nextPollIntervalMs(
   if (userIntervalMs !== undefined) return userIntervalMs;
   if (retryAfterMs === undefined) return DEFAULT_POLL_INTERVAL_MS;
   return Math.min(Math.max(retryAfterMs, MIN_POLL_INTERVAL_MS), MAX_POLL_INTERVAL_MS);
+}
+
+/** Default wait for an edit; edits finish in seconds to a few minutes. */
+const DEFAULT_EDIT_MAX_WAIT_TIME_MS = 600000;
+
+/**
+ * A failed edit, edits, versions or restore request, with the API's error
+ * code and its details (focus candidates, the running edit, a retry delay).
+ */
+function editErrorResponse(e: any): DeepResearchEditErrorResponse {
+  const body = e?.response?.data;
+  const result: DeepResearchEditErrorResponse = {
+    success: false,
+    error: errorText(e) || "Request failed",
+  };
+  if (typeof e?.response?.status === "number") result.httpStatus = e.response.status;
+  if (typeof body?.code === "string") result.code = body.code;
+  if (Array.isArray(body?.candidates)) result.candidates = body.candidates;
+  if (typeof body?.active_edit_id === "string") result.active_edit_id = body.active_edit_id;
+  if (typeof body?.retry_after_seconds === "number") {
+    result.retry_after_seconds = body.retry_after_seconds;
+  }
+  return result;
+}
+
+/** No response, a rate limit or a server error: the edit itself is unaffected. */
+function isTransientEditError(e: DeepResearchEditErrorResponse): boolean {
+  return e.httpStatus === undefined || TRANSIENT_STATUS_CODES.has(e.httpStatus);
 }
 
 /** Error text from an error body: its `error`, else its `message`. */
@@ -516,7 +552,10 @@ export class Valyu {
     create: (
       options: DeepResearchCreateOptions
     ) => Promise<DeepResearchCreateResponse>;
-    status: (taskId: string) => Promise<DeepResearchStatusResponse>;
+    status: (
+      taskId: string,
+      options?: DeepResearchStatusOptions
+    ) => Promise<DeepResearchStatusResponse>;
     wait: (
       taskId: string,
       options?: WaitOptions
@@ -551,6 +590,22 @@ export class Valyu {
     approvePlan: (taskId: string, interactionId: string, modifications?: string) => Promise<DeepResearchRespondResponse>;
     respondSourceReview: (taskId: string, interactionId: string, options?: { includedDomains?: string[]; excludedDomains?: string[] }) => Promise<DeepResearchRespondResponse>;
     approveOutline: (taskId: string, interactionId: string, modifications?: string) => Promise<DeepResearchRespondResponse>;
+    edit: (
+      taskId: string,
+      options: DeepResearchEditOptions
+    ) => Promise<DeepResearchEditResponse>;
+    getEdit: (taskId: string, editId: string) => Promise<DeepResearchEditResponse>;
+    listEdits: (taskId: string) => Promise<DeepResearchEditListResponse>;
+    waitForEdit: (
+      taskId: string,
+      editId: string,
+      options?: WaitForEditOptions
+    ) => Promise<DeepResearchEditResponse & { success: true }>;
+    listVersions: (taskId: string) => Promise<DeepResearchVersionListResponse>;
+    restoreVersion: (
+      taskId: string,
+      version: number
+    ) => Promise<DeepResearchRestoreVersionResponse>;
   };
 
   // Batch API namespace
@@ -651,6 +706,12 @@ export class Valyu {
       approvePlan: this._deepresearchApprovePlan.bind(this),
       respondSourceReview: this._deepresearchRespondSourceReview.bind(this),
       approveOutline: this._deepresearchApproveOutline.bind(this),
+      edit: this._deepresearchEdit.bind(this),
+      getEdit: this._deepresearchGetEdit.bind(this),
+      listEdits: this._deepresearchListEdits.bind(this),
+      waitForEdit: this._deepresearchWaitForEdit.bind(this),
+      listVersions: this._deepresearchListVersions.bind(this),
+      restoreVersion: this._deepresearchRestoreVersion.bind(this),
     };
 
     // Initialize Batch namespace
@@ -1527,14 +1588,15 @@ export class Valyu {
    */
   private async _deepresearchStatus(
     taskId: string,
-    maxAttempts: number = 5
+    options: DeepResearchStatusOptions = {}
   ): Promise<DeepResearchStatusResponse> {
-    return (await this._deepresearchPollStatus(taskId, maxAttempts)).status;
+    return (await this._deepresearchPollStatus(taskId, 5, options.version)).status;
   }
 
   private async _deepresearchPollStatus(
     taskId: string,
-    maxAttempts: number = 5
+    maxAttempts: number = 5,
+    version?: number
   ): Promise<PollResult> {
     // The status endpoint is idempotent and built to be polled, so transient
     // failures are retried with exponential backoff + jitter instead of being
@@ -1542,12 +1604,15 @@ export class Valyu {
     // errors and timeouts, HTTP 429/5xx (e.g. an ALB 502 gateway page), and
     // non-JSON or empty response bodies. Only a definitive error response (a
     // 4xx other than 429 carrying a JSON error) is returned as a failure.
-    const url = `${this.baseUrl}/deepresearch/tasks/${taskId}/status`;
+    const query = version !== undefined ? `?version=${encodeURIComponent(version)}` : "";
+    const url = `${this.baseUrl}/deepresearch/tasks/${taskId}/status${query}`;
+    // A version snapshot is cached apart from the head, so neither reuses the other's ETag.
+    const cacheKey = `${taskId}${query}`;
     let lastError = "status endpoint unreachable";
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       let retryAfterMs: number | undefined;
-      const cached = this.pollCache.get(taskId);
+      const cached = this.pollCache.get(cacheKey);
       try {
         const response = await this.client.get(url, {
           headers: cached?.etag
@@ -1563,8 +1628,8 @@ export class Valyu {
           if (cached) {
             // Not modified: the body is empty by definition, so reuse the
             // last response rather than parse it.
-            this.pollCache.delete(taskId);
-            this.pollCache.set(taskId, cached);
+            this.pollCache.delete(cacheKey);
+            this.pollCache.set(cacheKey, cached);
             return { status: { ...cached.status }, changed: false, retryAfterMs };
           }
           // A 304 we did not ask for has nothing to reuse.
@@ -1604,7 +1669,7 @@ export class Valyu {
               withWarnings({ success: true, ...rest })
             );
             const etag = response.headers?.["etag"];
-            this.rememberPoll(taskId, {
+            this.rememberPoll(cacheKey, {
               etag: typeof etag === "string" ? etag : undefined,
               status: { ...status },
             });
@@ -2021,6 +2086,181 @@ export class Valyu {
       response.modifications = modifications;
     }
     return this._deepresearchRespond(taskId, interactionId, response);
+  }
+
+  /**
+   * DeepResearch: Edit a finished report or deliverable
+   *
+   * Make small, targeted edits to a finished DeepResearch report or deliverable
+   * with a plain-language instruction. Untouched text stays exactly as it was,
+   * citations stay consistent, and every edit creates a new version you can
+   * restore.
+   *
+   * Returns the full edit record when it finishes within `waitSeconds`, else a
+   * record with status "running" to pass to waitForEdit(). A declined edit is
+   * a success response with status "declined" and a `decline` reason.
+   */
+  private async _deepresearchEdit(
+    taskId: string,
+    options: DeepResearchEditOptions
+  ): Promise<DeepResearchEditResponse> {
+    if (!options?.instruction?.trim()) {
+      return {
+        success: false,
+        error: "instruction is required and cannot be empty",
+      };
+    }
+    // The endpoint rejects unknown fields, so send only what the caller set.
+    const body: Record<string, any> = { instruction: options.instruction };
+    if (options.target) {
+      body.target =
+        options.target.kind === "deliverable"
+          ? { kind: "deliverable", deliverable_id: options.target.deliverableId }
+          : { kind: options.target.kind };
+    }
+    if (options.focus) {
+      const focus: Record<string, any> = {};
+      const keys: [keyof typeof options.focus, string][] = [
+        ["startChar", "start_char"],
+        ["endChar", "end_char"],
+        ["text", "text"],
+        ["prefix", "prefix"],
+        ["suffix", "suffix"],
+        ["section", "section"],
+        ["scope", "scope"],
+      ];
+      for (const [from, to] of keys) {
+        if (options.focus[from] !== undefined) focus[to] = options.focus[from];
+      }
+      body.focus = focus;
+    }
+    if (options.baseVersion !== undefined) body.base_version = options.baseVersion;
+    if (options.citations !== undefined) body.citations = options.citations;
+    if (options.waitSeconds !== undefined) body.wait_seconds = options.waitSeconds;
+
+    const headers = options.idempotencyKey
+      ? { ...this.headers, "Idempotency-Key": options.idempotencyKey }
+      : this.headers;
+    try {
+      const response = await this.client.post(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/edit`,
+        body,
+        // A server-side wait adds up to 20 seconds to the request.
+        { headers, timeout: this.timeout && this.timeout + 20000 }
+      );
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return editErrorResponse(e);
+    }
+  }
+
+  /**
+   * DeepResearch: Get one edit of a task
+   */
+  private async _deepresearchGetEdit(
+    taskId: string,
+    editId: string
+  ): Promise<DeepResearchEditResponse> {
+    try {
+      const response = await this.client.get(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/edits/${editId}`,
+        { headers: this.headers, timeout: this.timeout }
+      );
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return editErrorResponse(e);
+    }
+  }
+
+  /**
+   * DeepResearch: List the edits of a task
+   */
+  private async _deepresearchListEdits(
+    taskId: string
+  ): Promise<DeepResearchEditListResponse> {
+    try {
+      const response = await this.client.get(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/edits`,
+        { headers: this.headers, timeout: this.timeout }
+      );
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return editErrorResponse(e);
+    }
+  }
+
+  /**
+   * DeepResearch: Wait for an edit to finish
+   *
+   * Polls until the edit is applied, declined or failed, and returns that
+   * record. Throws when the edit cannot be read (for example 404), or with
+   * "Maximum wait time exceeded" after maxWaitTime. Network errors, 429 and
+   * 5xx are retried until then.
+   */
+  private async _deepresearchWaitForEdit(
+    taskId: string,
+    editId: string,
+    options: WaitForEditOptions = {}
+  ): Promise<DeepResearchEditResponse & { success: true }> {
+    const userInterval = options.pollInterval || undefined;
+    const maxWaitTime = options.maxWaitTime || DEFAULT_EDIT_MAX_WAIT_TIME_MS;
+    const startTime = Date.now();
+
+    while (true) {
+      const edit = await this._deepresearchGetEdit(taskId, editId);
+      let retryAfterMs: number | undefined;
+      if (edit.success) {
+        if (edit.status !== "running") return edit;
+        if (typeof edit.retry_after_seconds === "number") {
+          retryAfterMs = edit.retry_after_seconds * 1000;
+        }
+      } else if (!isTransientEditError(edit)) {
+        throw new Error(edit.error);
+      }
+
+      if (Date.now() - startTime > maxWaitTime) {
+        throw new Error("Maximum wait time exceeded");
+      }
+      await this.sleep(nextPollIntervalMs(userInterval, retryAfterMs));
+    }
+  }
+
+  /**
+   * DeepResearch: List the versions of a task's report
+   */
+  private async _deepresearchListVersions(
+    taskId: string
+  ): Promise<DeepResearchVersionListResponse> {
+    try {
+      const response = await this.client.get(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/versions`,
+        { headers: this.headers, timeout: this.timeout }
+      );
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return editErrorResponse(e);
+    }
+  }
+
+  /**
+   * DeepResearch: Restore an earlier version
+   *
+   * Creates a new head version equal to `version`. History is kept.
+   */
+  private async _deepresearchRestoreVersion(
+    taskId: string,
+    version: number
+  ): Promise<DeepResearchRestoreVersionResponse> {
+    try {
+      const response = await this.client.post(
+        `${this.baseUrl}/deepresearch/tasks/${taskId}/versions/${encodeURIComponent(version)}/restore`,
+        {},
+        { headers: this.headers, timeout: this.timeout }
+      );
+      return { success: true, ...response.data };
+    } catch (e: any) {
+      return editErrorResponse(e);
+    }
   }
 
   /**
@@ -3210,6 +3450,31 @@ export type {
   DeepResearchGetAssetsOptions,
   DeepResearchGetAssetsResponse,
   DeepResearchRespondResponse,
+  DeepResearchStatusOptions,
+  DeepResearchEditTarget,
+  DeepResearchEditFocus,
+  DeepResearchEditOptions,
+  WaitForEditOptions,
+  KnownDeepResearchEditStatus,
+  DeepResearchEditStatus,
+  KnownDeepResearchEditDeclineCode,
+  DeepResearchEditDeclineCode,
+  KnownDeepResearchEditErrorCode,
+  DeepResearchEditErrorCode,
+  DeepResearchEditTargetRecord,
+  DeepResearchEditFocusRecord,
+  DeepResearchEditDecline,
+  DeepResearchEditFailure,
+  DeepResearchEditStats,
+  DeepResearchEditRecord,
+  DeepResearchFocusCandidate,
+  DeepResearchEditErrorResponse,
+  DeepResearchEditResponse,
+  DeepResearchEditListResponse,
+  KnownDeepResearchVersionKind,
+  DeepResearchVersion,
+  DeepResearchVersionListResponse,
+  DeepResearchRestoreVersionResponse,
   HitlConfig,
   InteractionType,
   Interaction,

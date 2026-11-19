@@ -838,6 +838,13 @@ export interface DeepResearchStatusResponse {
   warnings?: ResponseWarning[];
   error?: string;
   error_code?: string; // Machine-readable code for `error`
+  // Report editing (completed tasks)
+  editable?: boolean; // Whether report editing is available for this task
+  version?: number; // Head version, or the version requested with status(taskId, { version })
+  version_count?: number; // Number of versions the task has
+  revised_at?: string | null; // ISO 8601 time of the latest applied edit or restore
+  active_edit?: DeepResearchEditRecord | null; // The edit running on this task, if any
+  is_latest?: boolean; // Set when a version was requested: whether it is the head
   // True when success=false because the status endpoint could not be reached
   // after retries (transient gateway/network failure). Retryable and distinct
   // from a failed task — the report may still be available.
@@ -906,6 +913,202 @@ export interface DeepResearchRespondResponse {
   deepresearch_id?: string;
   error?: string;
 }
+
+// DeepResearch report editing
+
+export interface DeepResearchStatusOptions {
+  /** Read this version of the report instead of the head (owner only). */
+  version?: number;
+}
+
+/** What an edit changes: the written report (default) or one deliverable file. */
+export type DeepResearchEditTarget =
+  | { kind: "report" }
+  | {
+      kind: "deliverable";
+      /** The deliverable's `id` from the task's `deliverables`, for example `"f_01"`. */
+      deliverableId: string;
+    };
+
+/** Points an edit at a highlighted passage or a section of the report. */
+export interface DeepResearchEditFocus {
+  /** UTF-16 start offset into `output` of the base version. Give it with `endChar`. */
+  startChar?: number;
+  /** UTF-16 end offset, greater than `startChar`. */
+  endChar?: number;
+  /** The highlighted text (up to 20,000 characters). */
+  text?: string;
+  /** Text just before the passage, to tell repeated phrases apart (up to 2,000 characters). */
+  prefix?: string;
+  /** Text just after the passage (up to 2,000 characters). */
+  suffix?: string;
+  /** A section heading. On its own it focuses that whole section. */
+  section?: string;
+  /** `"prefer"` (default) guides the edit to the focus; `"strict"` rejects changes outside it. */
+  scope?: "prefer" | "strict";
+}
+
+export interface DeepResearchEditOptions {
+  /** The change to make, in plain language (1 to 4,000 characters). */
+  instruction: string;
+  target?: DeepResearchEditTarget;
+  focus?: DeepResearchEditFocus;
+  /** The version you read. A moved head returns 409 `edit.revision_conflict`. */
+  baseVersion?: number;
+  /** `"stable"` (default) keeps citation numbers; `"compact"` renumbers by first use. */
+  citations?: "stable" | "compact";
+  /**
+   * Seconds (0 to 20) the API waits for the edit to finish before answering.
+   * A finished edit comes back in full; otherwise `status` is `"running"`.
+   */
+  waitSeconds?: number;
+  /** Sent as the `Idempotency-Key` header: a retry with the same key returns the same edit. */
+  idempotencyKey?: string;
+}
+
+export interface WaitForEditOptions {
+  /**
+   * Milliseconds between polls. When not set, the edit's
+   * `retry_after_seconds` is used (clamped to 1-30 seconds), else 5000.
+   */
+  pollInterval?: number;
+  /** Milliseconds to wait before throwing "Maximum wait time exceeded" (default: 600000). */
+  maxWaitTime?: number;
+}
+
+export type KnownDeepResearchEditStatus = "running" | "applied" | "declined" | "failed";
+export type DeepResearchEditStatus = OpenString<KnownDeepResearchEditStatus>;
+
+export type KnownDeepResearchEditDeclineCode =
+  | "edit.rewrite_requested"
+  | "edit.out_of_evidence"
+  | "edit.contradictory"
+  | "edit.unsafe_instruction"
+  | "edit.not_applicable"
+  | "edit.no_change";
+export type DeepResearchEditDeclineCode = OpenString<KnownDeepResearchEditDeclineCode>;
+
+export type KnownDeepResearchEditErrorCode =
+  | "edit.invalid_request"
+  | "edit.task_not_completed"
+  | "edit.in_progress"
+  | "edit.revision_conflict"
+  | "edit.unsupported_task"
+  | "focus.not_found"
+  | "focus.ambiguous"
+  | "edit.busy";
+export type DeepResearchEditErrorCode = OpenString<KnownDeepResearchEditErrorCode>;
+
+/** An edit target as the API reports it. */
+export type DeepResearchEditTargetRecord =
+  | { kind: "report" }
+  | { kind: "deliverable"; deliverable_id: string };
+
+/** An edit focus as the API reports it. */
+export interface DeepResearchEditFocusRecord {
+  start_char?: number;
+  end_char?: number;
+  text?: string;
+  prefix?: string;
+  suffix?: string;
+  section?: string;
+  scope?: "prefer" | "strict";
+}
+
+/** Why an edit finished with status `"declined"`. */
+export interface DeepResearchEditDecline {
+  code: DeepResearchEditDeclineCode;
+  message: string;
+  suggestion?: string | null;
+}
+
+/** Why an edit finished with status `"failed"`. */
+export interface DeepResearchEditFailure {
+  code?: string; // e.g. "edit.interrupted"
+  message?: string;
+  retryable?: boolean; // Whether submitting the edit again may succeed
+}
+
+export interface DeepResearchEditStats {
+  replacements?: number;
+  chars_changed?: number;
+  citations_added?: number;
+  [key: string]: unknown;
+}
+
+/** One edit of a DeepResearch report or deliverable, as the API reports it. */
+export interface DeepResearchEditRecord {
+  edit_id: string;
+  deepresearch_id: string;
+  status: DeepResearchEditStatus;
+  target: DeepResearchEditTargetRecord;
+  base_version: number;
+  version?: number | null; // The new version, when status is "applied"
+  focus?: DeepResearchEditFocusRecord | null;
+  created_at: string;
+  completed_at?: string | null;
+  retry_after_seconds?: number | null; // Suggested poll delay while running
+  summary?: string | null;
+  changes?: Record<string, any>[];
+  unapplied?: (string | Record<string, any>)[]; // Parts of the instruction not applied
+  stats?: DeepResearchEditStats | null;
+  warnings?: ResponseWarning[]; // e.g. deliverables_stale after a report edit
+  decline?: DeepResearchEditDecline | null;
+  error?: DeepResearchEditFailure | null;
+  pdf_url?: string | null; // Re-rendered PDF for the new version
+}
+
+/** A candidate passage returned with 422 `focus.ambiguous`. */
+export interface DeepResearchFocusCandidate {
+  start_char: number;
+  end_char: number;
+  section?: string | null;
+  prefix?: string;
+  suffix?: string;
+  [key: string]: unknown;
+}
+
+/** A failed edit, edits, versions or restore request. Nothing was changed. */
+export interface DeepResearchEditErrorResponse {
+  success: false;
+  error: string;
+  code?: DeepResearchEditErrorCode;
+  httpStatus?: number;
+  candidates?: DeepResearchFocusCandidate[]; // With focus.ambiguous
+  active_edit_id?: string; // With edit.in_progress
+  retry_after_seconds?: number; // With edit.busy
+}
+
+export type DeepResearchEditResponse =
+  | ({ success: true } & DeepResearchEditRecord)
+  | DeepResearchEditErrorResponse;
+
+export type DeepResearchEditListResponse =
+  | { success: true; deepresearch_id: string; edits: DeepResearchEditRecord[] }
+  | DeepResearchEditErrorResponse;
+
+export type KnownDeepResearchVersionKind = "original" | "edit" | "restore";
+
+export interface DeepResearchVersion {
+  version: number;
+  kind: OpenString<KnownDeepResearchVersionKind>;
+  target?: DeepResearchEditTargetRecord | null;
+  created_at: string;
+  edit_id?: string | null;
+  instruction?: string | null;
+  summary?: string | null;
+  stats?: DeepResearchEditStats | null;
+  is_head: boolean;
+  pdf_url?: string | null;
+}
+
+export type DeepResearchVersionListResponse =
+  | { success: true; deepresearch_id: string; head: number; versions: DeepResearchVersion[] }
+  | DeepResearchEditErrorResponse;
+
+export type DeepResearchRestoreVersionResponse =
+  | { success: true; deepresearch_id?: string; version: number; restored_from: number }
+  | DeepResearchEditErrorResponse;
 
 export interface WaitOptions {
   /**

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- DeepResearch report editing. Make small, targeted edits to a finished DeepResearch report or deliverable with a plain-language instruction. Untouched text stays exactly as it was, citations stay consistent, and every edit creates a new version you can restore.
+- New `deepresearch.edit(taskId, { instruction, target, focus, baseVersion, citations, waitSeconds, idempotencyKey })`. The SDK sends only the options you set; `idempotencyKey` goes in the `Idempotency-Key` header. With `waitSeconds` (0 to 20) a quick edit returns its finished record; otherwise `status` is `"running"`.
+- New `deepresearch.getEdit()`, `listEdits()` and `waitForEdit(taskId, editId, { pollInterval, maxWaitTime })`. `waitForEdit()` returns the edit once it is `applied`, `declined` or `failed`, follows `retry_after_seconds`, and retries network errors, 429 and 5xx (default limit 10 minutes).
+- New `deepresearch.listVersions()` and `restoreVersion(taskId, version)`. `status(taskId, { version })` reads one version of the report.
+- Failed edit, versions and restore requests return `{ success: false, error, code, httpStatus }`, plus `candidates` for `focus.ambiguous`, `active_edit_id` for `edit.in_progress` and `retry_after_seconds` for `edit.busy`.
+- Status responses gain optional `editable`, `version`, `version_count`, `revised_at`, `active_edit` and `is_latest`.
+- New exported types: `DeepResearchEditOptions`, `DeepResearchEditTarget`, `DeepResearchEditFocus`, `DeepResearchEditRecord`, `DeepResearchEditResponse`, `DeepResearchEditErrorResponse`, `DeepResearchEditDecline`, `DeepResearchEditFailure`, `DeepResearchFocusCandidate`, `DeepResearchVersion`, `DeepResearchVersionListResponse`, `DeepResearchRestoreVersionResponse`, `DeepResearchStatusOptions`, `WaitForEditOptions` and related code types.
+
 ## 2.11.9
 
 - DeepResearch deliverables accept two new types: `"html"` and `"json"`.
