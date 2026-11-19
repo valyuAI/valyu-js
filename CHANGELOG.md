@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.12.0
 
 - DeepResearch report editing. Make small, targeted edits to a finished DeepResearch report or deliverable with a plain-language instruction. Untouched text stays exactly as it was, citations stay consistent, and every edit creates a new version you can restore.
 - New `deepresearch.edit(taskId, { instruction, target, focus, baseVersion, citations, waitSeconds, idempotencyKey })`. The SDK sends only the options you set; `idempotencyKey` goes in the `Idempotency-Key` header. With `waitSeconds` (0 to 20) a quick edit returns its finished record; otherwise `status` is `"running"`.

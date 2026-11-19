@@ -69,7 +69,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.9";
+const SDK_VERSION = "2.12.0";
 
 const ANSWER_DEPRECATION_MESSAGE =
   "Valyu.answer() is deprecated and stops working on 2026-12-17. Use DeepResearch with mode: 'instant' (valyu.deepresearch.create({ query, mode: 'instant' })) or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer";
