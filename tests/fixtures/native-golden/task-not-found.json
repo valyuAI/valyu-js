@@ -1,0 +1,9 @@
+{
+  "case": "task-not-found",
+  "provisional": false,
+  "source": "response shape sample, values replaced by placeholders",
+  "http": 404,
+  "body": {
+    "error": "s"
+  }
+}

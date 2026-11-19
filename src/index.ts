@@ -48,6 +48,8 @@ import {
   DatasourcesListOptions,
   DatasourcesListResponse,
   DatasourcesCategoriesResponse,
+  DatasourcesSearchOptions,
+  DatasourcesSearchResponse,
   WorkflowsListOptions,
   WorkflowsListResponse,
   WorkflowResponse,
@@ -61,7 +63,7 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.9";
+const SDK_VERSION = "2.11.10";
 
 const ANSWER_DEPRECATION_MESSAGE =
   "Valyu.answer() is deprecated and stops working on 2026-12-17. Use DeepResearch with mode: 'instant' (valyu.deepresearch.create({ query, mode: 'instant' })) or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer";
@@ -260,6 +262,37 @@ function normalizeWarnings(value: unknown): ResponseWarning[] | undefined {
   });
 }
 
+/** Internal keys a DeepResearch response may carry. The SDK removes them, as the Python SDK does. */
+const INTERNAL_DELIVERABLE_KEYS = ["s3_key"];
+const INTERNAL_SOURCE_KEYS = ["org_id", "doc_id", "source_id"];
+const INTERNAL_BATCH_KEYS = ["organisation_id", "api_key_id", "credit_id"];
+
+function dropKeys(value: unknown, keys: readonly string[]): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return;
+  for (const k of keys) delete (value as Record<string, unknown>)[k];
+}
+
+/**
+ * Removes internal keys from a DeepResearch response body in place: `s3_key` from deliverables, `org_id`,
+ * `doc_id` and `source_id` from sources, and `organisation_id`, `api_key_id` and `credit_id` from batches.
+ * It walks nested objects and lists (a batch's tasks, a list page), at most 6 levels deep.
+ */
+export function stripInternalFields<T>(body: T, depth = 0): T {
+  if (body === null || typeof body !== "object" || depth > 6) return body;
+  if (Array.isArray(body)) {
+    for (const item of body) stripInternalFields(item, depth + 1);
+    return body;
+  }
+  const obj = body as Record<string, unknown>;
+  if ("batch_id" in obj) dropKeys(obj, INTERNAL_BATCH_KEYS);
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === "deliverables" && Array.isArray(value)) for (const d of value) dropKeys(d, INTERNAL_DELIVERABLE_KEYS);
+    if (key === "sources" && Array.isArray(value)) for (const src of value) dropKeys(src, INTERNAL_SOURCE_KEYS);
+    stripInternalFields(value, depth + 1);
+  }
+  return body;
+}
+
 function withWarnings<T extends { warnings?: ResponseWarning[] }>(body: T): T {
   if (!body || body.warnings === undefined) return body;
   return { ...body, warnings: normalizeWarnings(body.warnings) };
@@ -397,6 +430,21 @@ function validateFileContexts(
 }
 
 /**
+ * Check tools.ultrasearch: a boolean, or an object with a finite max_usd above 0.
+ * Returns an error message, or undefined when the value is valid or absent.
+ */
+function validateUltrasearch(tools: unknown): string | undefined {
+  const value = (tools as Record<string, any> | undefined)?.ultrasearch;
+  if (value === undefined || typeof value === "boolean") return undefined;
+  const maxUsd =
+    value !== null && typeof value === "object" ? value.max_usd : undefined;
+  if (typeof maxUsd !== "number" || !Number.isFinite(maxUsd) || maxUsd <= 0) {
+    return "tools.ultrasearch must be a boolean or { max_usd: number } with max_usd above 0";
+  }
+  return undefined;
+}
+
+/**
  * Build the request fields that are valid for both freeform and workflow runs.
  *
  * Workflow templates supply the freeform fields (prompt, strategy, report
@@ -427,6 +475,8 @@ function buildSharedFields(
       search.source_biases = options.search.sourceBiases;
     if (options.search.startDate) search.start_date = options.search.startDate;
     if (options.search.endDate) search.end_date = options.search.endDate;
+    if (options.search.referenceDate)
+      search.reference_date = options.search.referenceDate;
     if (options.search.historicalCache !== undefined)
       search.historical_cache = options.search.historicalCache;
     if (options.search.historicalCacheStrict !== undefined)
@@ -577,6 +627,10 @@ export class Valyu {
   public datasources: {
     list: (options?: DatasourcesListOptions) => Promise<DatasourcesListResponse>;
     categories: () => Promise<DatasourcesCategoriesResponse>;
+    search: (
+      query: string,
+      options?: DatasourcesSearchOptions
+    ) => Promise<DatasourcesSearchResponse>;
   };
 
   // Workflows API namespace
@@ -633,6 +687,11 @@ export class Valyu {
       httpAgent: new http.Agent({ keepAlive: true }),
       httpsAgent: new https.Agent({ keepAlive: true }),
     });
+    // DeepResearch responses: remove internal keys (stripInternalFields).
+    this.client.interceptors?.response?.use((response) => {
+      if (String(response?.config?.url ?? "").includes("/deepresearch")) stripInternalFields(response.data);
+      return response;
+    });
 
     // Initialize DeepResearch namespace
     this.deepresearch = {
@@ -668,6 +727,7 @@ export class Valyu {
     this.datasources = {
       list: this._datasourcesList.bind(this),
       categories: this._datasourcesCategories.bind(this),
+      search: this._datasourcesSearch.bind(this),
     };
 
     // Initialize Workflows namespace
@@ -798,13 +858,16 @@ export class Valyu {
    * @param query - The search query string
    * @param options - Search configuration options
    * @param options.searchType - Type of search: "web", "proprietary", "all", or "news"
-   * @param options.maxNumResults - Maximum number of results (1-100)
-   * @param options.maxPrice - Maximum price per thousand characters (CPM)
+   * @param options.maxNumResults - Maximum number of results (API default 5, this SDK sends 10 when unset). The API caps this at 20 unless your key has the increased-results permission; a higher value is lowered and the response carries a `max_num_results_capped` warning
+   * @param options.maxPrice - Maximum cost of the whole request (API default 1000). Sent only when set
    * @param options.isToolCall - Whether this is a tool call
    * @param options.relevanceThreshold - Minimum relevance score (0-1)
    * @param options.includedSources - List of specific sources to include
    * @param options.excludeSources - List of URLs/domains to exclude from search results
-   * @param options.category - Category filter for search results
+   * @param options.excludedSources - Alias of excludeSources; excludeSources wins if both are set
+   * @param options.category - Deprecated. Use `instructions` instead
+   * @param options.scopePolicy - "advisory" (API default) or "strict". Strict searches exactly the datasets in includedSources and the response carries `source_scope`
+   * @param options.hlsCoverage - Wiley HLS coverage: "hls" (API default) or "increased_coverage"
    * @param options.startDate - Start date filter (YYYY-MM-DD format)
    * @param options.endDate - End date filter (YYYY-MM-DD format)
    * @param options.historicalCache - When true and a date range is set, return the newest cached snapshot inside the range instead of the latest crawl. No-op without a date range (default: false)
@@ -821,6 +884,11 @@ export class Valyu {
     options: SearchOptions = {}
   ): Promise<SearchResponse> {
     try {
+      // `excludedSources` is an alias of `excludeSources`
+      if (options.excludedSources !== undefined && options.excludeSources === undefined) {
+        options = { ...options, excludeSources: options.excludedSources };
+      }
+
       // Default values
       const defaultSearchType: SearchType = "all";
       const defaultMaxNumResults = 10;
@@ -994,6 +1062,14 @@ export class Valyu {
 
       if (options.category !== undefined) {
         payload.category = options.category;
+      }
+
+      if (options.scopePolicy !== undefined) {
+        payload.scope_policy = options.scopePolicy;
+      }
+
+      if (options.hlsCoverage !== undefined) {
+        payload.hls_coverage = options.hlsCoverage;
       }
 
       if (options.startDate !== undefined) {
@@ -1382,7 +1458,7 @@ export class Valyu {
 
   /**
    * DeepResearch: Create a new research task
-   * @param options.mode - "instant", "fast" (default), "standard", "heavy" or "max". "instant" returns a short cited answer, typically in under 30 seconds; HITL checkpoints do not run in instant mode
+   * @param options.mode - "instant", "fast", "standard" (default), "heavy" or "max" ("lite" is deprecated and sent as "standard"). "instant" returns a short cited answer, typically in under 30 seconds; HITL checkpoints do not run in instant mode
    * @param options.search - Search configuration options
    * @param options.search.searchType - Type of search: "all", "web", or "proprietary" (default: "all")
    * @param options.search.includedSources - Array of source types to include (e.g., ["academic", "finance", "web"])
@@ -1396,6 +1472,11 @@ export class Valyu {
     options: DeepResearchCreateOptions
   ): Promise<DeepResearchCreateResponse> {
     try {
+      const ultrasearchError = validateUltrasearch(options.tools);
+      if (ultrasearchError) {
+        return { success: false, error: ultrasearchError };
+      }
+
       // Enforce the server's combined-length cap on research_strategy (or its
       // legacy alias strategy) plus report_format before doing any work, so the
       // client-side error matches the server's 400 body exactly and no request
@@ -1486,7 +1567,7 @@ export class Valyu {
       const mode = apiMode(options.mode ?? options.model);
       const payload: Record<string, any> = {
         query: queryValue,
-        mode: mode || "fast", // API defaults to "standard", but we keep "fast" for backward compatibility
+        mode: mode || "standard", // Matches the API default
         output_formats: options.outputFormats || ["markdown"],
       };
 
@@ -2191,6 +2272,9 @@ export class Valyu {
         if (options.search.endDate) {
           payload.search.end_date = options.search.endDate;
         }
+        if (options.search.referenceDate) {
+          payload.search.reference_date = options.search.referenceDate;
+        }
         if (options.search.historicalCache !== undefined) {
           payload.search.historical_cache = options.search.historicalCache;
         }
@@ -2206,6 +2290,23 @@ export class Valyu {
       }
       if (options.webhookUrl) payload.webhook_url = options.webhookUrl;
       if (options.metadata) payload.metadata = options.metadata;
+      // Optional: when given, the batch is created with these tasks. Without it the server
+      // opens an empty batch; add tasks with batch.addTasks().
+      if (options.tasks && options.tasks.length > 0) {
+        payload.tasks = options.tasks.map((task: any) => {
+          const t: Record<string, any> = { ...task };
+          if (task.researchStrategy !== undefined) {
+            t.research_strategy = task.researchStrategy;
+            delete t.researchStrategy;
+          }
+          if (task.reportFormat !== undefined) {
+            t.report_format = task.reportFormat;
+            delete t.reportFormat;
+          }
+          if (task.input !== undefined && task.query === undefined) t.query = task.input;
+          return t;
+        });
+      }
 
       const response = await this.withRateLimitRetry(() =>
         this.client.post(
@@ -2905,7 +3006,42 @@ export class Valyu {
       }`;
       const response = await this.client.get(url, { headers: this.headers });
 
-      return { success: true, datasources: response.data.datasources };
+      return {
+        success: true,
+        datasources: response.data.datasources,
+        total_count: response.data.total_count,
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: errorText(e),
+      };
+    }
+  }
+
+  /**
+   * Datasources: Semantic search over the datasource catalogue
+   * @param query - Natural-language description of the data you want
+   * @param options.limit - Maximum datasets to return (1-100, API default 20)
+   * @returns Promise resolving to datasources ranked best-first
+   */
+  private async _datasourcesSearch(
+    query: string,
+    options: DatasourcesSearchOptions = {}
+  ): Promise<DatasourcesSearchResponse> {
+    try {
+      if (!query || !query.trim()) {
+        return { success: false, error: "query is required and cannot be empty" };
+      }
+      const params = new URLSearchParams({ q: query });
+      if (options.limit !== undefined) {
+        params.append("limit", String(options.limit));
+      }
+      const response = await this.client.get(
+        `${this.baseUrl}/datasources/search?${params.toString()}`,
+        { headers: this.headers }
+      );
+      return { ...response.data, success: response.data?.success ?? true };
     } catch (e: any) {
       return {
         success: false,
@@ -3136,6 +3272,10 @@ export type {
   ValyuOptions,
   RateLimitDetail,
   ResponseWarning,
+  ScopePolicy,
+  HlsCoverage,
+  SourceScope,
+  DeepResearchSourceLocation,
   SearchResponse,
   SearchType,
   SearchResult,
@@ -3245,6 +3385,9 @@ export type {
   DatasourcesListOptions,
   DatasourcesListResponse,
   DatasourcesCategoriesResponse,
+  DatasourcesSearchOptions,
+  DatasourcesSearchResponse,
+  DatasourceSearchResult,
   WorkflowMode,
   WorkflowVariableType,
   WorkflowVariableValidation,
