@@ -106,6 +106,8 @@ const response = await valyu.contents(["https://en.wikipedia.org/wiki/OpenAI"], 
 
 ### Answer
 
+> **Deprecated.** The Answer API is deprecated (announced 2026-11-17) and stops working on 2026-12-17, when the endpoint returns HTTP 410. `valyu.answer()` still works until then but logs a one-time `console.warn` per process. Use DeepResearch with `mode: "instant"`, or `search()` plus your own LLM. See the [migration guide](https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer).
+
 AI-generated answers grounded by Valyu's search. Supports streaming.
 
 ```typescript

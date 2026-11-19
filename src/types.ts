@@ -321,6 +321,7 @@ export interface ContentsResponse {
 }
 
 // Answer API Types
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerOptions {
   structuredOutput?: Record<string, any>;
   systemInstructions?: string;
@@ -362,6 +363,7 @@ export interface ExtractionMetadata {
   extract_effort: string;
 }
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerSearchResult {
   title: string;
   url: string;
@@ -377,6 +379,7 @@ export interface AnswerSearchResult {
   abstract?: string;
 }
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerSuccessResponse {
   success: true;
   tx_id: string;
@@ -390,6 +393,7 @@ export interface AnswerSuccessResponse {
   warnings?: ResponseWarning[];
 }
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerErrorResponse {
   success: false;
   error: string;
@@ -397,9 +401,11 @@ export interface AnswerErrorResponse {
   rateLimit?: RateLimitDetail;
 }
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export type AnswerResponse = AnswerSuccessResponse | AnswerErrorResponse;
 
 // Streaming Types for Answer API
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export type AnswerStreamChunkType =
   | "search_results"
   | "content"
@@ -407,6 +413,7 @@ export type AnswerStreamChunkType =
   | "done"
   | "error";
 
+/** @deprecated The Answer API stops working on 2026-12-17. Use DeepResearch with mode: 'instant' or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer */
 export interface AnswerStreamChunk {
   type: AnswerStreamChunkType;
 
@@ -546,7 +553,7 @@ export interface MCPServerConfig {
   allowedTools?: string[];
 }
 
-export type KnownDeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf";
+export type KnownDeliverableType = "csv" | "xlsx" | "pptx" | "docx" | "pdf" | "html" | "json";
 /** Deliverable file type. Unknown strings are accepted in responses. */
 export type DeliverableType = OpenString<KnownDeliverableType>;
 export type KnownDeliverableStatus = "completed" | "failed" | "pending";
@@ -561,6 +568,21 @@ export interface Deliverable {
   sheetName?: string;
   slides?: number;
   template?: string;
+  /**
+   * JSON Schema the produced file must validate against. Applies to
+   * `type: "json"` only; the API ignores it (with a warning) on other types.
+   * Draft 2020-12 by default, draft-07 when the schema has a `$schema` header.
+   * Sent to the API unchanged, so keys such as `additionalProperties` and
+   * `$defs` are not rewritten. The API returns 400 DELIVERABLE_SCHEMA_INVALID
+   * for a schema that is not an object, is empty, is over 20,000 characters,
+   * uses an external `$ref`, or has a regex `pattern` with lookahead or
+   * backreferences.
+   *
+   * Without a schema, the file has this shape:
+   * `{title, as_of, summary, key_findings: [{finding, citations}],
+   * tables: [{title, columns, rows}], sources: [{n, title, url}]}`.
+   */
+  schema?: Record<string, unknown>;
 }
 
 export interface DeliverableResult {

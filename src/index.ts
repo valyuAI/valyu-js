@@ -63,7 +63,11 @@ import {
   ResponseWarning,
 } from "./types";
 
-const SDK_VERSION = "2.11.9";
+const SDK_VERSION = "2.11.10";
+
+const ANSWER_DEPRECATION_MESSAGE =
+  "Valyu.answer() is deprecated and stops working on 2026-12-17. Use DeepResearch with mode: 'instant' (valyu.deepresearch.create({ query, mode: 'instant' })) or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer";
+let answerDeprecationWarned = false;
 
 /** `maxRateLimitRetries` when the constructor options do not set one. */
 const DEFAULT_MAX_RATE_LIMIT_RETRIES = 2;
@@ -2581,6 +2585,7 @@ export class Valyu {
 
   /**
    * Get AI-powered answers using the Valyu Answer API
+   * @deprecated The Answer API stops working on 2026-12-17 (the endpoint then returns HTTP 410). Use DeepResearch with mode: 'instant' (valyu.deepresearch.create({ query, mode: 'instant' })) or search(). Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer
    * @param query - The question or query string
    * @param options - Answer configuration options
    * @param options.structuredOutput - JSON Schema object for structured responses
@@ -2602,6 +2607,11 @@ export class Valyu {
   ): Promise<
     AnswerResponse | AsyncGenerator<AnswerStreamChunk, void, unknown>
   > {
+    if (!answerDeprecationWarned) {
+      answerDeprecationWarned = true;
+      console.warn(ANSWER_DEPRECATION_MESSAGE);
+    }
+
     // Validate inputs first
     const validationError = this.validateAnswerParams(query, options);
     if (validationError) {

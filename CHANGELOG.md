@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.11.9
+## 2.11.10
 
 - DeepResearch: new `tools.ultrasearch` option on `deepresearch.create()`. Pass `true` for the default spend cap, or `{ max_usd: number }` for your own cap in US dollars (above 0). `false` or omitted leaves it off. Ultrasearch works in `heavy` and `max` modes only, and the API refuses it on a task with a historical date bound. The SDK rejects a `max_usd` that is not a finite number above 0. Its charges appear as ordinary lines in `cost_breakdown.tools` and `cost_breakdown.datasets`. The response `tools` field can echo `ultrasearch`. New exported `UltrasearchConfig` type.
 - DeepResearch: new response fields in the types: `structured_report`, `sources[].locations`, `ignored_fields` and `error_message`. The image type also accepts `attachment`. New helpers `effectiveMode()`, `effectiveOutputFormats()` and `effectiveCostDetail()`.
@@ -14,6 +14,15 @@
 - The `"lite"` DeepResearch mode stays in the `DeepResearchMode` type but is marked `@deprecated`. Use `"standard"`.
 - The `model` option of `deepresearch.create()` and `batch.create()` is marked `@deprecated`. Use `mode`. The SDK sends its value as `mode`.
 - `category` is marked deprecated (use `instructions`). Docs: corrected `maxPrice`, `maxNumResults` and `searchType` descriptions and the DeepResearch method table.
+
+## 2.11.9
+
+- DeepResearch deliverables accept two new types: `"html"` and `"json"`.
+- New optional `schema` field on a `json` deliverable: a JSON Schema (draft 2020-12 by default, draft-07 with a `$schema` header) that the produced file must validate against. The SDK sends it unchanged. The API ignores it on other types, and returns 400 `DELIVERABLE_SCHEMA_INVALID` for an invalid schema. Without a schema, the file has the default shape `{title, as_of, summary, key_findings, tables, sources}`.
+
+## 2.11.8
+
+- Deprecation: the Answer API stops working on 2026-12-17, when the endpoint returns HTTP 410. `answer()` still works as before, but now logs a one-time `console.warn` per process. The `Answer*` types are marked `@deprecated`. Use DeepResearch with `mode: "instant"`, or `search()` plus your own LLM. Migration guide: https://docs.valyu.ai/api-reference/endpoint/answer#migrate-from-answer
 
 ## 2.11.7
 
