@@ -67,4 +67,16 @@ jobs:
 
       - name: Publish with provenance
         if: steps.check.outputs.skip == 'false'
-        run: npm publish --provenance --access public
+        # npm moves `latest` to whatever was just published, even a lower
+        # version. A version below the current `latest` (a branch that kept an
+        # older number) is published under `previous`, so installs never
+        # downgrade.
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          LATEST=$(npm view valyu-js dist-tags.latest 2>/dev/null || true)
+          TAG=latest
+          if [ -n "$LATEST" ] && [ "$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            TAG=previous
+          fi
+          echo "Publishing $VERSION with tag $TAG (latest is ${LATEST:-unset})"
+          npm publish --provenance --access public --tag "$TAG"
