@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.12.2
+
+- DeepResearch: new `tools.ultrasearch` option on `deepresearch.create()`. Pass `true` for the default spend cap, or `{ max_usd: number }` for your own cap in US dollars (above 0). `false` or omitted leaves it off. Ultrasearch works in `heavy` and `max` modes only, and the API refuses it on a task with a historical date bound. The SDK rejects a `max_usd` that is not a finite number above 0. Its charges appear as ordinary lines in `cost_breakdown.tools` and `cost_breakdown.datasets`. The response `tools` field can echo `ultrasearch`. New exported `UltrasearchConfig` type.
+- DeepResearch: new response fields in the types: `structured_report`, `sources[].locations`, `ignored_fields` and `error_message`. The image type also accepts `attachment`. New helpers `effectiveMode()`, `effectiveOutputFormats()` and `effectiveCostDetail()`.
+- Response types no longer expose internal fields. `DeliverableResult.s3_key`, `DeepResearchSource.org_id`, `doc_id` and `source_id`, and `DeepResearchBatch.organisation_id`, `api_key_id` and `credit_id` are removed. The SDK also drops these keys if a DeepResearch response still carries them.
+- DeepResearch: `batch.create()` accepts an optional `tasks` array to create a batch with its tasks.
+- **Behavior change:** `deepresearch.create()` now sends `mode: "standard"` when you pass no `mode` (or `model`). It sent `"fast"` before. `standard` is the API default (100 credits; `fast` is 25). To keep the old behavior, pass `mode: "fast"`.
+- `search()`: new `scopePolicy` option (`"advisory"` or `"strict"`) and `SearchResponse.source_scope` receipt. New `hlsCoverage` option (`"hls"` or `"increased_coverage"`). New `excludedSources` option, an alias of `excludeSources`.
+- `SearchResult` gains `crawl_date`. `ContentResultSuccess` gains `id`, `doi`, `authors`, `citation_count` and `structured_metadata`.
+- DeepResearch: new `search.referenceDate` (sent as `reference_date`) for `create()` and `batch.create()`. `DeepResearchSource` gains `locations` (passage-level citations).
+- New `datasources.search(query, { limit })` for semantic datasource search. `Datasource` gains `required_plan`, `access_modes`, `geography`, `capabilities` and `data_source`. `datasources.list()` returns `total_count`.
+- The `"lite"` DeepResearch mode stays in the `DeepResearchMode` type but is marked `@deprecated`. Use `"standard"`.
+- The `model` option of `deepresearch.create()` and `batch.create()` is marked `@deprecated`. Use `mode`. The SDK sends its value as `mode`.
+- `category` is marked deprecated (use `instructions`). Docs: corrected `maxPrice`, `maxNumResults` and `searchType` descriptions and the DeepResearch method table.
+
 ## 2.12.1
 
 - Edit records from `deepresearch.edit()`, `getEdit()`, `listEdits()` and `waitForEdit()`, the `active_edit` on status responses, and `listVersions()` entries now contain only their documented fields. `progress` carries `step`. `DeepResearchEditRecord` types `instruction`, `progress`, `citations` and `mode`; `DeepResearchVersion` types `restored_from`.

@@ -36,7 +36,6 @@ describe("DeepResearch response types", () => {
           status: "completed",
           title: "t",
           url: "u",
-          s3_key: "k",
           created_at: 1,
         },
       ],
@@ -77,7 +76,6 @@ describe("DeepResearch response types", () => {
       status: "pending",
       title: "t",
       url: "",
-      s3_key: "",
       created_at: 1700000000000,
     };
     const full: DeepResearchStatusResponse = {
@@ -145,7 +143,6 @@ describe("DeepResearch response types", () => {
           status: "some_new_state",
           title: "t",
           url: "u",
-          s3_key: "k",
         },
       ],
     };
