@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.11.10
+## 2.12.2
 
 - DeepResearch: new `tools.ultrasearch` option on `deepresearch.create()`. Pass `true` for the default spend cap, or `{ max_usd: number }` for your own cap in US dollars (above 0). `false` or omitted leaves it off. Ultrasearch works in `heavy` and `max` modes only, and the API refuses it on a task with a historical date bound. The SDK rejects a `max_usd` that is not a finite number above 0. Its charges appear as ordinary lines in `cost_breakdown.tools` and `cost_breakdown.datasets`. The response `tools` field can echo `ultrasearch`. New exported `UltrasearchConfig` type.
 - DeepResearch: new response fields in the types: `structured_report`, `sources[].locations`, `ignored_fields` and `error_message`. The image type also accepts `attachment`. New helpers `effectiveMode()`, `effectiveOutputFormats()` and `effectiveCostDetail()`.
@@ -14,6 +14,20 @@
 - The `"lite"` DeepResearch mode stays in the `DeepResearchMode` type but is marked `@deprecated`. Use `"standard"`.
 - The `model` option of `deepresearch.create()` and `batch.create()` is marked `@deprecated`. Use `mode`. The SDK sends its value as `mode`.
 - `category` is marked deprecated (use `instructions`). Docs: corrected `maxPrice`, `maxNumResults` and `searchType` descriptions and the DeepResearch method table.
+
+## 2.12.1
+
+- Edit records from `deepresearch.edit()`, `getEdit()`, `listEdits()` and `waitForEdit()`, the `active_edit` on status responses, and `listVersions()` entries now contain only their documented fields. `progress` carries `step`. `DeepResearchEditRecord` types `instruction`, `progress`, `citations` and `mode`; `DeepResearchVersion` types `restored_from`.
+
+## 2.12.0
+
+- DeepResearch report editing. Make small, targeted edits to a finished DeepResearch report or deliverable with a plain-language instruction. Untouched text stays exactly as it was, citations stay consistent, and every edit creates a new version you can restore.
+- New `deepresearch.edit(taskId, { instruction, target, focus, baseVersion, citations, waitSeconds, idempotencyKey })`. The SDK sends only the options you set; `idempotencyKey` goes in the `Idempotency-Key` header. With `waitSeconds` (0 to 20) a quick edit returns its finished record; otherwise `status` is `"running"`.
+- New `deepresearch.getEdit()`, `listEdits()` and `waitForEdit(taskId, editId, { pollInterval, maxWaitTime })`. `waitForEdit()` returns the edit once it is `applied`, `declined` or `failed`, follows `retry_after_seconds`, and retries network errors, 429 and 5xx (default limit 10 minutes).
+- New `deepresearch.listVersions()` and `restoreVersion(taskId, version)`. `status(taskId, { version })` reads one version of the report.
+- Failed edit, versions and restore requests return `{ success: false, error, code, httpStatus }`, plus `candidates` for `focus.ambiguous`, `active_edit_id` for `edit.in_progress` and `retry_after_seconds` for `edit.busy`.
+- Status responses gain optional `editable`, `version`, `version_count`, `revised_at`, `active_edit` and `is_latest`.
+- New exported types: `DeepResearchEditOptions`, `DeepResearchEditTarget`, `DeepResearchEditFocus`, `DeepResearchEditRecord`, `DeepResearchEditResponse`, `DeepResearchEditErrorResponse`, `DeepResearchEditDecline`, `DeepResearchEditFailure`, `DeepResearchFocusCandidate`, `DeepResearchVersion`, `DeepResearchVersionListResponse`, `DeepResearchRestoreVersionResponse`, `DeepResearchStatusOptions`, `WaitForEditOptions` and related code types.
 
 ## 2.11.9
 
